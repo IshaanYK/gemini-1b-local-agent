@@ -81,7 +81,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "grep_search",
-            "description": "Search across files in a directory for a text pattern or query.",
+            "description": "Search across files in a directory or codebase for a text pattern or query string.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -244,16 +244,21 @@ def extract_fallback_tool(content):
 
 SYSTEM_INSTRUCTION = """You are Antigravity Gemini Agent, an autonomous software engineering pair programmer equipped with native system tools.
 You have FULL authority and capabilities to:
+- Search files and codebases (`grep_search`)
 - Read local files (`read_file`)
 - Write new code files (`write_file`)
 - Edit existing code in-place (`replace_file_content`)
-- Search codebases (`grep_search`)
 - Inspect directories (`list_dir`)
-- Execute terminal commands & run scripts (`run_command`)
+- Execute terminal commands (`run_command`)
 
-RULES:
-1. Always take initiative! If asked to build, fix, run, or check code, USE YOUR TOOLS immediately.
-2. NEVER state that you lack access to local files or commands — YOU HAVE FULL TOOL ACCESS.
+CRITICAL DIRECTIVE:
+1. Whenever the user says "go check X", "check X", "find X", "look for X", or asks about any file/folder/project:
+   - YOU MUST IMMEDIATELY CALL YOUR TOOLS (`grep_search`, `list_dir`, `read_file`, or `run_command`).
+   - NEVER give a generic or textbook answer when the user asks to check something on their computer. Search the codebase or directory FIRST!
+2. Examples:
+   - User: "go and check call agent" -> Call `grep_search(path=".", query="call agent")` or `list_dir(path=".")`
+   - User: "check my sem 4 folder" -> Call `list_dir(path="Desktop/sem 4")`
+   - User: "run python script" -> Call `run_command(command="python script.py")`
 """
 
 @app.route('/api/chat', methods=['POST'])
@@ -270,9 +275,9 @@ def chat():
     def generate():
         nonlocal messages
         
-        yield f"data: {json.dumps({'thinking': 'Analyzing request & planning autonomous steps...'})}\n\n"
+        yield f"data: {json.dumps({'thinking': 'Analyzing request & planning tool execution steps...'})}\n\n"
         
-        for step in range(1, 11): # Up to 10 autonomous tool steps
+        for step in range(1, 11):
             try:
                 response = client.chat.completions.create(
                     model=requested_model,
@@ -304,7 +309,7 @@ def chat():
                 messages.append(msg.model_dump() if hasattr(msg, 'model_dump') else dict(msg))
                 
                 for tool_name, tool_args, tool_id in tool_calls_to_process:
-                    yield f"data: {json.dumps({'thinking': f'Step {step}: Executing `{tool_name}`...'})}\n\n"
+                    yield f"data: {json.dumps({'thinking': f'Step {step}: Running `{tool_name}`...'})}\n\n"
                     yield f"data: {json.dumps({'system': f'Executing {tool_name}...'})}\n\n"
                     
                     result = execute_tool(tool_name, tool_args)
