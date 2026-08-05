@@ -5,19 +5,25 @@ const welcomeScreen = document.getElementById('welcome-screen');
 const chatViewport = document.getElementById('chat-viewport');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar');
 const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
 
 let chatHistory = [];
 const API_URL = 'http://localhost:5000/api/chat';
 
-// Sidebar Toggle
+// Mobile Sidebar Drawer Overlay Handler
 toggleSidebarBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
+    sidebar.classList.toggle('open');
+    sidebarOverlay.classList.toggle('active');
+});
+
+sidebarOverlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('active');
 });
 
 function cleanLaTeXAndFormatting(text) {
     if (!text) return '';
     return text
-        // Clean raw LaTeX text wrappers like $\text{Win} + \text{I}$ to Win + I
         .replace(/\$\\text\{([^}]+)\}\$/g, '`$1`')
         .replace(/\\text\{([^}]+)\}/g, '$1')
         .replace(/\\rightarrow/g, '➔')
@@ -25,6 +31,30 @@ function cleanLaTeXAndFormatting(text) {
         .replace(/\\Rightarrow/g, '➔')
         .replace(/\\Leftarrow/g, '⬅')
         .replace(/\$([^\$\n]+)\$/g, '$1');
+}
+
+function postProcessCodeBlocks(container) {
+    const preBlocks = container.querySelectorAll('pre');
+    preBlocks.forEach(pre => {
+        if (!pre.querySelector('.code-header-bar')) {
+            const header = document.createElement('div');
+            header.className = 'code-header-bar';
+            header.innerHTML = `
+                <span>Code Output</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            `;
+            pre.insertBefore(header, pre.firstChild);
+        }
+    });
+}
+
+function copyCode(btn) {
+    const pre = btn.closest('pre');
+    const code = pre.querySelector('code') ? pre.querySelector('code').innerText : pre.innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        btn.innerText = 'Copied!';
+        setTimeout(() => btn.innerText = 'Copy', 2000);
+    });
 }
 
 // Load context from handoff script if available
@@ -42,6 +72,9 @@ fetch('handoff_context.json')
                     const content = msg.role === 'user' ? escapeHtml(msg.content) : marked.parse(cleaned);
                     row.innerHTML = `<div class="avatar"></div><div class="message-bubble">${content}</div>`;
                     messagesContainer.appendChild(row);
+                    if (msg.role !== 'user') {
+                        postProcessCodeBlocks(row.querySelector('.message-bubble'));
+                    }
                 }
             });
             chatViewport.scrollTop = chatViewport.scrollHeight;
@@ -88,6 +121,9 @@ function appendMessage(role, content) {
     row.appendChild(avatar);
     row.appendChild(bubble);
     messagesContainer.appendChild(row);
+    if (role !== 'user') {
+        postProcessCodeBlocks(bubble);
+    }
     chatViewport.scrollTop = chatViewport.scrollHeight;
     return bubble;
 }
@@ -147,7 +183,7 @@ async function sendMessage() {
                             throw new Error(data.error);
                         }
                     } catch (e) {
-                        // ignore partial chunk parse errors
+                        // ignore partial chunks
                     }
                 }
             }
@@ -158,7 +194,7 @@ async function sendMessage() {
 
     } catch (error) {
         renderAssistantMessage(aiBubble, thinkingLogs, fullResponse);
-        aiBubble.innerHTML += `<div style="color: #ef4444; margin-top:8px; font-weight:600">Error: ${error.message}</div>`;
+        aiBubble.innerHTML += `<div style="color: #ff453a; margin-top:8px; font-weight:600">Error: ${error.message}</div>`;
     } finally {
         sendButton.disabled = false;
         messageInput.focus();
@@ -181,4 +217,5 @@ function renderAssistantMessage(container, logs, responseText) {
     const cleaned = cleanLaTeXAndFormatting(responseText);
     const contentHtml = responseText ? marked.parse(cleaned) : '';
     container.innerHTML = thinkingHtml + (contentHtml || '<span style="color:var(--text-muted)">Thinking...</span>');
+    postProcessCodeBlocks(container);
 }

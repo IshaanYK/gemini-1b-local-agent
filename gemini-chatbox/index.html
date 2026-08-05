@@ -2,90 +2,101 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Agent Workspace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gemini Agent Workspace — Apple Edition</title>
+    <!-- Fonts: Inter, Plus Jakarta Sans, Fira Code, JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
-    <!-- KaTeX CSS & JS for math rendering -->
+    <!-- KaTeX CSS & JS for crisp math notation -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <!-- Marked Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
+    <!-- Mobile Backdrop Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <div class="app-layout">
-        <!-- Sidebar (Linear App Style) -->
+        <!-- Apple HIG Glassmorphism Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
+                <!-- macOS Window Control Dots -->
+                <div class="macos-window-dots">
+                    <span class="dot dot-close"></span>
+                    <span class="dot dot-minimize"></span>
+                    <span class="dot dot-expand"></span>
+                </div>
                 <div class="logo">
-                    <svg class="gemini-sparkle-logo" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 0C12 6.62742 6.62742 12 0 12C6.62742 12 12 17.3726 12 24C12 17.3726 17.3726 12 24 12C17.3726 12 12 6.62742 12 0Z" fill="url(#gemini-grad)"/>
+                    <svg class="gemini-sparkle-logo" width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C12 6.62742 6.62742 12 0 12C6.62742 12 12 17.3726 12 24C12 17.3726 17.3726 12 24 12C17.3726 12 12 6.62742 12 0Z" fill="url(#apple-gemini-grad)"/>
                         <defs>
-                            <linearGradient id="gemini-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                                <stop stop-color="#4285F4"/>
-                                <stop offset="0.5" stop-color="#9B51E0"/>
-                                <stop offset="1" stop-color="#E91E63"/>
+                            <linearGradient id="apple-gemini-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#007AFF"/>
+                                <stop offset="0.5" stop-color="#AF52DE"/>
+                                <stop offset="1" stop-color="#FF2D55"/>
                             </linearGradient>
                         </defs>
                     </svg>
-                    <span class="logo-text">Gemini <span class="logo-tag">1B Agent</span></span>
+                    <span class="logo-text">Gemini <span class="logo-apple-badge">Pro 1B</span></span>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-label">Session</div>
+                <div class="sidebar-label">Active Workspace</div>
                 <div class="sidebar-item active">
-                    <span class="item-icon">💬</span>
-                    <span class="item-text">Active Handoff Workspace</span>
-                    <span class="status-dot"></span>
+                    <span class="item-icon">💻</span>
+                    <span class="item-text">Local Pair Programmer</span>
+                    <span class="apple-status-dot"></span>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-label">Local Agent Tools</div>
-                <div class="tool-badge-list">
-                    <div class="tool-chip"><span class="chip-dot green"></span> run_command</div>
-                    <div class="tool-chip"><span class="chip-dot blue"></span> grep_search</div>
-                    <div class="tool-chip"><span class="chip-dot purple"></span> replace_file</div>
-                    <div class="tool-chip"><span class="chip-dot orange"></span> write_file</div>
-                    <div class="tool-chip"><span class="chip-dot cyan"></span> list_dir</div>
+                <div class="sidebar-label">Native Agent Tools</div>
+                <div class="tool-badge-grid">
+                    <div class="apple-tool-chip"><span class="chip-dot green"></span> run_command</div>
+                    <div class="apple-tool-chip"><span class="chip-dot blue"></span> grep_search</div>
+                    <div class="apple-tool-chip"><span class="chip-dot purple"></span> replace_file</div>
+                    <div class="apple-tool-chip"><span class="chip-dot orange"></span> write_file</div>
+                    <div class="apple-tool-chip"><span class="chip-dot cyan"></span> list_dir</div>
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                <div class="server-status">
-                    <span class="pulse-indicator"></span>
-                    <span>Backend Active (Port 5000)</span>
+                <div class="apple-server-badge">
+                    <span class="live-pulse"></span>
+                    <span>Backend Active (5000)</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Content Workspace -->
+        <!-- Main Content Glass Workspace -->
         <div class="main-workspace">
             <!-- Header Bar -->
             <header class="top-bar">
                 <div class="top-left">
-                    <button class="icon-btn sidebar-toggle" id="toggle-sidebar" title="Toggle Sidebar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <button class="apple-icon-btn sidebar-toggle" id="toggle-sidebar" title="Toggle Navigation">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="4" ry="4"/>
                             <line x1="9" y1="3" x2="9" y2="21"/>
                         </svg>
                     </button>
-                    <div class="workspace-title">Local Pair Programmer</div>
+                    <div class="workspace-title">Apple Workspace</div>
                 </div>
 
                 <div class="top-right">
-                    <div class="model-select-wrapper">
-                        <select id="model-selector" class="model-dropdown">
+                    <div class="model-select-container">
+                        <select id="model-selector" class="apple-dropdown">
                             <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash (Fast & Agentic)</option>
                             <option value="gemini-3.5-flash-thinking">Gemini 3.5 Flash Thinking</option>
                             <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
                             <option value="gemini-flash-lite">Gemini Flash Lite</option>
                         </select>
                     </div>
-                    <div class="user-badge" title="User Profile">IS</div>
+                    <div class="apple-user-dp" title="User Profile">IS</div>
                 </div>
             </header>
 
@@ -93,38 +104,38 @@
             <main class="chat-viewport" id="chat-viewport">
                 <div class="welcome-hero" id="welcome-screen">
                     <div class="hero-sparkle">
-                        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 0C12 6.62742 6.62742 12 0 12C6.62742 12 12 17.3726 12 24C12 17.3726 17.3726 12 24 12C17.3726 12 12 6.62742 12 0Z" fill="url(#hero-grad)"/>
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 0C12 6.62742 6.62742 12 0 12C6.62742 12 12 17.3726 12 24C12 17.3726 17.3726 12 24 12C17.3726 12 12 6.62742 12 0Z" fill="url(#hero-apple-grad)"/>
                             <defs>
-                                <linearGradient id="hero-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#4285F4"/>
-                                    <stop offset="0.5" stop-color="#9B51E0"/>
-                                    <stop offset="1" stop-color="#E91E63"/>
+                                <linearGradient id="hero-apple-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#007AFF"/>
+                                    <stop offset="0.5" stop-color="#AF52DE"/>
+                                    <stop offset="1" stop-color="#FF2D55"/>
                                 </linearGradient>
                             </defs>
                         </svg>
                     </div>
                     <h1 class="hero-title">Hello, Ishaan</h1>
-                    <p class="hero-subtitle">What would you like your local agent to build, check, or execute?</p>
+                    <p class="hero-subtitle">What would you like your local agent to build, inspect, or execute today?</p>
 
-                    <div class="quick-actions">
-                        <div class="action-card" onclick="setInput('check my desktop folder and tell me what is there')">
-                            <div class="action-icon">📁</div>
-                            <div class="action-info">
+                    <div class="apple-action-grid">
+                        <div class="apple-card" onclick="setInput('check my desktop folder and tell me what is there')">
+                            <div class="card-icon">📁</div>
+                            <div class="card-text">
                                 <h3>Inspect Desktop</h3>
                                 <p>Scan files and directories</p>
                             </div>
                         </div>
-                        <div class="action-card" onclick="setInput('go and check call agent')">
-                            <div class="action-icon">🔍</div>
-                            <div class="action-info">
-                                <h3>Grep Search Codebase</h3>
+                        <div class="apple-card" onclick="setInput('go and check call agent')">
+                            <div class="card-icon">🔍</div>
+                            <div class="card-text">
+                                <h3>Grep Search Code</h3>
                                 <p>Search workspace for "call agent"</p>
                             </div>
                         </div>
-                        <div class="action-card" onclick="setInput('create a python test script test.py on Desktop and run it')">
+                        <div class="apple-card" onclick="setInput('create a python test script test.py on Desktop and run it')">
                             <div class="action-icon">⚡</div>
-                            <div class="action-info">
+                            <div class="card-text">
                                 <h3>Create & Run Script</h3>
                                 <p>Generate test.py & execute</p>
                             </div>
@@ -137,16 +148,16 @@
                 </div>
             </main>
 
-            <!-- Bottom Floating Prompt Box (Linear / Apple style) -->
-            <footer class="composer-container">
-                <div class="composer-card">
-                    <textarea id="message-input" placeholder="Ask Gemini Agent to build, inspect files, or run commands..." rows="1" autofocus></textarea>
-                    <div class="composer-actions">
-                        <div class="tool-indicator">
-                            <span class="indicator-dot"></span> 10-Step Autonomous Tool Loop Active
+            <!-- Apple Floating Input Bar -->
+            <footer class="composer-wrapper">
+                <div class="apple-composer-card">
+                    <textarea id="message-input" placeholder="Ask Gemini Agent to build code, inspect files, or run commands..." rows="1" autofocus></textarea>
+                    <div class="composer-bar">
+                        <div class="agent-loop-pill">
+                            <span class="pulse-dot"></span> 10-Step Autonomous Agent Active
                         </div>
                         <button id="send-button" aria-label="Send message">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                             </svg>
