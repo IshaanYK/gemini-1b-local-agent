@@ -1,3 +1,16 @@
+<p align="center">
+  <img src="hero_banner.gif" width="100%" alt="1B Gemini Local Agent Banner">
+</p>
+
+<p align="center">
+  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Context-1B%2B%20Tokens-purple?style=for-the-badge&logo=google" alt="Context"></a>
+  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Cost-Zero%20%240-brightgreen?style=for-the-badge" alt="Cost"></a>
+  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Gemini-3.6%20Flash%20%2F%20Thinking-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
+  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" alt="License"></a>
+</p>
+
+---
+
 # 🚀 1B Gemini Local Agent
 
 > **An autonomous, zero-cost AI coding agent powered by Google Gemini (1 Billion+ Token Context), equipped with local terminal execution, filesystem access, live reasoning drawers, and session handoffs.**
@@ -29,6 +42,7 @@
 
 ```
 1B-gemini-Local-Agent/
+├── hero_banner.gif               # Animated Hero Banner
 ├── gemini-chatbox/               # Agent Web Workspace & Backend
 │   ├── index.html                # Premium Google Gemini Web UI
 │   ├── style.css                 # Dark theme design system
@@ -104,7 +118,7 @@ Open `gemini-chatbox/index.html` in your browser.
                                                       ┌──────────────────────────┐
                                                       │   Google Gemini Web      │
                                                       │   (gemini.google.com)    │
-                                                      └──────────────────────────┘
+                                                      └────────────┬─────────────┘
 ```
 
 ---
