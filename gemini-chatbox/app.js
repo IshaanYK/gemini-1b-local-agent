@@ -2,10 +2,17 @@ const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const messagesContainer = document.getElementById('messages');
 const welcomeScreen = document.getElementById('welcome-screen');
-const chatContainer = document.getElementById('chat-container');
+const chatViewport = document.getElementById('chat-viewport');
+const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+const sidebar = document.getElementById('sidebar');
 
 let chatHistory = [];
 const API_URL = 'http://localhost:5000/api/chat';
+
+// Sidebar Toggle
+toggleSidebarBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+});
 
 // Load context from handoff script if available
 fetch('handoff_context.json')
@@ -14,22 +21,25 @@ fetch('handoff_context.json')
         if (data && data.length > 0) {
             chatHistory = data;
             welcomeScreen.style.display = 'none';
-            // Render previous messages
             data.forEach(msg => {
-                if(msg.role !== 'system') {
-                    const div = document.createElement('div');
-                    div.classList.add('message', msg.role);
-                    const content = msg.role === 'user' ? msg.content : marked.parse(msg.content);
-                    div.innerHTML = `<div class="avatar"></div><div class="message-content">${content}</div>`;
-                    messagesContainer.appendChild(div);
+                if (msg.role !== 'system') {
+                    const row = document.createElement('div');
+                    row.classList.add('message-row', msg.role);
+                    const content = msg.role === 'user' ? escapeHtml(msg.content) : marked.parse(msg.content);
+                    row.innerHTML = `<div class="avatar"></div><div class="message-bubble">${content}</div>`;
+                    messagesContainer.appendChild(row);
                 }
             });
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            chatViewport.scrollTop = chatViewport.scrollHeight;
         }
     })
-    .catch(e => console.log("No previous handoff context found. Starting fresh."));
+    .catch(() => console.log("Starting fresh session."));
 
-// Auto-resize textarea
+function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Auto-resize input
 messageInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
@@ -53,18 +63,18 @@ function setInput(text) {
 
 function appendMessage(role, content) {
     welcomeScreen.style.display = 'none';
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message', role);
+    const row = document.createElement('div');
+    row.classList.add('message-row', role);
     const avatar = document.createElement('div');
     avatar.classList.add('avatar');
-    const contentDiv = document.createElement('div');
-    contentDiv.classList.add('message-content');
-    contentDiv.innerHTML = role === 'user' ? content : marked.parse(content);
-    messageDiv.appendChild(avatar);
-    messageDiv.appendChild(contentDiv);
-    messagesContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    return contentDiv;
+    const bubble = document.createElement('div');
+    bubble.classList.add('message-bubble');
+    bubble.innerHTML = role === 'user' ? escapeHtml(content) : marked.parse(content);
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesContainer.appendChild(row);
+    chatViewport.scrollTop = chatViewport.scrollHeight;
+    return bubble;
 }
 
 async function sendMessage() {
@@ -74,11 +84,11 @@ async function sendMessage() {
     messageInput.value = '';
     messageInput.style.height = 'auto';
     sendButton.disabled = true;
-    
+
     appendMessage('user', text);
     chatHistory.push({ role: 'user', content: text });
 
-    const aiMessageContentDiv = appendMessage('assistant', '<span style="color:var(--text-secondary)">Thinking...</span>');
+    const aiBubble = appendMessage('assistant', '<span style="color:var(--text-muted)">Thinking...</span>');
     let fullResponse = '';
     let thinkingLogs = [];
 
@@ -86,54 +96,54 @@ async function sendMessage() {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 messages: chatHistory,
                 model: document.getElementById('model-selector').value
             })
         });
 
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        if (!response.ok) throw new Error(`Server returned status ${response.status}`);
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
-        
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            
+
             const chunk = decoder.decode(value, { stream: true });
             const lines = chunk.split('\n');
-            
+
             for (const line of lines) {
                 if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                     try {
                         const data = JSON.parse(line.slice(6));
-                        
+
                         if (data.thinking) {
                             thinkingLogs.push(data.thinking);
-                            renderAssistantMessage(aiMessageContentDiv, thinkingLogs, fullResponse);
+                            renderAssistantMessage(aiBubble, thinkingLogs, fullResponse);
                         } else if (data.system) {
                             thinkingLogs.push(`⚙️ ${data.system}`);
-                            renderAssistantMessage(aiMessageContentDiv, thinkingLogs, fullResponse);
+                            renderAssistantMessage(aiBubble, thinkingLogs, fullResponse);
                         } else if (data.content) {
                             fullResponse += data.content;
-                            renderAssistantMessage(aiMessageContentDiv, thinkingLogs, fullResponse);
+                            renderAssistantMessage(aiBubble, thinkingLogs, fullResponse);
                         } else if (data.error) {
                             throw new Error(data.error);
                         }
                     } catch (e) {
-                        // ignore malformed JSON or partial chunks
+                        // ignore partial chunk parse errors
                     }
                 }
             }
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            chatViewport.scrollTop = chatViewport.scrollHeight;
         }
-        
+
         chatHistory.push({ role: 'assistant', content: fullResponse });
-        
+
     } catch (error) {
-        renderAssistantMessage(aiMessageContentDiv, thinkingLogs, fullResponse);
-        aiMessageContentDiv.innerHTML += `<div style="color: #ff5555; margin-top:8px">Error: ${error.message}</div>`;
+        renderAssistantMessage(aiBubble, thinkingLogs, fullResponse);
+        aiBubble.innerHTML += `<div style="color: #ef4444; margin-top:8px; font-weight:600">Error: ${error.message}</div>`;
     } finally {
         sendButton.disabled = false;
         messageInput.focus();
@@ -149,10 +159,10 @@ function renderAssistantMessage(container, logs, responseText) {
                 <span class="thinking-icon">🧠</span> Thought Process <span class="thinking-count">(${logs.length} steps)</span>
             </summary>
             <div class="thinking-body">
-                ${logs.map(log => `<div class="thinking-log-line">${log}</div>`).join('')}
+                ${logs.map(log => `<div class="thinking-log-line">${escapeHtml(log)}</div>`).join('')}
             </div>
         </details>`;
     }
     const contentHtml = responseText ? marked.parse(responseText) : '';
-    container.innerHTML = thinkingHtml + (contentHtml || '<span style="color:var(--text-secondary)">Thinking...</span>');
+    container.innerHTML = thinkingHtml + (contentHtml || '<span style="color:var(--text-muted)">Thinking...</span>');
 }
