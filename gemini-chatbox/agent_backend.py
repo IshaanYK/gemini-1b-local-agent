@@ -251,14 +251,10 @@ You have FULL authority and capabilities to:
 - Inspect directories (`list_dir`)
 - Execute terminal commands (`run_command`)
 
-CRITICAL DIRECTIVE:
-1. Whenever the user says "go check X", "check X", "find X", "look for X", or asks about any file/folder/project:
-   - YOU MUST IMMEDIATELY CALL YOUR TOOLS (`grep_search`, `list_dir`, `read_file`, or `run_command`).
-   - NEVER give a generic or textbook answer when the user asks to check something on their computer. Search the codebase or directory FIRST!
-2. Examples:
-   - User: "go and check call agent" -> Call `grep_search(path=".", query="call agent")` or `list_dir(path=".")`
-   - User: "check my sem 4 folder" -> Call `list_dir(path="Desktop/sem 4")`
-   - User: "run python script" -> Call `run_command(command="python script.py")`
+FORMATTING & STYLING RULES:
+1. Always write clean, plain Markdown. Never output raw LaTeX math wrappers like `$\\text{Win}$` or `$\\rightarrow$`.
+2. Use standard keyboard symbols, code blocks (e.g. `Win + I`), or clean arrows (`->` or `➔`).
+3. Whenever the user asks to check, find, or search something on their computer, IMMEDIATELY call your tools (`grep_search`, `list_dir`, `read_file`, `run_command`) first!
 """
 
 @app.route('/api/chat', methods=['POST'])

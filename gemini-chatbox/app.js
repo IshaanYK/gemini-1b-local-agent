@@ -14,6 +14,19 @@ toggleSidebarBtn.addEventListener('click', () => {
     sidebar.classList.toggle('collapsed');
 });
 
+function cleanLaTeXAndFormatting(text) {
+    if (!text) return '';
+    return text
+        // Clean raw LaTeX text wrappers like $\text{Win} + \text{I}$ to Win + I
+        .replace(/\$\\text\{([^}]+)\}\$/g, '`$1`')
+        .replace(/\\text\{([^}]+)\}/g, '$1')
+        .replace(/\\rightarrow/g, '➔')
+        .replace(/\\leftarrow/g, '⬅')
+        .replace(/\\Rightarrow/g, '➔')
+        .replace(/\\Leftarrow/g, '⬅')
+        .replace(/\$([^\$\n]+)\$/g, '$1');
+}
+
 // Load context from handoff script if available
 fetch('handoff_context.json')
     .then(res => res.json())
@@ -25,7 +38,8 @@ fetch('handoff_context.json')
                 if (msg.role !== 'system') {
                     const row = document.createElement('div');
                     row.classList.add('message-row', msg.role);
-                    const content = msg.role === 'user' ? escapeHtml(msg.content) : marked.parse(msg.content);
+                    const cleaned = cleanLaTeXAndFormatting(msg.content);
+                    const content = msg.role === 'user' ? escapeHtml(msg.content) : marked.parse(cleaned);
                     row.innerHTML = `<div class="avatar"></div><div class="message-bubble">${content}</div>`;
                     messagesContainer.appendChild(row);
                 }
@@ -69,7 +83,8 @@ function appendMessage(role, content) {
     avatar.classList.add('avatar');
     const bubble = document.createElement('div');
     bubble.classList.add('message-bubble');
-    bubble.innerHTML = role === 'user' ? escapeHtml(content) : marked.parse(content);
+    const cleaned = cleanLaTeXAndFormatting(content);
+    bubble.innerHTML = role === 'user' ? escapeHtml(content) : marked.parse(cleaned);
     row.appendChild(avatar);
     row.appendChild(bubble);
     messagesContainer.appendChild(row);
@@ -163,6 +178,7 @@ function renderAssistantMessage(container, logs, responseText) {
             </div>
         </details>`;
     }
-    const contentHtml = responseText ? marked.parse(responseText) : '';
+    const cleaned = cleanLaTeXAndFormatting(responseText);
+    const contentHtml = responseText ? marked.parse(cleaned) : '';
     container.innerHTML = thinkingHtml + (contentHtml || '<span style="color:var(--text-muted)">Thinking...</span>');
 }
