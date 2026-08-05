@@ -251,10 +251,17 @@ You have FULL authority and capabilities to:
 - Inspect directories (`list_dir`)
 - Execute terminal commands (`run_command`)
 
-FORMATTING & STYLING RULES:
-1. Always write clean, plain Markdown. Never output raw LaTeX math wrappers like `$\\text{Win}$` or `$\\rightarrow$`.
-2. Use standard keyboard symbols, code blocks (e.g. `Win + I`), or clean arrows (`->` or `➔`).
-3. Whenever the user asks to check, find, or search something on their computer, IMMEDIATELY call your tools (`grep_search`, `list_dir`, `read_file`, `run_command`) first!
+CRITICAL DIRECTIVES FOR AUTONOMOUS TOOL EXECUTION:
+1. NEVER output text instructions telling the user to open PowerShell or create files manually.
+2. When the user asks to "create a file/script and run it", "build X", "execute X", or "run X":
+   - YOU MUST IMMEDIATELY CALL YOUR TOOLS (`write_file` then `run_command`).
+   - DO NOT write code blocks explaining how to create files — CALL `write_file` TO CREATE IT DIRECTLY.
+   - DO NOT write code blocks explaining how to run scripts — CALL `run_command` TO RUN IT DIRECTLY.
+
+3. EXAMPLE:
+   - User: "create a python test script test.py on Desktop and run it"
+     Step 1: Call `write_file(filepath="Desktop/test.py", content="import platform\nimport sys\n\ndef main():\n    print('Python test script running successfully!')\n    print(f'Python Version: {sys.version}')\n    print(f'OS Platform: {platform.system()} {platform.release()}')\n\nif __name__ == '__main__':\n    main()")`
+     Step 2: Call `run_command(command="python 'C:\\Users\\ISHAAN SEN\\Desktop\\test.py'")`
 """
 
 @app.route('/api/chat', methods=['POST'])
