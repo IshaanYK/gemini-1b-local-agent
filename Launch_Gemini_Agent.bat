@@ -1,32 +1,37 @@
 @echo off
-title 1B Gemini Local Agent Launcher
+title Gemini Agent Launcher
 cd /d "%~dp0"
 
 echo ====================================================
-echo             STARTING 1B GEMINI LOCAL AGENT
+echo             STARTING GEMINI LOCAL AGENT
 echo ====================================================
 
-:: Check if gemini-web2api proxy is running on port 8081
-netstat -ano | findstr :8081 >nul
-if %errorlevel% neq 0 (
-    echo Starting Gemini Web2API Proxy Server in background...
-    start /min "Gemini Web2API Proxy" cmd /k "cd /d \"%~dp0gemini-web2api\" && python gemini_web2api.py"
-    timeout /t 3 >nul
+set "ROOT_DIR=%~dp0"
+if exist "%ROOT_DIR%gemini-web2api\gemini_web2api.py" (
+    set "PROXY_DIR=%ROOT_DIR%gemini-web2api"
+    set "CHATBOX_DIR=%ROOT_DIR%gemini-chatbox"
 ) else (
-    echo [OK] Gemini Web2API Proxy is active on port 8081.
+    set "PROXY_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-web2api"
+    set "CHATBOX_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox"
 )
 
-echo.
-cd /d "%~dp0gemini-chatbox"
-echo Packaging conversation context...
+:: Step 1: Ensure Web2API proxy is running on 8081
+netstat -ano | findstr :8081 >nul
+if %errorlevel% neq 0 (
+    echo [1/3] Starting Gemini Web2API Proxy...
+    start /b "" python "%PROXY_DIR%\gemini_web2api.py"
+    timeout /t 3 >nul
+) else (
+    echo [1/3] Proxy server is active on port 8081.
+)
+
+:: Step 2: Handoff context & launch browser UI
+echo [2/3] Extracting conversation context...
+cd /d "%CHATBOX_DIR%"
 python handoff.py
 
+:: Step 3: Run Flask Agent Backend
+echo [3/3] Agent Backend active at http://localhost:5000
 echo.
-echo ====================================================
-echo  Gemini Agent is ACTIVE on http://localhost:5000
-echo  Keep this window open while chatting in browser.
-echo ====================================================
-echo.
-
 python agent_backend.py
 pause

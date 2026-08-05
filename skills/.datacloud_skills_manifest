@@ -1,0 +1,109 @@
+{
+  "bundleChecksum": "c8488f4a44cab5a65745b6c70a0f27d30149aeb3e4a951e0f70c4c9032d15102",
+  "skills": {
+    "accidental-data-loss-prevention": {
+      "status": "installed",
+      "checksum": "b8f858f8143114ed9189b29ea8af1672378d66db3b8c92c5ec1b23712141ef1b"
+    },
+    "bigquery-ai-ml": {
+      "status": "installed",
+      "checksum": "ce59cc9f4c23874e50a71970bfedb99ed79e8df165754464ab8fff3dc5244135"
+    },
+    "bigquery-bigframes": {
+      "status": "installed",
+      "checksum": "5d59253b5b35761c611c502f8731be6297d4c3e8fc5d0141c0fd67e81343c610"
+    },
+    "bigquery-data-transfer-service": {
+      "status": "installed",
+      "checksum": "a560c16c715c2d240eeb2abafc1bcea079062ccd7ff99b80b84cdf29eb43d69d"
+    },
+    "bigquery-graph": {
+      "status": "installed",
+      "checksum": "a97c46bdf0cb71c9fca6b88e2e56a3407601825523aaec58681403fa3d99c7c1"
+    },
+    "bigquery-sql": {
+      "status": "installed",
+      "checksum": "6f6fae521a8bf7618bae76894fe45ab8d56fcc77b78dc1b4be2dfbe792b90c42"
+    },
+    "building-data-apps": {
+      "status": "installed",
+      "checksum": "7017fc6bbcad594b1a572cc7a0ea5ce15ce460dbd0cdbf978697edad1768ee26"
+    },
+    "data-autocleaning": {
+      "status": "installed",
+      "checksum": "4ff7ce836870f6775477f79ece9f1b0390e31c6d7921ee94c148cd2a357a4ecc"
+    },
+    "dataform-bigquery": {
+      "status": "installed",
+      "checksum": "d3d45288ced26c093a6676834a1263d4a8c1b80f59f58a508e52a1ccf4b10339"
+    },
+    "dbt-bigquery": {
+      "status": "installed",
+      "checksum": "3c4b221e6bf3414e656f1e1e0b0a4dd2763879d1fa69dfc82d663a84e548364f"
+    },
+    "discovering-gcp-data-assets": {
+      "status": "installed",
+      "checksum": "553a6cd984882b1a63782885c54c0120f40de214c11fdbf46ec05e6acbf88840"
+    },
+    "federate-lakehouse-catalog": {
+      "status": "installed",
+      "checksum": "c1e071ca3d8c9eaa42ae814f2d4ae2e5e12f3e0f289367c74ced4d87ccf157d3"
+    },
+    "gcloud-auth-verification": {
+      "status": "installed",
+      "checksum": "b4a6f58394290ad1c22de6e14e211b08b21ec015053929101e725dbccc0b6b09"
+    },
+    "gcp-composer-troubleshooting": {
+      "status": "installed",
+      "checksum": "9128f016ece2b9dbde8a62af809685b152048694be672c93152ffc34e81dbe49"
+    },
+    "gcp-data-pipelines": {
+      "status": "installed",
+      "checksum": "8cd8124624e803a22cff67911a3542f1e5ec29bae6024ce33b9a76aceacb5ce5"
+    },
+    "gcp-dataflow": {
+      "status": "installed",
+      "checksum": "ff2362809250302d2cbca19835af3f7114480e4e4a6cdea794979a97dd6ca6d4"
+    },
+    "gcp-managed-airflow-migrations": {
+      "status": "installed",
+      "checksum": "f558527e1d46e9b22449a2da8e723cbda19c3afe6f5216bb5c25054bfc3b2b0a"
+    },
+    "gcp-pipeline-orchestration": {
+      "status": "installed",
+      "checksum": "5fd043c5dc4c83e906375d80fd10a8b557ea2337dc9f42a26e8ffa5a702d7008"
+    },
+    "gcp-pipeline-resource-provisioning": {
+      "status": "installed",
+      "checksum": "d9f68d99f5d7e291868a2968ba9483b73f520c61108fcdbdfc7e65f21c0c232c"
+    },
+    "gcp-spark": {
+      "status": "installed",
+      "checksum": "ff78313ac52d2c99292e513f307e63c45377bc3cfb989ac191e56bfaf70337a7"
+    },
+    "gcs-security-assessment": {
+      "status": "installed",
+      "checksum": "0f5d2c7a8a6431a27ffa6b2c05aad42f12c3a61a0c248cb9f772edc636e4f543"
+    },
+    "managing-python-dependencies": {
+      "status": "installed",
+      "checksum": "04a1ab128e1167a02a605d6b1459d9512c4a58cfeb81a8f5303e814eafe089ef"
+    },
+    "ml-best-practices": {
+      "status": "installed",
+      "checksum": "d3f2134aed8ce5865776363a5e0d704de0166970bca121ace8bdfaa28c8cf213"
+    },
+    "notebook-guidance": {
+      "status": "installed",
+      "checksum": "b7ef387087342eaa4a6db2bec83b7ade8fd9fdf096951266737709a3199debe3"
+    },
+    "skill-repair": {
+      "status": "installed",
+      "checksum": "276efcab0cdeb25cb412644bcf0fd5fb827f4873b44a6ba24f4e49e035d25c3e"
+    },
+    "enforcing-resource-attribution": {
+      "status": "installed",
+      "checksum": "9b65878e9635443b17b01ab78a06e459df77763b325f95fe592a783c1c60a645"
+    }
+  }
+}
