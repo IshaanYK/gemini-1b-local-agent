@@ -4,6 +4,8 @@ import re
 import subprocess
 import urllib.request
 import urllib.parse
+import zipfile
+import xml.etree.ElementTree as ET
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 from openai import OpenAI
@@ -16,13 +18,40 @@ MODEL = "gemini-3.6-flash"
 
 USER_HOME = r"C:\Users\ISHAAN SEN"
 USER_DESKTOP = r"C:\Users\ISHAAN SEN\Desktop"
+PLAYGROUND_DIR = r"C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\1B-gemini-Local-Agent\playground"
+HISTORY_FILE = os.path.join(PLAYGROUND_DIR, "playground_history.json")
+
+os.makedirs(PLAYGROUND_DIR, exist_ok=True)
+
+def log_playground_history(action, filepath, content="", meta=""):
+    """Log persistent code history and file actions into playground registry."""
+    try:
+        history = []
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        import datetime
+        entry = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "action": action,
+            "filepath": filepath,
+            "filename": os.path.basename(filepath),
+            "snippet": content[:300] if content else "",
+            "meta": meta
+        }
+        history.insert(0, entry)
+        history = history[:100]
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=2)
+    except Exception as e:
+        print(f"Error logging playground history: {e}")
 
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "run_command",
-            "description": "Execute a PowerShell command on the user's local Windows system.",
+            "description": "Execute a PowerShell command on the user's local Windows system with administrative privileges.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -35,12 +64,24 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "list_processes",
+            "description": "List all running processes on the Windows system, automatically identifying listening ports and classifying processes into AI Agents, Web/Backend Servers, MCP Servers, System Services, and User Applications.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "read_file",
-            "description": "Read contents of a local file.",
+            "description": "Read contents of any local file or directory (supports plain text, DOCX, PDF, JSON, Python, JS, HTML, or reading all files in a folder).",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "filepath": {"type": "string", "description": "File path"}
+                    "filepath": {"type": "string", "description": "File or directory path"}
                 },
                 "required": ["filepath"]
             }
@@ -81,7 +122,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "grep_search",
-            "description": "Search across files in a directory or codebase for a text pattern or query string.",
+            "description": "Search across files in a directory or codebase for a text pattern, keyword, or query string.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -96,7 +137,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "list_dir",
-            "description": "List top-level files and subdirectories in a directory (shallow 1-level view).",
+            "description": "List top-level files and subdirectories in any local directory across all drives.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -108,23 +149,98 @@ TOOLS = [
     }
 ]
 
-MAX_OUTPUT_LEN = 3000
+MAX_OUTPUT_LEN = 30000
 
-def resolve_path(p):
+def read_docx(filepath):
+    """Extract full text from DOCX file."""
+    try:
+        with zipfile.ZipFile(filepath) as z:
+            xml_content = z.read('word/document.xml')
+            tree = ET.fromstring(xml_content)
+            text = []
+            for elem in tree.iter():
+                if elem.tag.endswith('t') and elem.text:
+                    text.append(elem.text)
+                elif elem.tag.endswith('p'):
+                    text.append('\n')
+            return ''.join(text).strip()
+    except Exception as e:
+        return f"[Error reading DOCX '{os.path.basename(filepath)}': {e}]"
+
+def read_pdf(filepath):
+    """Extract full text from PDF file."""
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(filepath)
+        text = [page.extract_text() or "" for page in reader.pages]
+        res = "\n".join(text).strip()
+        if res:
+            return res
+    except Exception:
+        pass
+    try:
+        with open(filepath, 'rb') as f:
+            content = f.read()
+        strings = re.findall(rb'\((.*?)\)', content)
+        text = [s.decode('utf-8', errors='ignore') for s in strings if len(s) > 3]
+        return "\n".join(text[:150]).strip() if text else "[PDF text extraction failed]"
+    except Exception as e:
+        return f"[Error reading PDF '{os.path.basename(filepath)}': {e}]"
+
+def resolve_path(p, target_folder=None):
     if not p:
+        return resolve_path(target_folder) if target_folder else PLAYGROUND_DIR
+    p = str(p).strip().strip("'\"`")
+    
+    # Strip markdown / tree / formatting prefixes
+    p = re.sub(r"^\[(?:DIR|FILE)\]\s*", "", p, flags=re.IGNORECASE).strip()
+    p = re.sub(r"^[📁📄🔒]\s*", "", p).strip()
+    
+    # Normalize drive letters: "g drive", "g:", "g:\", "g/", "drive g" -> "G:\"
+    m_drive = re.match(r"^(?:drive\s+([a-zA-Z])|([a-zA-Z])\s+drive|([a-zA-Z]):?\\?)$", p, re.IGNORECASE)
+    if m_drive:
+        letter = (m_drive.group(1) or m_drive.group(2) or m_drive.group(3)).upper()
+        dp = f"{letter}:\\"
+        if os.path.exists(dp):
+            return dp
+
+    if p.lower() in {"desktop", "desktop folder"}:
+        return USER_DESKTOP
+    if p.lower() in {"home", "user home", "user folder"}:
         return USER_HOME
-    p = p.strip()
-    if p.lower().startswith("desktop"):
-        sub = p[7:].lstrip("\\/")
-        return os.path.join(USER_DESKTOP, sub) if sub else USER_DESKTOP
-    if p.startswith("~"):
-        sub = p[1:].lstrip("\\/")
-        return os.path.join(USER_HOME, sub) if sub else USER_HOME
+    if p.lower().startswith("playground"):
+        sub = p[10:].lstrip("\\/")
+        return os.path.join(PLAYGROUND_DIR, sub) if sub else PLAYGROUND_DIR
+
+    # Explicit Windows drive letter paths like G:\folder or C:\Users\...
+    if len(p) >= 2 and p[1] == ":":
+        letter = p[0].upper()
+        rest = p[2:].lstrip("\\/")
+        abs_p = f"{letter}:\\{rest}" if rest else f"{letter}:\\"
+        return abs_p
+
+    # Check inside target_folder if target_folder is set
+    if target_folder:
+        tf_res = target_folder if (len(target_folder) >= 2 and target_folder[1] == ":") else resolve_path(target_folder)
+        if os.path.exists(tf_res) and os.path.isdir(tf_res):
+            sub_p = os.path.join(tf_res, p)
+            if os.path.exists(sub_p):
+                return sub_p
+
+    # Universal search across local drives & user folders
     if not os.path.isabs(p):
-        dt_path = os.path.join(USER_DESKTOP, p)
-        if os.path.exists(dt_path):
-            return dt_path
-        return os.path.join(USER_HOME, p)
+        for search_base in ["G:\\", USER_DESKTOP, USER_HOME, PLAYGROUND_DIR, r"C:\Users\ISHAAN SEN\Desktop\Arise"]:
+            if os.path.exists(search_base):
+                candidate = os.path.join(search_base, p)
+                if os.path.exists(candidate):
+                    return candidate
+                try:
+                    for item in os.listdir(search_base):
+                        if item.lower() == p.lower():
+                            return os.path.join(search_base, item)
+                except Exception:
+                    pass
+
     return p
 
 def execute_tool(name, args):
@@ -134,22 +250,147 @@ def execute_tool(name, args):
             
         if name == "run_command":
             cmd = args.get("command", "")
-            result = subprocess.run(["powershell", "-Command", cmd], capture_output=True, text=True, timeout=20)
+            result = subprocess.run(["powershell", "-Command", cmd], capture_output=True, text=True, timeout=30)
             output = result.stdout
             if result.stderr:
                 output += "\nError: " + result.stderr
             if not output.strip():
-                return "Command executed with no output."
+                output = "Command executed with no output."
             if len(output) > MAX_OUTPUT_LEN:
-                output = output[:MAX_OUTPUT_LEN] + "\n...[Output truncated for speed]"
+                output = output[:MAX_OUTPUT_LEN] + "\n...[Output truncated for size limit]"
+            log_playground_history("run", cmd, output[:200], meta="Executed CLI command")
             return output
 
+        elif name == "list_processes":
+            ps_script = """
+            $proc = Get-CimInstance Win32_Process | Select-Object ProcessId, Name, CommandLine
+            $ports = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Select-Object OwningProcess, LocalPort, LocalAddress
+            $portMap = @{}
+            foreach ($pt in $ports) {
+                if ($pt.OwningProcess) {
+                    if (-not $portMap.ContainsKey($pt.OwningProcess)) { $portMap[$pt.OwningProcess] = @() }
+                    $portMap[$pt.OwningProcess] += "$($pt.LocalAddress):$($pt.LocalPort)"
+                }
+            }
+            $results = foreach ($p in $proc) {
+                $pPorts = if ($portMap.ContainsKey($p.ProcessId)) { ($portMap[$p.ProcessId] | Select-Object -Unique) -join ", " } else { "None" }
+                [PSCustomObject]@{
+                    PID = $p.ProcessId
+                    Name = $p.Name
+                    CommandLine = $p.CommandLine
+                    ListeningPorts = $pPorts
+                }
+            }
+            $results | ConvertTo-Json -Compress
+            """
+            result = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True, timeout=35)
+            raw_json = result.stdout.strip()
+            try:
+                data = json.loads(raw_json)
+                if isinstance(data, dict):
+                    data = [data]
+                
+                agents = []
+                servers = []
+                mcp_servers = []
+                services = []
+                apps = []
+                
+                for item in data:
+                    pid = item.get("PID")
+                    name = item.get("Name") or ""
+                    cmd = item.get("CommandLine") or ""
+                    ports = item.get("ListeningPorts") or "None"
+                    
+                    cmd_lower = cmd.lower()
+                    name_lower = name.lower()
+                    
+                    entry = f"PID {pid} | {name} | Ports: {ports} | Command: {cmd[:120] if cmd else 'N/A'}"
+                    
+                    if "chrome-devtools-mcp" in cmd_lower or "cloud-run-mcp" in cmd_lower or "mcp_proxy_bundle" in cmd_lower or "mcp" in cmd_lower:
+                        mcp_servers.append(entry)
+                    elif any(k in cmd_lower or k in name_lower for k in ["agent_backend", "gemini-chatbox", "language_server", "pyrefly", "agy", "agent", "runner"]):
+                        agents.append(entry)
+                    elif any(k in cmd_lower or k in name_lower for k in ["gemini_web2api", "python", "node", "uvicorn", "gunicorn", "nginx", "apache", "httpd", "flask", "express"]) or ports != "None":
+                        servers.append(entry)
+                    elif name_lower in ["svchost.exe", "backgroundtaskhost.exe", "conhost.exe", "wmiprvse.exe"]:
+                        services.append(entry)
+                    else:
+                        apps.append(entry)
+                
+                output = []
+                output.append("=== SYSTEM PROCESS & AGENT/SERVER AUDIT ===")
+                output.append(f"\n🤖 AI AGENTS ({len(agents)} detected):")
+                output.append("\n".join(agents) if agents else "None")
+                
+                output.append(f"\n🔌 MCP SERVERS ({len(mcp_servers)} detected):")
+                output.append("\n".join(mcp_servers) if mcp_servers else "None")
+                
+                output.append(f"\n🌐 WEB & BACKEND SERVERS ({len(servers)} detected):")
+                output.append("\n".join(servers) if servers else "None")
+                
+                output.append(f"\n⚙️ SYSTEM SERVICES & DAEMONS ({len(services)} detected):")
+                output.append("\n".join(services[:20]) + (f"\n...[{len(services)-20} more services truncated]" if len(services) > 20 else ""))
+                
+                output.append(f"\n🖥️ USER APPLICATIONS ({len(apps)} detected):")
+                output.append("\n".join(apps[:20]) + (f"\n...[{len(apps)-20} more apps truncated]" if len(apps) > 20 else ""))
+                
+                res = "\n".join(output)
+                log_playground_history("list_processes", "System Processes", res[:200], meta="Audited running processes, agents, and servers")
+                return res
+            except Exception as ex:
+                return f"Process listing output:\n{raw_json[:3000]}\n(Parsing note: {ex})"
+
         elif name == "read_file":
-            filepath = resolve_path(args.get("filepath"))
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
+            raw_path = args.get("filepath")
+            filepath = resolve_path(raw_path)
+            
+            if not os.path.exists(filepath):
+                return f"File or directory '{raw_path}' ({filepath}) does not exist on your computer."
+
+            if os.path.isdir(filepath):
+                items = os.listdir(filepath)
+                out = [f"=== READING ALL FILES IN DIRECTORY: {filepath} ({len(items)} items) ===\n"]
+                for f in items:
+                    if f.startswith("~$") or f.startswith("."):
+                        continue
+                    fp = os.path.join(filepath, f)
+                    if os.path.isfile(fp):
+                        out.append(f"\n==================================================")
+                        out.append(f"FILE: {f}")
+                        out.append(f"==================================================")
+                        ext = os.path.splitext(f)[1].lower()
+                        if ext == ".docx":
+                            content = read_docx(fp)
+                        elif ext == ".pdf":
+                            content = read_pdf(fp)
+                        else:
+                            try:
+                                with open(fp, 'r', encoding='utf-8', errors='ignore') as tf:
+                                    content = tf.read(10000)
+                            except Exception as e:
+                                content = f"[Cannot read file: {e}]"
+                        out.append(content)
+                    else:
+                        out.append(f"[DIRECTORY] {f}")
+                res = "\n".join(out)
+                if len(res) > MAX_OUTPUT_LEN:
+                    res = res[:MAX_OUTPUT_LEN] + "\n...[Output truncated for size limit]"
+                log_playground_history("read_dir", filepath, res[:200], meta=f"Read folder contents")
+                return res
+
+            ext = os.path.splitext(filepath)[1].lower()
+            if ext == ".docx":
+                content = read_docx(filepath)
+            elif ext == ".pdf":
+                content = read_pdf(filepath)
+            else:
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+
             if len(content) > MAX_OUTPUT_LEN:
-                content = content[:MAX_OUTPUT_LEN] + "\n...[File truncated for speed]"
+                content = content[:MAX_OUTPUT_LEN] + "\n...[File truncated for size limit]"
+            log_playground_history("read", filepath, content[:200], meta=f"Read file")
             return content
 
         elif name == "write_file":
@@ -158,19 +399,21 @@ def execute_tool(name, args):
             os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
+            log_playground_history("write", filepath, content, meta=f"Wrote {len(content)} bytes")
             return f"Successfully wrote file to {filepath}"
 
         elif name == "replace_file_content":
             filepath = resolve_path(args.get("filepath"))
             target = args.get("target", "")
             replacement = args.get("replacement", "")
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             if target not in content:
                 return f"Error: Target string not found in {filepath}"
             new_content = content.replace(target, replacement, 1)
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(new_content)
+            log_playground_history("edit", filepath, new_content, meta=f"Replaced text in {os.path.basename(filepath)}")
             return f"Successfully updated content in {filepath}"
 
         elif name == "grep_search":
@@ -178,7 +421,7 @@ def execute_tool(name, args):
             query = args.get("query", "").lower()
             matches = []
             for root, dirs, files in os.walk(path):
-                dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", "venv", ".venv", ".gemini"}]
+                dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", "venv", ".venv"}]
                 for file in files:
                     fp = os.path.join(root, file)
                     try:
@@ -186,11 +429,11 @@ def execute_tool(name, args):
                             for idx, line in enumerate(f, 1):
                                 if query in line.lower():
                                     matches.append(f"{os.path.basename(fp)}:{idx} - {line.strip()[:120]}")
-                                    if len(matches) >= 30:
+                                    if len(matches) >= 40:
                                         break
                     except Exception:
                         pass
-                if len(matches) >= 30:
+                if len(matches) >= 40:
                     matches.append("... [More matches truncated for speed]")
                     break
             return f"Grep results for '{query}' in {path}:\n" + ("\n".join(matches) if matches else "No matches found.")
@@ -200,20 +443,18 @@ def execute_tool(name, args):
             path = resolve_path(raw_path)
             
             if not os.path.exists(path):
-                dt_alt = os.path.join(USER_DESKTOP, raw_path)
-                if os.path.exists(dt_alt):
-                    path = dt_alt
-                else:
-                    return f"Directory '{raw_path}' does not exist on your computer."
+                return f"Directory '{raw_path}' ({path}) does not exist on your computer."
             
-            ignored = {".git", "node_modules", "__pycache__", "venv", ".venv", ".gemini"}
+            is_hidden_target = ".gemini" in path or raw_path.startswith(".")
+            ignored = {".git", "node_modules", "__pycache__", "venv", ".venv"} if is_hidden_target else {".git", "node_modules", "__pycache__", "venv", ".venv", ".gemini"}
+            
             items = []
             for entry in os.scandir(path):
-                if entry.name in ignored:
+                if entry.name in ignored and not is_hidden_target:
                     continue
                 kind = "[DIR]" if entry.is_dir() else "[FILE]"
                 items.append(f"{kind} {entry.name}")
-                if len(items) >= 40:
+                if len(items) >= 100:
                     items.append("... [More files truncated for speed]")
                     break
                     
@@ -221,47 +462,163 @@ def execute_tool(name, args):
             
         return f"Unknown tool: {name}"
     except subprocess.TimeoutExpired:
-        return "Command timed out after 20 seconds."
+        return "Command timed out after 30 seconds."
     except Exception as e:
         return f"Tool execution failed: {str(e)}"
 
 def extract_fallback_tool(content):
     if not content:
         return None, None
-    pattern = r"```(?:tool_call|json)?\s*(\{[\s\S]*?\})\s*```"
-    match = re.search(pattern, content)
-    if match:
+        
+    valid_names = {"run_command", "list_processes", "read_file", "write_file", "replace_file_content", "grep_search", "list_dir"}
+
+    blocks = re.findall(r"```(?:tool_call|json)?\s*(\{[\s\S]*?\})\s*```", content)
+    for block in blocks:
         try:
-            data = json.loads(match.group(1))
-            name = data.get("name") or data.get("tool")
-            args = data.get("arguments") or data.get("args") or {}
-            valid_names = ["run_command", "read_file", "write_file", "replace_file_content", "grep_search", "list_dir"]
+            data = json.loads(block)
+            name = data.get("name") or data.get("tool") or data.get("function") or data.get("action")
+            args = data.get("arguments") or data.get("args") or data.get("parameters") or data.get("params") or {}
+            if not args and isinstance(data, dict):
+                args = {k: v for k, v in data.items() if k not in ("name", "tool", "function", "action")}
             if name and name in valid_names:
                 return name, args
         except Exception:
             pass
+
+    raw_matches = re.findall(r"(\{[\s\S]*?\})", content)
+    for raw in raw_matches:
+        try:
+            data = json.loads(raw)
+            name = data.get("name") or data.get("tool") or data.get("function") or data.get("action")
+            if name and name in valid_names:
+                args = data.get("arguments") or data.get("args") or data.get("parameters") or data.get("params") or {}
+                if not args:
+                    args = {k: v for k, v in data.items() if k not in ("name", "tool", "function", "action")}
+                return name, args
+        except Exception:
+            pass
+
     return None, None
 
-SYSTEM_INSTRUCTION = """You are Antigravity Gemini Agent, an autonomous software engineering pair programmer equipped with native system tools.
-You have FULL authority and capabilities to:
-- Search files and codebases (`grep_search`)
-- Read local files (`read_file`)
-- Write new code files (`write_file`)
-- Edit existing code in-place (`replace_file_content`)
-- Inspect directories (`list_dir`)
-- Execute terminal commands (`run_command`)
+def extract_path_from_text(text, target_folder=None):
+    if not text:
+        return resolve_path(target_folder) if target_folder else None
 
-CRITICAL DIRECTIVES FOR AUTONOMOUS TOOL EXECUTION:
-1. NEVER output text instructions telling the user to open PowerShell or create files manually.
-2. When the user asks to "create a file/script and run it", "build X", "execute X", or "run X":
-   - YOU MUST IMMEDIATELY CALL YOUR TOOLS (`write_file` then `run_command`).
-   - DO NOT write code blocks explaining how to create files — CALL `write_file` TO CREATE IT DIRECTLY.
-   - DO NOT write code blocks explaining how to run scripts — CALL `run_command` TO RUN IT DIRECTLY.
+    clean_text = re.sub(r"\[(?:DIR|FILE)\]\s*", "", text, flags=re.IGNORECASE).strip()
+    clean_text = re.sub(r"^[📁📄🔒]\s*", "", clean_text).strip()
 
-3. EXAMPLE:
-   - User: "create a python test script test.py on Desktop and run it"
-     Step 1: Call `write_file(filepath="Desktop/test.py", content="import platform\nimport sys\n\ndef main():\n    print('Python test script running successfully!')\n    print(f'Python Version: {sys.version}')\n    print(f'OS Platform: {platform.system()} {platform.release()}')\n\nif __name__ == '__main__':\n    main()")`
-     Step 2: Call `run_command(command="python 'C:\\Users\\ISHAAN SEN\\Desktop\\test.py'")`
+    # Pattern 0: Direct drive reference ("g drive", "c drive", "read g drive", "g:", "drive g")
+    m_drive = re.search(r"\b(?:drive\s+([a-zA-Z])|([a-zA-Z])\s+drive|([a-zA-Z]):?\\?)\b", clean_text, re.IGNORECASE)
+    if m_drive:
+        letter = (m_drive.group(1) or m_drive.group(2) or m_drive.group(3)).upper()
+        dp = f"{letter}:\\"
+        if os.path.exists(dp):
+            for item in os.listdir(dp):
+                if item.lower() in clean_text.lower() and len(item) > 2:
+                    sub = os.path.join(dp, item)
+                    if os.path.exists(sub):
+                        return sub
+            return dp
+
+    # Pattern 1: Target folder children
+    if target_folder:
+        resolved_tf = resolve_path(target_folder)
+        if os.path.exists(resolved_tf) and os.path.isdir(resolved_tf):
+            for item in os.listdir(resolved_tf):
+                if item.lower() in clean_text.lower() and len(item) > 2:
+                    sub = os.path.join(resolved_tf, item)
+                    if os.path.exists(sub):
+                        return sub
+
+    # Pattern 2: Quoted paths
+    quoted_matches = re.findall(r"[\"']([a-zA-Z]:\\[^\"']+)[\"']", clean_text)
+    for q in quoted_matches:
+        q_clean = q.strip()
+        if os.path.exists(q_clean):
+            return q_clean
+
+    # Pattern 3: Absolute Windows paths
+    win_matches = re.findall(r"([a-zA-Z]:\\[^\s\"'`<>]+)", clean_text)
+    for w in win_matches:
+        w_clean = re.sub(r"[\.,!\?\);:]+$", "", w.strip())
+        if os.path.exists(w_clean):
+            return w_clean
+
+    # Pattern 4: Search across Desktop, G:\, and user folders
+    for base in [USER_DESKTOP, "G:\\", r"C:\Users\ISHAAN SEN\Desktop\Arise"]:
+        if os.path.exists(base):
+            try:
+                for entry in os.listdir(base):
+                    if entry.lower() in clean_text.lower() and len(entry) > 2:
+                        return os.path.join(base, entry)
+            except Exception:
+                pass
+
+    # Pattern 5: Words matching existing path
+    words = [w.strip("[](),'\"`") for w in clean_text.split()]
+    for w in words:
+        if len(w) > 2 and w.lower() not in {"the", "user", "file", "files", "folder", "read", "check", "open", "list", "show", "view", "what", "is", "in", "and", "saying", "code"}:
+            resolved = resolve_path(w, target_folder)
+            if os.path.exists(resolved):
+                return resolved
+
+    return resolve_path(target_folder) if target_folder else None
+
+def infer_intent_tool(user_text, target_folder=None):
+    """Dynamic intent parser: grants universal access to list, read, inspect, and audit files across all drives."""
+    if not user_text and not target_folder:
+        return None, None
+    text = (user_text or "").strip()
+    text_lower = text.lower()
+
+    # 0. System Process / Agent / Server Audit Intent
+    process_keywords = ["process", "processes", "running processes", "agents or servers", "show processes", "list processes", "running agents", "running servers", "what processes"]
+    if any(k in text_lower for k in process_keywords):
+        return "list_processes", {}
+
+    # 1. CLI Commands
+    cli_cmdlets = (
+        "get-childitem", "gci", "dir", "ls", "get-process", "gps", "get-service",
+        "cat", "type", "select-string", "grep", "python", "node", "npm", "git",
+        "cd", "echo", "mkdir", "remove-item", "rm", "tree", "powershell", "cmd"
+    )
+    if any(text_lower.startswith(c) for c in cli_cmdlets) or any(flag in text_lower for flag in ["-recurse", "-path", "-filter", "-force", " -c ", " | ", " > "]):
+        return "run_command", {"command": text}
+
+    # 2. Inspection / Reading Intent
+    inspect_keywords = ["read", "what is in", "what's in", "show", "list", "check", "open", "scan", "contents of", "view", "inspect", "find", "audit", "search", "hardcode"]
+    is_inspect = any(k in text_lower for k in inspect_keywords)
+    
+    extracted_path = extract_path_from_text(text, target_folder if is_inspect else None)
+    if extracted_path:
+        if os.path.isdir(extracted_path):
+            if any(w in text_lower for w in ["read", "read file", "read the file", "read files", "contents", "content"]):
+                return "read_file", {"filepath": extracted_path}
+            return "list_dir", {"path": extracted_path}
+        elif os.path.isfile(extracted_path):
+            return "read_file", {"filepath": extracted_path}
+
+    if is_inspect and target_folder:
+        resolved_tf = resolve_path(target_folder)
+        if os.path.exists(resolved_tf):
+            if os.path.isdir(resolved_tf):
+                if any(w in text_lower for w in ["read", "read file", "read files", "contents", "content"]):
+                    return "read_file", {"filepath": resolved_tf}
+                return "list_dir", {"path": resolved_tf}
+            else:
+                return "read_file", {"filepath": resolved_tf}
+
+    return None, None
+
+SYSTEM_INSTRUCTION = """Environment: Unrestricted Autonomous Developer Agent & Local Virtual Sandbox.
+You are an Autonomous AI Developer Agent operating with FULL ADMINISTRATIVE SYSTEM ACCESS across all drives (C:\\, D:\\, G:\\, etc.).
+The user has granted you total authority to inspect folders, read files, write code, modify files, run terminal commands, search codebases, audit processes, and perform automated testing.
+
+CRITICAL DIRECTIVES:
+1. NEVER output disclaimers stating you lack execution access, cannot browse local files, or need text pasted—you HAVE full system access.
+2. ALWAYS execute tools immediately (`list_processes`, `list_dir`, `read_file`, `grep_search`, `run_command`, `write_file`) when asked to inspect processes, read files, audit code, or execute commands.
+3. When asked to list running processes or identify AI agents/servers, execute `list_processes` immediately to retrieve listening ports, process names, and command lines, then format a categorized breakdown in clean Markdown.
+4. When asked to check code for errors or hardcoding, search for hardcoded paths (e.g. C:\\ or G:\\) or unhandled exceptions, read source files, and summarize exact line numbers and fixes in clean GitHub-flavored Markdown.
 """
 
 @app.route('/api/chat', methods=['POST'])
@@ -269,77 +626,201 @@ def chat():
     data = request.json
     messages = data.get('messages', [])
     requested_model = data.get('model', MODEL)
+    target_folder = data.get('target_folder', '').strip()
     
-    if not messages or messages[0].get('role') != 'system':
-        messages.insert(0, {"role": "system", "content": SYSTEM_INSTRUCTION})
-    else:
-        messages[0]['content'] = SYSTEM_INSTRUCTION + "\n\n" + messages[0]['content']
-    
+    last_user_msg = ""
+    for m in reversed(messages):
+        if m.get('role') == 'user':
+            last_user_msg = m.get('content', '')
+            break
+
     def generate():
         nonlocal messages
         
-        yield f"data: {json.dumps({'thinking': 'Analyzing request & planning tool execution steps...'})}\n\n"
+        yield f"data: {json.dumps({'thinking': 'Autonomous Agent Loop Initializing...'})}\n\n"
         
-        for step in range(1, 11):
+        # Step 1: Single tool direct execution
+        inferred_name, inferred_args = infer_intent_tool(last_user_msg, target_folder)
+        
+        if inferred_name and not any(k in last_user_msg.lower() for k in ["create app", "modify code", "write script", "test", "fix", "agent mode"]):
+            yield f"data: {json.dumps({'thinking': f'Executing local tool `{inferred_name}`...'})}\n\n"
+            yield f"data: {json.dumps({'system': f'Executing {inferred_name}...'})}\n\n"
+            
+            tool_result = execute_tool(inferred_name, inferred_args)
+            
+            yield f"data: {json.dumps({'thinking': f'Finished `{inferred_name}` ({len(tool_result)} chars output). Formatting response...'})}\n\n"
+            
+            summarize_messages = [
+                {"role": "user", "content": f"Format and display the following content clearly in Markdown. Make sure ALL text, mathematical symbols, equations, code snippets, and structural details are fully visible and preserved:\n\n{tool_result}"}
+            ]
+            
             try:
                 response = client.chat.completions.create(
                     model=requested_model,
-                    messages=messages,
+                    messages=summarize_messages,
+                    stream=False
+                )
+                content = response.choices[0].message.content or ""
+            except Exception as e:
+                content = f"### Execution Output\n\n```\n{tool_result}\n```"
+
+            for i in range(0, len(content), 20):
+                chunk = content[i:i+20]
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+                
+            yield "data: [DONE]\n\n"
+            return
+
+        # Step 2: Multi-step Autonomous Agent Loop
+        system_content = SYSTEM_INSTRUCTION
+        if target_folder:
+            resolved_target = resolve_path(target_folder)
+            system_content += f"\nActive Target Project Directory: {resolved_target}"
+
+        conversation = [{"role": "system", "content": system_content}] + [m for m in messages if m.get('role') != 'system']
+        
+        max_steps = 6
+        final_text = ""
+        
+        for step in range(1, max_steps + 1):
+            yield f"data: {json.dumps({'thinking': f'Step {step}/{max_steps}: Analyzing next action...'})}\n\n"
+            
+            try:
+                response = client.chat.completions.create(
+                    model=requested_model,
+                    messages=conversation,
                     tools=TOOLS,
                     stream=False
                 )
-            except Exception as e:
-                error_msg = str(e)
-                if "Connection error" in error_msg:
-                    error_msg = "Could not connect to gemini-web2api. Make sure start_server.bat is running!"
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                break
+                choice = response.choices[0]
+                msg = choice.message
                 
-            choice = response.choices[0]
-            msg = choice.message
-            
-            tool_calls_to_process = []
-            
-            if msg.tool_calls:
-                for tc in msg.tool_calls:
-                    tool_calls_to_process.append((tc.function.name, tc.function.arguments, tc.id))
-            else:
-                fallback_name, fallback_args = extract_fallback_tool(msg.content)
-                if fallback_name:
-                    tool_calls_to_process.append((fallback_name, fallback_args, f"fallback_{step}"))
-            
-            if tool_calls_to_process:
-                messages.append(msg.model_dump() if hasattr(msg, 'model_dump') else dict(msg))
-                
-                for tool_name, tool_args, tool_id in tool_calls_to_process:
-                    yield f"data: {json.dumps({'thinking': f'Step {step}: Running `{tool_name}`...'})}\n\n"
-                    yield f"data: {json.dumps({'system': f'Executing {tool_name}...'})}\n\n"
+                tool_name, tool_args = None, None
+                if msg.tool_calls:
+                    tc = msg.tool_calls[0]
+                    tool_name, tool_args = tc.function.name, tc.function.arguments
+                else:
+                    tool_name, tool_args = extract_fallback_tool(msg.content)
+
+                if tool_name:
+                    yield f"data: {json.dumps({'thinking': f'Step {step}: Executing `{tool_name}`...'})}\n\n"
+                    yield f"data: {json.dumps({'system': f'[Step {step}] Executing {tool_name}'})}\n\n"
                     
                     result = execute_tool(tool_name, tool_args)
                     
-                    yield f"data: {json.dumps({'thinking': f'Finished `{tool_name}` ({len(result)} chars output)'})}\n\n"
+                    yield f"data: {json.dumps({'thinking': f'Step {step}: `{tool_name}` finished ({len(result)} bytes output).'})}\n\n"
                     
-                    messages.append({
-                        "role": "tool",
-                        "name": tool_name,
-                        "tool_call_id": tool_id,
-                        "content": str(result)
-                    })
-                continue
-            else:
-                content = msg.content or ""
-                yield f"data: {json.dumps({'thinking': 'Formulating final answer...'})}\n\n"
-                
-                for i in range(0, len(content), 15):
-                    chunk = content[i:i+15]
-                    yield f"data: {json.dumps({'content': chunk})}\n\n"
-                
-                messages.append({"role": "assistant", "content": content})
-                yield "data: [DONE]\n\n"
+                    conversation.append({"role": "assistant", "content": f"Used tool `{tool_name}` with args {tool_args}"})
+                    conversation.append({"role": "user", "content": f"Tool `{tool_name}` execution result:\n```\n{result}\n```\nAnalyze result. If work is done and verified with testing, provide final summary. If not, continue next tool step."})
+                else:
+                    raw_content = msg.content or ""
+                    refusal_triggers = [
+                        "don't have direct access", "cannot access", "don't have access", "virtual sandbox",
+                        "don't have the capability", "ai collaborator without", "operating without execution access",
+                        "cannot run local file", "cannot inspect", "operating as a language model",
+                        "don't have active local terminal", "without execution access", "share the contents",
+                        "cannot run local", "unable to browse", "please share"
+                    ]
+                    if any(ref_t in raw_content.lower() for ref_t in refusal_triggers):
+                        fallback_path = extract_path_from_text(last_user_msg, target_folder) or (
+                            r"G:\Arise_System" if os.path.exists(r"G:\Arise_System") else (
+                            "G:\\" if os.path.exists("G:\\") else resolve_path(target_folder or "Desktop")
+                            )
+                        )
+                        if os.path.exists(fallback_path):
+                            if any(w in last_user_msg.lower() for w in ["hardcode", "error", "bug", "audit", "find"]):
+                                tool_result = execute_tool("grep_search", {"path": fallback_path, "query": ":\\"})
+                                tool_result += "\n" + execute_tool("list_dir", {"path": fallback_path})
+                            else:
+                                tool_result = execute_tool("read_file" if os.path.isfile(fallback_path) else "list_dir", {"path": fallback_path, "filepath": fallback_path})
+                            final_text = f"### Automatic System Access Output for `{fallback_path}`\n\n{tool_result}"
+                        else:
+                            final_text = execute_tool("run_command", {"command": f"Get-ChildItem '{USER_DESKTOP}'"})
+                    else:
+                        final_text = raw_content or "Task completed."
+                    break
+
+            except Exception as e:
+                final_text = f"Agent Loop Error at Step {step}: {str(e)}"
                 break
+
+        if not final_text:
+            final_text = "Completed autonomous agent sequence."
+
+        yield f"data: {json.dumps({'thinking': 'Synthesizing final report...'})}\n\n"
+        
+        for i in range(0, len(final_text), 20):
+            chunk = final_text[i:i+20]
+            yield f"data: {json.dumps({'content': chunk})}\n\n"
+            
+        yield "data: [DONE]\n\n"
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
+@app.route('/api/playground', methods=['GET'])
+def get_playground():
+    files = []
+    if os.path.exists(PLAYGROUND_DIR):
+        for entry in os.scandir(PLAYGROUND_DIR):
+            if entry.name != "playground_history.json" and not entry.name.startswith("."):
+                files.append({
+                    "name": entry.name,
+                    "path": entry.path,
+                    "is_dir": entry.is_dir(),
+                    "size": entry.stat().st_size if entry.is_file() else 0
+                })
+    
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except Exception:
+            pass
+
+    return {
+        "status": "success",
+        "playground_dir": PLAYGROUND_DIR,
+        "files": files,
+        "history": history
+    }
+
+@app.route('/api/playground/file', methods=['POST'])
+def read_playground_file():
+    data = request.json or {}
+    filename = data.get("filename", "")
+    filepath = resolve_path(os.path.join(PLAYGROUND_DIR, filename) if filename else data.get("filepath", ""))
+    if os.path.exists(filepath) and os.path.isfile(filepath):
+        ext = os.path.splitext(filepath)[1].lower()
+        if ext == ".docx":
+            content = read_docx(filepath)
+        elif ext == ".pdf":
+            content = read_pdf(filepath)
+        else:
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+        return {"status": "success", "filepath": filepath, "content": content}
+    return {"status": "error", "message": f"File '{filename}' not found."}, 404
+
+@app.route('/api/playground/run', methods=['POST'])
+def run_playground_script():
+    data = request.json or {}
+    filename = data.get("filename", "")
+    filepath = resolve_path(os.path.join(PLAYGROUND_DIR, filename) if filename else data.get("filepath", ""))
+    if os.path.exists(filepath):
+        if filepath.endswith(".py"):
+            cmd = f"python '{filepath}'"
+        elif filepath.endswith(".js"):
+            cmd = f"node '{filepath}'"
+        elif filepath.endswith(".bat"):
+            cmd = f"& '{filepath}'"
+        else:
+            cmd = f"Get-Content '{filepath}'"
+        
+        output = execute_tool("run_command", {"command": cmd})
+        return {"status": "success", "command": cmd, "output": output}
+    return {"status": "error", "message": f"Script '{filename}' not found."}, 404
+
 if __name__ == '__main__':
-    print("Starting Agent Backend on port 5000...")
+    print("Starting Unrestricted Autonomous Agent Backend on port 5000...")
     app.run(port=5000, debug=False)
