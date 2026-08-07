@@ -1,0 +1,18 @@
+# Gemini 1B Local Agent — .gitignore
+
+# ── Sensitive / user-specific files (NEVER commit these) ──
+.env
+permissions.json
+
+# ── Generated session data ──
+gemini-chatbox/handoff_context.json
+playground/
+gemini-chatbox/__pycache__/
+gemini-web2api/__pycache__/
+
+# ── OS / Editor ──
+.DS_Store
+Thumbs.db
+*.pyc
+*.pyo
+__pycache__/

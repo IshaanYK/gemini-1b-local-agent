@@ -1,7 +1,9 @@
 /* ── Gemini Agent Workspace — app.js ────────────────────────────────────── */
 'use strict';
 
-const API_URL = 'http://localhost:5000/api/chat';
+const API_URL      = 'http://localhost:5000/api/chat';
+const GRANT_URL    = 'http://localhost:5000/api/grant-permission';
+const PERM_CHK_URL = 'http://localhost:5000/api/permission-status';
 
 // DOM refs
 const messageInput    = document.getElementById('message-input');
@@ -27,6 +29,61 @@ let chatHistory = [];
     const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     titleEl.textContent = greet + ', Ishaan';
 })();
+
+/* ── Permission Modal Logic ─────────────────────────────────────────────── */
+const permOverlay   = document.getElementById('perm-overlay');
+const permAllowBtn  = document.getElementById('perm-allow-btn');
+const permDenyBtn   = document.getElementById('perm-deny-btn');
+const permStatusMsg = document.getElementById('perm-status-msg');
+
+function showPermissionModal() {
+    if (permOverlay) permOverlay.style.display = 'flex';
+}
+
+function hidePermissionModal() {
+    if (permOverlay) {
+        permOverlay.style.opacity = '0';
+        setTimeout(() => { permOverlay.style.display = 'none'; permOverlay.style.opacity = ''; }, 250);
+    }
+}
+
+// Check permission status on page load
+fetch(PERM_CHK_URL)
+    .then(r => r.json())
+    .then(data => { if (!data.granted) showPermissionModal(); })
+    .catch(() => { /* backend not running yet — skip */ });
+
+if (permAllowBtn) {
+    permAllowBtn.addEventListener('click', async () => {
+        permAllowBtn.disabled = true;
+        permAllowBtn.textContent = 'Saving...';
+        try {
+            const r = await fetch(GRANT_URL, { method: 'POST' });
+            const d = await r.json();
+            if (d.status === 'granted') {
+                if (permStatusMsg) permStatusMsg.textContent = '✅ Access granted! Agent is ready.';
+                setTimeout(hidePermissionModal, 900);
+            } else {
+                if (permStatusMsg) permStatusMsg.textContent = '❌ Error: ' + (d.message || 'Unknown error');
+                permAllowBtn.disabled = false;
+                permAllowBtn.textContent = 'Allow Access';
+            }
+        } catch (e) {
+            if (permStatusMsg) permStatusMsg.textContent = '❌ Could not connect to backend. Is it running?';
+            permAllowBtn.disabled = false;
+            permAllowBtn.textContent = 'Allow Access';
+        }
+    });
+}
+
+if (permDenyBtn) {
+    permDenyBtn.addEventListener('click', () => {
+        if (permStatusMsg) permStatusMsg.textContent = 'Permissions denied. Agent tools are disabled.';
+        permDenyBtn.textContent = 'Denied';
+        permDenyBtn.disabled = true;
+        if (permAllowBtn) permAllowBtn.disabled = true;
+    });
+}
 
 /* ── Sidebar Toggle ─────────────────────────────────────────────────────── */
 toggleSidebarBtn.addEventListener('click', () => {
@@ -281,7 +338,13 @@ async function sendMessage() {
                 if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
                 try {
                     const data = JSON.parse(line.slice(6));
-                    if (data.thinking) {
+                    if (data.needs_permission) {
+                        // Show permission modal and abort streaming
+                        showPermissionModal();
+                        thinkingLogs.push('⚠️ Agent paused — waiting for your permission.');
+                        renderAssistantBubble(aiBubble, thinkingLogs, '');
+                        return; // exit generate() early
+                    } else if (data.thinking) {
                         thinkingLogs.push(data.thinking);
                         renderAssistantBubble(aiBubble, thinkingLogs, fullResponse);
                     } else if (data.system) {
