@@ -76,8 +76,11 @@ if (permAllowBtn) {
             const r = await fetch(GRANT_URL, { method: 'POST' });
             const d = await r.json();
             if (d.status === 'granted') {
-                if (permStatusMsg) permStatusMsg.textContent = '✅ Access granted! Agent is ready.';
-                setTimeout(hidePermissionModal, 900);
+                if (permStatusMsg) permStatusMsg.textContent = '✅ Access granted! Resuming query...';
+                setTimeout(() => {
+                    hidePermissionModal();
+                    if (lastUserPrompt) window.requeryLastPrompt(lastUserPrompt);
+                }, 600);
             } else {
                 if (permStatusMsg) permStatusMsg.textContent = '❌ Error: ' + (d.message || 'Unknown error');
                 permAllowBtn.disabled = false;
@@ -270,6 +273,15 @@ function createAssistantRow() {
     return bubble;
 }
 
+let lastUserPrompt = '';
+
+window.requeryLastPrompt = function(promptText) {
+    const targetText = promptText || lastUserPrompt;
+    if (!targetText) return;
+    messageInput.value = targetText;
+    sendMessage();
+};
+
 function renderAssistantBubble(bubble, thinkingLogs, responseText) {
     let html = '';
 
@@ -294,6 +306,14 @@ function renderAssistantBubble(bubble, thinkingLogs, responseText) {
         html += '<span style="color:var(--ink-tertiary);font-style:italic">Thinking...</span>';
     }
 
+    // Always include Re-query button for easy one-click retry
+    html += `
+    <div class="msg-action-bar">
+        <button class="requery-btn" onclick="window.requeryLastPrompt()" title="Re-submit this query to the agent">
+            🔄 Re-query Prompt
+        </button>
+    </div>`;
+
     bubble.innerHTML = html;
     enhanceCodeBlocks(bubble);
     scrollToBottom();
@@ -303,6 +323,8 @@ function renderAssistantBubble(bubble, thinkingLogs, responseText) {
 async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text) return;
+
+    lastUserPrompt = text;
 
     // Reset input
     messageInput.value = '';

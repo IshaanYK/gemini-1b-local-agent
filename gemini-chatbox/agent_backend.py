@@ -808,18 +808,18 @@ def chat():
             yield "data: [DONE]\n\n"
             return
         
-        yield f"data: {json.dumps({'thinking': 'Autonomous Agent Loop Initializing...'})}\n\n"
+        yield f"data: {json.dumps({'thinking': '🧠 Analyzing user intent & scanning vector memory...'})}\n\n"
         
         # Step 1: Single tool direct execution
         inferred_name, inferred_args = infer_intent_tool(last_user_msg, target_folder)
         
         if inferred_name and (inferred_name in {"create_and_run_script", "list_processes"} or not any(k in last_user_msg.lower() for k in ["create app", "modify code", "agent mode"])):
-            yield f"data: {json.dumps({'thinking': f'Executing local tool `{inferred_name}`...'})}\n\n"
+            yield f"data: {json.dumps({'thinking': f'💡 Direct Intent Recognized: `{inferred_name}`. Preparing administrative execution...'})}\n\n"
             yield f"data: {json.dumps({'system': f'Executing {inferred_name}...'})}\n\n"
             
             tool_result = execute_tool(inferred_name, inferred_args)
             
-            yield f"data: {json.dumps({'thinking': f'Finished `{inferred_name}` ({len(tool_result)} chars output). Formatting response...'})}\n\n"
+            yield f"data: {json.dumps({'thinking': f'✨ Local tool `{inferred_name}` executed ({len(tool_result)} chars output). Formulating report...'})}\n\n"
             
             summarize_messages = [
                 {"role": "user", "content": f"Format and display the following content clearly in Markdown. Make sure ALL text, mathematical symbols, equations, code snippets, and structural details are fully visible and preserved:\n\n{tool_result}"}
@@ -851,6 +851,7 @@ def chat():
         # ── Inject RAG Vector Memory Context ──────────────────────────────────
         rag_ctx = rag_memory.get_rag_prompt_context(last_user_msg)
         if rag_ctx:
+            yield f"data: {json.dumps({'thinking': '📖 Retrieved relevant past timeline memories & knowledge context.'})}\n\n"
             system_content += f"\n{rag_ctx}"
 
         conversation = [{"role": "system", "content": system_content}] + [m for m in messages if m.get('role') != 'system']
@@ -859,7 +860,7 @@ def chat():
         final_text = ""
         
         for step in range(1, max_steps + 1):
-            yield f"data: {json.dumps({'thinking': f'Step {step}/{max_steps}: Analyzing next action...'})}\n\n"
+            yield f"data: {json.dumps({'thinking': f'🤔 Step {step}/{max_steps}: Formulating multi-step tool strategy...'})}\n\n"
             
             try:
                 response = call_openai_with_autofix({
@@ -879,12 +880,12 @@ def chat():
                     tool_name, tool_args = extract_fallback_tool(msg.content)
 
                 if tool_name:
-                    yield f"data: {json.dumps({'thinking': f'Step {step}: Executing `{tool_name}`...'})}\n\n"
+                    yield f"data: {json.dumps({'thinking': f'🛠️ Step {step}: Selected action `{tool_name}` with parameters: {json.dumps(tool_args)}'})}\n\n"
                     yield f"data: {json.dumps({'system': f'[Step {step}] Executing {tool_name}'})}\n\n"
                     
                     result = execute_tool(tool_name, tool_args)
                     
-                    yield f"data: {json.dumps({'thinking': f'Step {step}: `{tool_name}` finished ({len(result)} bytes output).'})}\n\n"
+                    yield f"data: {json.dumps({'thinking': f'✅ Step {step}: Finished `{tool_name}` ({len(result)} bytes output). Analyzing results...'})}\n\n"
                     
                     conversation.append({"role": "assistant", "content": f"Used tool `{tool_name}` with args {tool_args}"})
                     conversation.append({"role": "user", "content": f"Tool `{tool_name}` execution result:\n```\n{result}\n```\nAnalyze result. If work is done and verified with testing, provide final summary. If not, continue next tool step."})
