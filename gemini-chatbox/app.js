@@ -4,6 +4,8 @@
 const API_URL      = 'http://localhost:5000/api/chat';
 const GRANT_URL    = 'http://localhost:5000/api/grant-permission';
 const PERM_CHK_URL = 'http://localhost:5000/api/permission-status';
+const RAG_STAT_URL = 'http://localhost:5000/api/rag/status';
+const RAG_SRCH_URL = 'http://localhost:5000/api/rag/search';
 
 // DOM refs
 const messageInput    = document.getElementById('message-input');
@@ -47,11 +49,24 @@ function hidePermissionModal() {
     }
 }
 
-// Check permission status on page load
-fetch(PERM_CHK_URL)
-    .then(r => r.json())
-    .then(data => { if (!data.granted) showPermissionModal(); })
-    .catch(() => { /* backend not running yet — skip */ });
+// Check RAG Memory status on load
+const ragStatusText = document.getElementById('rag-status-text');
+const ragDbInfo     = document.getElementById('rag-db-info');
+
+function loadRagStatus() {
+    fetch(RAG_STAT_URL)
+        .then(r => r.json())
+        .then(data => {
+            if (ragStatusText) {
+                ragStatusText.textContent = `🧠 ${data.device} | ${data.memories_count} Memories`;
+            }
+            if (ragDbInfo) {
+                ragDbInfo.textContent = `${data.model_name} | Hardware: ${data.device_name} (${data.memories_count} timeline memories, ${data.file_chunks_count} file chunks)`;
+            }
+        })
+        .catch(() => { /* backend pending */ });
+}
+loadRagStatus();
 
 if (permAllowBtn) {
     permAllowBtn.addEventListener('click', async () => {
@@ -433,20 +448,79 @@ if (pgOverlay) {
 }
 
 // Tab Switching
-if (tabFilesBtn && tabHistoryBtn) {
+const tabMemoryBtn  = document.getElementById('tab-memory-btn');
+const tabMemory     = document.getElementById('tab-memory');
+const ragSearchInput= document.getElementById('rag-search-input');
+const ragSearchBtn  = document.getElementById('rag-search-btn');
+const ragMemoryList = document.getElementById('rag-memory-list');
+
+if (tabFilesBtn && tabHistoryBtn && tabMemoryBtn) {
     tabFilesBtn.addEventListener('click', () => {
         tabFilesBtn.classList.add('active');
         tabHistoryBtn.classList.remove('active');
+        tabMemoryBtn.classList.remove('active');
         tabFiles.classList.add('active');
         tabHistory.classList.remove('active');
+        tabMemory.classList.remove('active');
     });
 
     tabHistoryBtn.addEventListener('click', () => {
         tabHistoryBtn.classList.add('active');
         tabFilesBtn.classList.remove('active');
+        tabMemoryBtn.classList.remove('active');
         tabHistory.classList.add('active');
         tabFiles.classList.remove('active');
+        tabMemory.classList.remove('active');
     });
+
+    tabMemoryBtn.addEventListener('click', () => {
+        tabMemoryBtn.classList.add('active');
+        tabFilesBtn.classList.remove('active');
+        tabHistoryBtn.classList.remove('active');
+        tabMemory.classList.add('active');
+        tabFiles.classList.remove('active');
+        tabHistory.classList.remove('active');
+        loadVectorMemories('');
+    });
+}
+
+if (ragSearchBtn && ragSearchInput) {
+    ragSearchBtn.addEventListener('click', () => {
+        loadVectorMemories(ragSearchInput.value.trim());
+    });
+    ragSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') loadVectorMemories(ragSearchInput.value.trim());
+    });
+}
+
+async function loadVectorMemories(query) {
+    if (!ragMemoryList) return;
+    ragMemoryList.innerHTML = '<div class="pg-loading">Searching vector memory...</div>';
+    try {
+        const res = await fetch(RAG_SRCH_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query || 'project agent timeline code', top_k: 8 })
+        });
+        const data = await res.json();
+        const results = data.results || [];
+        if (results.length === 0) {
+            ragMemoryList.innerHTML = '<div class="pg-loading" style="color:var(--ink-tertiary)">No matching vector memories found. Interactions are automatically saved as you chat!</div>';
+        } else {
+            ragMemoryList.innerHTML = results.map(m => `
+                <div class="pg-history-item">
+                    <div class="pg-history-header">
+                        <span class="pg-action-badge edit">🧠 Vector Similarity: ${m.score}</span>
+                        <span class="pg-history-time">${escapeHtml(m.timestamp)}</span>
+                    </div>
+                    <div class="pg-history-filename">${escapeHtml(m.source)}</div>
+                    <div class="pg-history-snippet">${escapeHtml(m.text)}</div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        ragMemoryList.innerHTML = `<div class="pg-loading" style="color:#e06c75">Error loading memories: ${escapeHtml(e.message)}</div>`;
+    }
 }
 
 if (pgCloseViewerBtn) {

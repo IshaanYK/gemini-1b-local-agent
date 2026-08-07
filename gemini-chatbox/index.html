@@ -86,6 +86,10 @@
                     <span class="status-dot-sm"></span>
                     <span>Proxy (8081)</span>
                 </div>
+                <div class="rag-status" id="rag-status-pill" title="RAG Vector Memory & Hardware Device Engine">
+                    <span class="status-dot-sm cyan"></span>
+                    <span id="rag-status-text">🧠 RAG: CPU | all-MiniLM</span>
+                </div>
             </div>
         </aside>
 
@@ -251,6 +255,7 @@
                 <div class="pg-tabs">
                     <button class="pg-tab active" id="tab-files-btn">📂 Workspace Files</button>
                     <button class="pg-tab" id="tab-history-btn">📜 Code History & Timeline</button>
+                    <button class="pg-tab" id="tab-memory-btn">🧠 Inter-Timeline Vector Memory</button>
                 </div>
 
                 <!-- Tab 1: Files -->
@@ -268,6 +273,21 @@
                 <div class="pg-tab-content" id="tab-history">
                     <div class="pg-history-list" id="pg-history-list">
                         <div class="pg-loading">Loading history log...</div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Vector Memory & RAG Vault -->
+                <div class="pg-tab-content" id="tab-memory">
+                    <div class="pg-path-banner">
+                        <span class="pg-path-label">Engine & Store:</span>
+                        <code id="rag-db-info">all-MiniLM Vector Memory (SQLite DB)</code>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                        <input type="text" id="rag-search-input" placeholder="Search vector memory & timeline knowledge..." class="folder-input" style="flex:1;">
+                        <button class="pg-act-btn run" id="rag-search-btn">Search Memory</button>
+                    </div>
+                    <div class="pg-history-list" id="rag-memory-list">
+                        <div class="pg-loading">Loading vector memories...</div>
                     </div>
                 </div>
 

@@ -10,8 +10,8 @@ echo  ============================================================
 echo.
 
 :: ── Step 1: Install Python dependencies ──────────────────────────────────
-echo  [1/3] Installing Python dependencies...
-pip install flask flask-cors openai httpx 2>nul
+echo  [1/3] Installing Python dependencies (Flask, OpenAI, HTTPX, Sentence-Transformers)...
+pip install flask flask-cors openai httpx sentence-transformers 2>nul
 if %errorlevel% neq 0 (
     echo.
     echo  ERROR: pip install failed. Make sure Python is installed and in PATH.
