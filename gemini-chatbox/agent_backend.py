@@ -15,7 +15,7 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-client = OpenAI(base_url="http://localhost:8081/v1", api_key="sk-gemini")
+client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="sk-gemini")
 MODEL = "gemini-3.6-flash"
 
 # ── Dynamic paths — work on ANY user's PC ───────────────────────────────
