@@ -279,14 +279,14 @@
                 <!-- Tab 3: Vector Memory & RAG Vault -->
                 <div class="pg-tab-content" id="tab-memory">
                     <div class="pg-path-banner">
-                        <span class="pg-path-label">Engine & Store:</span>
+                        <span class="pg-path-label">Engine & Hardware:</span>
                         <code id="rag-db-info">all-MiniLM Vector Memory (SQLite DB)</code>
                     </div>
-                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
                         <input type="text" id="rag-search-input" placeholder="Search vector memory & timeline knowledge..." class="folder-input" style="flex:1;">
-                        <button class="pg-act-btn run" id="rag-search-btn">Search Memory</button>
+                        <button class="pg-act-btn run" id="rag-search-btn" style="padding:9px 18px; font-weight:600;">🔍 Search Memory</button>
                     </div>
-                    <div class="pg-history-list" id="rag-memory-list">
+                    <div class="vec-card-list" id="rag-memory-list">
                         <div class="pg-loading">Loading vector memories...</div>
                     </div>
                 </div>
