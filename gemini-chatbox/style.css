@@ -1473,3 +1473,23 @@ textarea::placeholder {
     margin: 12px 0 0;
     min-height: 16px;
 }
+
+/* ── RAG Memory Status Pill ─────────────────────────────────────────────── */
+.rag-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    padding: 6px 10px;
+    border-radius: var(--r-md);
+    margin-top: 4px;
+}
+
+.status-dot-sm.cyan {
+    background: #00f2fe;
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+}
+

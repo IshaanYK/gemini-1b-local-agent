@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 from openai import OpenAI
+import rag_memory
 
 app = Flask(__name__)
 CORS(app)
@@ -766,6 +767,25 @@ def grant_permission():
 def permission_status():
     return {"granted": _is_permitted()}
 
+@app.route('/api/rag/status', methods=['GET'])
+def rag_status():
+    return rag_memory.get_system_status()
+
+@app.route('/api/rag/search', methods=['POST'])
+def rag_search():
+    data = request.json or {}
+    query = data.get("query", "").strip()
+    top_k = int(data.get("top_k", 5))
+    results = rag_memory.search_memory(query, top_k=top_k)
+    return {"status": "success", "results": results}
+
+@app.route('/api/rag/index_file', methods=['POST'])
+def rag_index_file():
+    data = request.json or {}
+    filepath = data.get("filepath", "").strip()
+    count = rag_memory.index_file_content(filepath)
+    return {"status": "success", "filepath": filepath, "chunks_indexed": count}
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -827,6 +847,11 @@ def chat():
         if target_folder:
             resolved_target = resolve_path(target_folder)
             system_content += f"\nActive Target Project Directory: {resolved_target}"
+
+        # ── Inject RAG Vector Memory Context ──────────────────────────────────
+        rag_ctx = rag_memory.get_rag_prompt_context(last_user_msg)
+        if rag_ctx:
+            system_content += f"\n{rag_ctx}"
 
         conversation = [{"role": "system", "content": system_content}] + [m for m in messages if m.get('role') != 'system']
         
@@ -897,6 +922,16 @@ def chat():
 
         if not final_text:
             final_text = "Completed autonomous agent sequence."
+
+        # ── Auto-index conversation turn into Inter-Timeline Vector Memory ─────
+        try:
+            rag_memory.save_memory(
+                f"User Question: {last_user_msg}\nAgent Execution/Response: {final_text[:600]}",
+                source="chat_timeline",
+                metadata={"model": requested_model, "target_folder": target_folder}
+            )
+        except Exception as e:
+            print(f"[RAG Index Warning] Failed to auto-index turn: {e}")
 
         yield f"data: {json.dumps({'thinking': 'Synthesizing final report...'})}\n\n"
         
