@@ -493,6 +493,35 @@ if (ragSearchBtn && ragSearchInput) {
     });
 }
 
+function formatMemoryContent(rawText) {
+    if (!rawText) return '<div class="vec-card-body">No text stored</div>';
+    
+    let qText = '', aText = rawText;
+    
+    if (rawText.includes('User Question:') || rawText.includes('User asked:')) {
+        const parts = rawText.split(/(?:Agent Execution\/Response|Assistant):/i);
+        const qPart = parts[0] || '';
+        aText = parts[1] || '';
+        
+        qText = qPart.replace(/User (?:Question|asked):/i, '').trim();
+    }
+    
+    // Clean up repetitive directory boilerplate if present
+    if (aText.includes("Contents of C:\\Users\\ISHAAN SEN\\Desktop:")) {
+        aText = aText.split("Contents of C:\\Users\\ISHAAN SEN\\Desktop:")[0].trim() || aText;
+    }
+    
+    let html = '<div class="vec-card-body">';
+    if (qText) {
+        html += `<div class="vec-q-block"><div class="vec-q-label">User Query</div>${escapeHtml(qText)}</div>`;
+    }
+    if (aText.trim()) {
+        html += `<div class="vec-a-block">${escapeHtml(aText.trim())}</div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
 async function loadVectorMemories(query) {
     if (!ragMemoryList) return;
     ragMemoryList.innerHTML = '<div class="pg-loading">Searching vector memory...</div>';
@@ -507,16 +536,21 @@ async function loadVectorMemories(query) {
         if (results.length === 0) {
             ragMemoryList.innerHTML = '<div class="pg-loading" style="color:var(--ink-tertiary)">No matching vector memories found. Interactions are automatically saved as you chat!</div>';
         } else {
-            ragMemoryList.innerHTML = results.map(m => `
-                <div class="pg-history-item">
-                    <div class="pg-history-header">
-                        <span class="pg-action-badge edit">🧠 Vector Similarity: ${m.score}</span>
-                        <span class="pg-history-time">${escapeHtml(m.timestamp)}</span>
+            ragMemoryList.innerHTML = results.map(m => {
+                const scorePct = (m.score * 100).toFixed(1);
+                return `
+                    <div class="vec-card">
+                        <div class="vec-card-header">
+                            <div class="vec-badge-group">
+                                <span class="vec-score-badge">🧠 Similarity: ${scorePct}%</span>
+                                <span class="vec-source-badge">${escapeHtml(m.source)}</span>
+                            </div>
+                            <span class="vec-time">${escapeHtml(m.timestamp)}</span>
+                        </div>
+                        ${formatMemoryContent(m.text)}
                     </div>
-                    <div class="pg-history-filename">${escapeHtml(m.source)}</div>
-                    <div class="pg-history-snippet">${escapeHtml(m.text)}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
     } catch (e) {
         ragMemoryList.innerHTML = `<div class="pg-loading" style="color:#e06c75">Error loading memories: ${escapeHtml(e.message)}</div>`;
