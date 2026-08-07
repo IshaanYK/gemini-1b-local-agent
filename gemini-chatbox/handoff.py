@@ -4,17 +4,29 @@ import subprocess
 import webbrowser
 import time
 
-TRANSCRIPT_PATH = r"C:\Users\ISHAAN SEN\.gemini\antigravity-ide\brain\10d1440f-f6da-4b60-ac6a-cb48de2aaeb8\.system_generated\logs\transcript.jsonl"
+import glob
+
 CONTEXT_FILE = "handoff_context.json"
 UI_FILE = "index.html"
+
+def get_latest_transcript_path():
+    brain_dir = r"C:\Users\ISHAAN SEN\.gemini\antigravity-ide\brain"
+    pattern = os.path.join(brain_dir, "*", ".system_generated", "logs", "transcript.jsonl")
+    files = glob.glob(pattern)
+    if not files:
+        return None
+    files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+    return files[0]
 
 def main():
     print("Packaging Antigravity context for Gemini 1B...")
     
     context_messages = []
+    transcript_path = get_latest_transcript_path()
     
-    if os.path.exists(TRANSCRIPT_PATH):
-        with open(TRANSCRIPT_PATH, 'r', encoding='utf-8') as f:
+    if transcript_path and os.path.exists(transcript_path):
+        print(f"Using transcript: {transcript_path}")
+        with open(transcript_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             # Extract just user inputs and model planner responses for context
             for line in lines:
