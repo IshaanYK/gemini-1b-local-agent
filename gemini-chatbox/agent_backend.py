@@ -4,6 +4,7 @@ import re
 import socket
 import datetime
 import subprocess
+import time
 import urllib.request
 import urllib.parse
 import zipfile
@@ -28,6 +29,62 @@ HISTORY_FILE   = os.path.join(PLAYGROUND_DIR, "playground_history.json")
 PERMISSIONS_FILE = os.path.join(_BASE_DIR, "permissions.json")
 
 os.makedirs(PLAYGROUND_DIR, exist_ok=True)
+
+# ── Self-Healing Auto-Fix Proxy Manager ────────────────────────────────
+def _is_port_open(host="127.0.0.1", port=8081, timeout=1.0):
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+def ensure_proxy_running():
+    """Auto-detects if proxy on 8081 is down, and automatically starts it in the background!"""
+    if _is_port_open(port=8081):
+        return True
+    
+    print("[Auto-Fix] Proxy on port 8081 is DOWN! Automatically launching gemini_web2api.py...")
+    proxy_script = os.path.abspath(os.path.join(_BASE_DIR, "..", "gemini-web2api", "gemini_web2api.py"))
+    if not os.path.exists(proxy_script):
+        proxy_script = os.path.abspath(os.path.join(_BASE_DIR, "gemini_web2api.py"))
+    
+    if os.path.exists(proxy_script):
+        proxy_dir = os.path.dirname(proxy_script)
+        try:
+            log_file = os.path.join(proxy_dir, "proxy.log")
+            creation_flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            with open(log_file, "a") as f_out:
+                subprocess.Popen(
+                    ["python", proxy_script],
+                    cwd=proxy_dir,
+                    stdout=f_out,
+                    stderr=f_out,
+                    creationflags=creation_flags
+                )
+            for _ in range(10):
+                time.sleep(0.5)
+                if _is_port_open(port=8081):
+                    print("[Auto-Fix] ✅ Proxy successfully auto-started on port 8081!")
+                    return True
+        except Exception as e:
+            print(f"[Auto-Fix Error] Failed to launch proxy: {e}")
+    return False
+
+def call_openai_with_autofix(create_kwargs, retries=2):
+    """Executes OpenAI completions with automatic proxy detection & self-healing retry on connection errors."""
+    ensure_proxy_running()
+    for attempt in range(retries + 1):
+        try:
+            return client.chat.completions.create(**create_kwargs)
+        except Exception as e:
+            err_str = str(e).lower()
+            if any(k in err_str for k in ["connection", "connect", "refused", "unreachable", "timeout"]) and attempt < retries:
+                print(f"[Auto-Fix Retry {attempt + 1}/{retries}] Proxy connection issue: {e}. Healing proxy...")
+                ensure_proxy_running()
+                time.sleep(1.5)
+            else:
+                raise e
+    return client.chat.completions.create(**create_kwargs)
 
 # ── Permission System ────────────────────────────────────────────────────
 def _load_permissions():
@@ -713,11 +770,11 @@ def chat():
             ]
             
             try:
-                response = client.chat.completions.create(
-                    model=requested_model,
-                    messages=summarize_messages,
-                    stream=False
-                )
+                response = call_openai_with_autofix({
+                    "model": requested_model,
+                    "messages": summarize_messages,
+                    "stream": False
+                })
                 content = response.choices[0].message.content or ""
             except Exception as e:
                 content = f"### Execution Output\n\n```\n{tool_result}\n```"
@@ -744,12 +801,12 @@ def chat():
             yield f"data: {json.dumps({'thinking': f'Step {step}/{max_steps}: Analyzing next action...'})}\n\n"
             
             try:
-                response = client.chat.completions.create(
-                    model=requested_model,
-                    messages=conversation,
-                    tools=TOOLS,
-                    stream=False
-                )
+                response = call_openai_with_autofix({
+                    "model": requested_model,
+                    "messages": conversation,
+                    "tools": TOOLS,
+                    "stream": False
+                })
                 choice = response.choices[0]
                 msg = choice.message
                 
