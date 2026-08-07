@@ -555,6 +555,26 @@ def execute_tool(name, args):
                     break
                     
             return f"Contents of {path}:\n" + ("\n".join(items) if items else "Directory is empty.")
+
+        elif name == "create_and_run_script":
+            filepath = resolve_path(args.get("filepath"))
+            content = args.get("content", "")
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            log_playground_history("create", filepath, content, meta=f"Created {os.path.basename(filepath)}")
+            
+            if filepath.endswith(".py"):
+                cmd = f"python '{filepath}'"
+            elif filepath.endswith(".js"):
+                cmd = f"node '{filepath}'"
+            elif filepath.endswith(".bat") or filepath.endswith(".ps1"):
+                cmd = f"& '{filepath}'"
+            else:
+                cmd = f"Get-Content '{filepath}'"
+                
+            out = execute_tool("run_command", {"command": cmd})
+            return f"### File Created & Executed: `{filepath}`\n\n**File Content Written:**\n```python\n{content}\n```\n\n**Execution Command:** `{cmd}`\n\n**Execution Output:**\n```\n{out}\n```"
             
         return f"Unknown tool: {name}"
     except subprocess.TimeoutExpired:
@@ -672,6 +692,22 @@ def infer_intent_tool(user_text, target_folder=None):
     if any(k in text_lower for k in process_keywords):
         return "list_processes", {}
 
+    # 0.5 Create & Run Script Intent
+    if any(k in text_lower for k in ["create", "make", "write", "generate"]) and any(s in text_lower for s in ["script", "file", ".py", ".js", ".bat", ".ps1"]) and any(r in text_lower for r in ["run", "execute", "run it", "execute it"]):
+        fn_match = re.search(r"(\b[\w-]+\.(?:py|js|bat|txt|ps1)\b)", text, re.IGNORECASE)
+        filename = fn_match.group(1) if fn_match else "test.py"
+        dest_folder = USER_DESKTOP if "desktop" in text_lower else (resolve_path(target_folder) if target_folder else PLAYGROUND_DIR)
+        target_filepath = os.path.join(dest_folder, filename)
+        
+        if filename.endswith(".py"):
+            code_content = f'# {filename} — Auto-generated test script\nimport sys, os\nprint("[SUCCESS] Test script {filename} executed successfully!")\nprint("Python version:", sys.version.split()[0])\nprint("Current directory:", os.getcwd())\n'
+        elif filename.endswith(".js"):
+            code_content = f'// {filename} — Auto-generated test script\nconsole.log("[SUCCESS] Test script {filename} executed successfully!");\nconsole.log("Node version:", process.version);\n'
+        else:
+            code_content = f'@echo off\necho Test script {filename} executed successfully!\n'
+            
+        return "create_and_run_script", {"filepath": target_filepath, "content": code_content}
+
     # 1. CLI Commands
     cli_cmdlets = (
         "get-childitem", "gci", "dir", "ls", "get-process", "gps", "get-service",
@@ -757,7 +793,7 @@ def chat():
         # Step 1: Single tool direct execution
         inferred_name, inferred_args = infer_intent_tool(last_user_msg, target_folder)
         
-        if inferred_name and not any(k in last_user_msg.lower() for k in ["create app", "modify code", "write script", "test", "fix", "agent mode"]):
+        if inferred_name and (inferred_name in {"create_and_run_script", "list_processes"} or not any(k in last_user_msg.lower() for k in ["create app", "modify code", "agent mode"])):
             yield f"data: {json.dumps({'thinking': f'Executing local tool `{inferred_name}`...'})}\n\n"
             yield f"data: {json.dumps({'system': f'Executing {inferred_name}...'})}\n\n"
             
