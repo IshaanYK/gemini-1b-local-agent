@@ -290,6 +290,38 @@
         </div>
     </div>
 
+    <!-- ── Permission Modal (shown on first run for new users) ───────────── -->
+    <div class="perm-overlay" id="perm-overlay" style="display:none;">
+        <div class="perm-modal" id="perm-modal">
+            <div class="perm-logo">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#permGrad)"/>
+                    <defs>
+                        <linearGradient id="permGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#5e6ad2"/>
+                            <stop offset="1" stop-color="#828fff"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h2 class="perm-title">Gemini 1B Agent wants permission</h2>
+            <p class="perm-desc">This agent needs your permission to operate on this computer. It will be able to:</p>
+            <ul class="perm-list">
+                <li><span class="perm-icon">📂</span> Read files and folders on this PC</li>
+                <li><span class="perm-icon">✏️</span> Write and create files</li>
+                <li><span class="perm-icon">⚡</span> Execute PowerShell commands</li>
+                <li><span class="perm-icon">🔍</span> Search your codebase</li>
+                <li><span class="perm-icon">📋</span> List directory contents</li>
+            </ul>
+            <p class="perm-note">Permissions are saved locally and only apply to this machine. You can revoke them at any time by deleting <code>permissions.json</code>.</p>
+            <div class="perm-actions">
+                <button class="perm-deny-btn" id="perm-deny-btn">Deny</button>
+                <button class="perm-allow-btn" id="perm-allow-btn">Allow Access</button>
+            </div>
+            <p class="perm-footer" id="perm-status-msg"></p>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

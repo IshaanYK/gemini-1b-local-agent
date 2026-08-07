@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import socket
+import datetime
 import subprocess
 import urllib.request
 import urllib.parse
@@ -16,12 +18,49 @@ CORS(app)
 client = OpenAI(base_url="http://localhost:8081/v1", api_key="sk-gemini")
 MODEL = "gemini-3.6-flash"
 
-USER_HOME = r"C:\Users\ISHAAN SEN"
-USER_DESKTOP = r"C:\Users\ISHAAN SEN\Desktop"
-PLAYGROUND_DIR = r"C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\1B-gemini-Local-Agent\playground"
-HISTORY_FILE = os.path.join(PLAYGROUND_DIR, "playground_history.json")
+# ── Dynamic paths — work on ANY user's PC ───────────────────────────────
+USER_HOME    = os.path.expanduser("~")
+USER_DESKTOP = os.path.join(USER_HOME, "Desktop")
+# Playground lives next to this script file
+_BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+PLAYGROUND_DIR = os.path.join(_BASE_DIR, "playground")
+HISTORY_FILE   = os.path.join(PLAYGROUND_DIR, "playground_history.json")
+PERMISSIONS_FILE = os.path.join(_BASE_DIR, "permissions.json")
 
 os.makedirs(PLAYGROUND_DIR, exist_ok=True)
+
+# ── Permission System ────────────────────────────────────────────────────
+def _load_permissions():
+    """Return the permissions dict, or None if not yet granted."""
+    if not os.path.exists(PERMISSIONS_FILE):
+        return None
+    try:
+        with open(PERMISSIONS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if data.get('granted') else None
+    except Exception:
+        return None
+
+def _is_permitted():
+    return _load_permissions() is not None
+
+def _grant_permissions():
+    """Write permissions.json to grant all access."""
+    data = {
+        "granted": True,
+        "granted_at": datetime.datetime.now().isoformat(),
+        "machine": socket.gethostname(),
+        "permissions": {
+            "read_files": True,
+            "write_files": True,
+            "run_commands": True,
+            "list_directories": True,
+            "search_files": True
+        },
+        "version": "1.0"
+    }
+    with open(PERMISSIONS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
 
 def log_playground_history(action, filepath, content="", meta=""):
     """Log persistent code history and file actions into playground registry."""
@@ -621,6 +660,19 @@ CRITICAL DIRECTIVES:
 4. When asked to check code for errors or hardcoding, search for hardcoded paths (e.g. C:\\ or G:\\) or unhandled exceptions, read source files, and summarize exact line numbers and fixes in clean GitHub-flavored Markdown.
 """
 
+@app.route('/api/grant-permission', methods=['POST'])
+def grant_permission():
+    """Called by the frontend when user clicks Allow in the permission modal."""
+    try:
+        _grant_permissions()
+        return {"status": "granted", "message": "Permissions granted. Agent is ready."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+@app.route('/api/permission-status', methods=['GET'])
+def permission_status():
+    return {"granted": _is_permitted()}
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -636,6 +688,12 @@ def chat():
 
     def generate():
         nonlocal messages
+
+        # ── Permission gate — block all tool use until user grants access ──
+        if not _is_permitted():
+            yield f"data: {json.dumps({'needs_permission': True})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         
         yield f"data: {json.dumps({'thinking': 'Autonomous Agent Loop Initializing...'})}\n\n"
         
@@ -822,5 +880,7 @@ def run_playground_script():
     return {"status": "error", "message": f"Script '{filename}' not found."}, 404
 
 if __name__ == '__main__':
-    print("Starting Unrestricted Autonomous Agent Backend on port 5000...")
-    app.run(port=5000, debug=False)
+    port = int(os.environ.get('BACKEND_PORT', 5000))
+    print(f"Starting Gemini 1B Agent Backend on port {port}...")
+    print(f"Permissions: {'GRANTED' if _is_permitted() else 'NOT YET GRANTED — user will see permission prompt'}")
+    app.run(port=port, debug=False)
