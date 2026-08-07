@@ -19,6 +19,15 @@ const composerBox     = document.getElementById('composer-box');
 
 let chatHistory = [];
 
+/* ── Dynamic Greeting ───────────────────────────────────────────────────── */
+(function setGreeting() {
+    const titleEl = document.getElementById('welcome-title');
+    if (!titleEl) return;
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    titleEl.textContent = greet + ', Ishaan';
+})();
+
 /* ── Sidebar Toggle ─────────────────────────────────────────────────────── */
 toggleSidebarBtn.addEventListener('click', () => {
     sidebar.classList.toggle('open');
