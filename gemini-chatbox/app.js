@@ -1904,6 +1904,7 @@ function setupEventListeners() {
 // ── Global Command Palette (Ctrl+K) ──────────────────────────────────
 const COMMANDS_REGISTRY = [
     { id: 'new_chat', title: 'New Conversation (Ctrl+N)', desc: 'Start a fresh conversation and reset workspace', cat: 'actions', icon: '✦', action: () => startNewChat(true) },
+    { id: 'voice_input', title: 'Voice Dictation (Ctrl+M)', desc: 'Speak to prompt with real-time speech-to-text dictation', cat: 'actions', icon: '🎙️', action: () => toggleVoiceDictation() },
     { id: 'shortcuts_help', title: 'Keyboard Shortcuts Cheatsheet (?)', desc: 'Inspect all hotkeys, shortcuts, and keybindings', cat: 'actions', icon: '⌨️', action: () => openShortcutsModal() },
     { id: 'toggle_auto', title: 'Toggle Autonomous Mode (Ctrl+Shift+A)', desc: 'Switch autonomous multi-turn ReAct execution', cat: 'actions', icon: '⚡', action: () => toggleAutonomousMode(true) },
     { id: 'cycle_persona', title: 'Cycle Specialist Persona (Ctrl+Shift+P)', desc: 'Switch Architect, Fullstack, STEM, Security, Researcher', cat: 'actions', icon: '👤', action: () => cycleNextPersona() },
@@ -2681,6 +2682,125 @@ window.closeExportModal = () => closeMasterSettings();
 window.openMcpModal = () => openMasterSettingsTab('mcp');
 window.openInstructionsModal = () => openMasterSettingsTab('instructions');
 
+// ── Voice Dictation (Web Speech API) Engine ────────────────────────────
+let speechRecognitionInstance = null;
+let isVoiceDictating = false;
+
+function initVoiceDictation() {
+    const voiceBtn = document.getElementById('voice-input-btn');
+    if (!voiceBtn) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        voiceBtn.addEventListener('click', () => {
+            showToast('⚠️ Web Speech API is not supported in this browser. Please use Google Chrome, Edge, or Brave.', 'info', 4000);
+        });
+        return;
+    }
+
+    try {
+        speechRecognitionInstance = new SpeechRecognition();
+        speechRecognitionInstance.continuous = true;
+        speechRecognitionInstance.interimResults = true;
+        speechRecognitionInstance.lang = 'en-US';
+
+        let initialInputValue = '';
+
+        speechRecognitionInstance.onstart = () => {
+            isVoiceDictating = true;
+            voiceBtn.classList.add('listening');
+            voiceBtn.setAttribute('title', 'Listening... Click or press Ctrl+M to stop dictation');
+            initialInputValue = messageInput ? messageInput.value : '';
+            showToast('🎙️ Listening... Speak your prompt clearly', 'info', 2500);
+        };
+
+        speechRecognitionInstance.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            if (messageInput) {
+                const combined = [initialInputValue, finalTranscript || interimTranscript].filter(Boolean).join(' ');
+                messageInput.value = combined;
+                messageInput.style.height = 'auto';
+                messageInput.style.height = Math.min(messageInput.scrollHeight, 200) + 'px';
+                if (sendButton) sendButton.disabled = messageInput.value.trim().length === 0;
+            }
+        };
+
+        speechRecognitionInstance.onerror = (event) => {
+            console.warn('Speech recognition error:', event.error);
+            isVoiceDictating = false;
+            voiceBtn.classList.remove('listening');
+            voiceBtn.setAttribute('title', 'Voice Dictation (Speak to prompt)');
+
+            if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+                showToast('🔒 Microphone access was blocked. Please allow microphone permissions in your browser.', 'info', 4000);
+            } else if (event.error === 'no-speech') {
+                showToast('🎙️ No speech detected. Click mic to try again.', 'info', 2500);
+            } else if (event.error !== 'aborted') {
+                showToast(`🎙️ Voice error: ${event.error}`, 'info', 3000);
+            }
+        };
+
+        speechRecognitionInstance.onend = () => {
+            isVoiceDictating = false;
+            voiceBtn.classList.remove('listening');
+            voiceBtn.setAttribute('title', 'Voice Dictation (Speak to prompt)');
+        };
+
+        voiceBtn.addEventListener('click', toggleVoiceDictation);
+    } catch (err) {
+        console.error('Failed to initialize Speech Recognition:', err);
+    }
+}
+
+window.toggleVoiceDictation = function() {
+    const voiceBtn = document.getElementById('voice-input-btn');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        showToast('⚠️ Web Speech API is not supported in this browser. Please use Google Chrome, Edge, or Brave.', 'info', 4000);
+        return;
+    }
+
+    if (!speechRecognitionInstance) {
+        initVoiceDictation();
+    }
+
+    if (isVoiceDictating) {
+        try {
+            speechRecognitionInstance.stop();
+        } catch (e) {}
+        isVoiceDictating = false;
+        if (voiceBtn) {
+            voiceBtn.classList.remove('listening');
+            voiceBtn.setAttribute('title', 'Voice Dictation (Speak to prompt)');
+        }
+        showToast('🎙️ Voice dictation stopped', 'info', 1800);
+    } else {
+        try {
+            speechRecognitionInstance.start();
+        } catch (e) {
+            console.warn('Recognition start exception:', e);
+            try {
+                speechRecognitionInstance.stop();
+                setTimeout(() => speechRecognitionInstance.start(), 200);
+            } catch (err2) {
+                showToast('🎙️ Could not start microphone dictation.', 'info', 3000);
+            }
+        }
+    }
+};
+
 // ── Toast Notification System ──────────────────────────────────────────
 function showToast(message, type = 'info', duration = 2200) {
     const container = document.getElementById('b1-toast-container');
@@ -2890,7 +3010,15 @@ function setupGlobalKeyboardManager() {
             return;
         }
 
-        // 8. CTRL + S / CMD + S (Save & Hot-Reload File/Artifact)
+        // 8. CTRL + M / CMD + M (Toggle Voice Dictation)
+        if (isCmdOrCtrl && !isShift && (e.key === 'm' || e.key === 'M')) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleVoiceDictation();
+            return;
+        }
+
+        // 9. CTRL + S / CMD + S (Save & Hot-Reload File/Artifact)
         if (isCmdOrCtrl && !isShift && (e.key === 's' || e.key === 'S')) {
             e.preventDefault();
             e.stopPropagation();
