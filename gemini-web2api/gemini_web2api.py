@@ -20,15 +20,27 @@ How it works:
     This is NOT a user-tier spoofing attack - the endpoint simply doesn't
     require auth for anonymous access.
 """
+import sys
+import os
+
+if sys.stdout is None:
+    try:
+        sys.stdout = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxy.log"), "a", encoding="utf-8", errors="replace")
+    except Exception:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    try:
+        sys.stderr = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxy.log"), "a", encoding="utf-8", errors="replace")
+    except Exception:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 import json
 import urllib.request
 import urllib.parse
 import time
 import ssl
-import sys
 import uuid
 import re
-import os
 import hashlib
 import argparse
 import base64
@@ -59,7 +71,7 @@ DEFAULT_CONFIG = {
     "cookie_file": None,
     "proxy": None,
     "api_keys": [],
-    "temporary_chats": False,
+    "temporary_chats": True,
 }
 
 CONFIG = dict(DEFAULT_CONFIG)
@@ -440,12 +452,20 @@ def messages_to_prompt(messages: list, tools: list = None) -> str:
                 "parameters": fn.get("parameters", tool.get("parameters", {})),
             })
         if tool_defs:
+            tool_descs = []
+            for t in tool_defs:
+                props = t.get("parameters", {}).get("properties", {})
+                params_str = ", ".join(props.keys()) if props else ""
+                tool_descs.append(f"- `{t['name']}({params_str})`: {t['description']}")
+            tools_summary = "\n".join(tool_descs)
             parts.append(
-                "[System instruction]: You have access to tools. "
-                "To call a tool, respond with:\n"
-                '```tool_call\n{"name": "func_name", "arguments": {...}}\n```\n'
-                "Only use tool_call blocks when needed.\n\n"
-                f"Available tools:\n{json.dumps(tool_defs, indent=2)}"
+                "[System instruction]: You are an autonomous AI agent with tool execution capabilities.\n"
+                "To invoke a tool, output ONLY a code block in the following format:\n"
+                "```tool_call\n"
+                '{"name": "tool_name", "arguments": {"param1": "value1"}}\n'
+                "```\n\n"
+                f"AVAILABLE TOOLS:\n{tools_summary}\n\n"
+                "If no tool is needed or if credentials/tokens are required, respond directly and concisely in natural language to the user."
             )
     for msg in messages:
         role = msg.get("role", "user")

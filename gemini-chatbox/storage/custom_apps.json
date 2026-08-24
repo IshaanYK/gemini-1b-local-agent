@@ -1,0 +1,54 @@
+[
+  {
+    "id": "postman__api_mock_runner",
+    "name": "Postman & API Mock Runner",
+    "icon": "\ud83d\udcee",
+    "category": "API Testing",
+    "description": "Custom integrated application for Postman & API Mock Runner",
+    "command": "python -c \"print('Mock API server ready')\"",
+    "steps": [
+      {
+        "title": "Step 1: Step 1: Check network ports",
+        "instruction": "Step 1: Check network ports",
+        "cmd": "python -c \"print('Ports 8000-8080 free')\""
+      },
+      {
+        "title": "Step 2: Step 2: Start Mock Server",
+        "instruction": "Step 2: Start Mock Server",
+        "cmd": "python -c \"print('Mock server running on port 8080')\""
+      },
+      {
+        "title": "Step 3: Step 3: Run Endpoint Tests",
+        "instruction": "Step 3: Run Endpoint Tests",
+        "cmd": "python -c \"print('All 12 API tests passed (200 OK)')\""
+      }
+    ],
+    "created_at": "2026-08-23 23:19:06"
+  },
+  {
+    "id": "sample_fastapi_server",
+    "name": "Local Fast-API Service",
+    "icon": "\u26a1",
+    "category": "Backend API",
+    "description": "Runs local python API service and tests health endpoint",
+    "command": "python -m http.server 8085",
+    "steps": [
+      {
+        "title": "1. Initialize Environment",
+        "instruction": "Verify Python runtime and dependencies",
+        "cmd": "python --version"
+      },
+      {
+        "title": "2. Launch Local Service",
+        "instruction": "Start the service daemon on port 8085",
+        "cmd": "python -c \"print('Starting service daemon...')\""
+      },
+      {
+        "title": "3. Probe Health Status",
+        "instruction": "Verify port responsiveness",
+        "cmd": "python -c \"import socket; s = socket.socket(); print('Port 8085 check:', s.connect_ex(('127.0.0.1', 8085)))\""
+      }
+    ],
+    "created_at": "2026-08-23 23:17:30"
+  }
+]

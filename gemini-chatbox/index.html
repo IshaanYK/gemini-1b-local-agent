@@ -3,39 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gemini 1B Agent — Local AI Workspace</title>
-    <meta name="description" content="Local Gemini AI Agent with terminal access, file operations, and autonomous code execution.">
+    <title>Gemini Claude-Style AI Workspace</title>
+    <meta name="description" content="State-of-the-art Claude-like AI Workspace with Interactive Artifacts, Live Code Sandbox, Deep Thinking Traces, MCP Servers, and Autonomous Local Agent execution.">
+    
+    <!-- Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- KaTeX for LaTeX Math -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/styles/github-dark-dimmed.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
+    
+    <!-- Marked for Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Mermaid.js for Architecture & Flowcharts -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="dark-theme">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-    <div class="app-layout">
-        <!-- Sidebar -->
+    <div class="app-layout" id="app-layout">
+        <!-- ── Left Sidebar (Conversations & Knowledge) ────────────────── -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-top">
-                <div class="brand">
-                    <div class="brand-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#grad1)"/>
+            <div class="sidebar-header">
+                <div class="brand-badge-wrap">
+                    <div class="brand-spark">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#brandGrad)"/>
                             <defs>
-                                <linearGradient id="grad1" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                <linearGradient id="brandGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
                                     <stop stop-color="#5e6ad2"/>
                                     <stop offset="1" stop-color="#828fff"/>
                                 </linearGradient>
                             </defs>
                         </svg>
                     </div>
-                    <span class="brand-name">Gemini Agent</span>
-                    <span class="brand-badge">1B</span>
+                    <div class="brand-text-block">
+                        <span class="brand-title">Gemini</span>
+                        <span class="brand-edition">Claude Studio</span>
+                    </div>
                 </div>
 
-                <button class="new-chat-btn" id="new-chat-btn" title="Start new chat">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <button class="new-chat-btn" id="new-chat-btn" title="Start new conversation (Ctrl+K)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <line x1="12" y1="5" x2="12" y2="19"/>
                         <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
@@ -43,109 +63,144 @@
                 </button>
             </div>
 
-            <div class="sidebar-section">
-                <div class="section-label">Target Project Folder</div>
-                <div class="folder-input-wrap">
+            <!-- Search Chats -->
+            <div class="chat-search-wrap">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="chat-search-input" placeholder="Search conversations..." aria-label="Search chats">
+            </div>
+
+            <!-- Sessions List -->
+            <div class="sessions-nav" id="sessions-nav">
+                <div class="sessions-group-label">Recent Conversations</div>
+                <div class="sessions-list" id="sessions-list">
+                    <div class="session-skeleton">Loading chats...</div>
+                </div>
+            </div>
+
+            <!-- Sidebar Context & Settings Section -->
+            <div class="sidebar-meta-section">
+                <!-- Target Folder Config -->
+                <div class="meta-row">
+                    <div class="meta-label">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span>Target Workspace</span>
+                    </div>
+                    <input type="text" id="target-folder-input" class="folder-input" placeholder="e.g. ~/Desktop/project or playground" title="Target directory for reading/writing">
+                </div>
+
+                <!-- Workspace Settings Hub Button -->
+                <button class="project-prompt-btn" id="open-settings-sidebar-btn" onclick="openMasterSettings()" title="Workspace Settings & MCP">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
-                    <input type="text" id="target-folder-input" class="folder-input" placeholder="e.g. Desktop/website or playground" title="Enter target project folder path">
-                </div>
+                    <span>Settings & Tools</span>
+                </button>
             </div>
 
-            <div class="sidebar-section">
-                <div class="section-label">Agent Tools</div>
-                <div class="tools-grid">
-                    <div class="tool-chip" title="Execute PowerShell commands">
-                        <span class="tool-dot green"></span>run_command
-                    </div>
-                    <div class="tool-chip" title="Search codebase">
-                        <span class="tool-dot blue"></span>grep_search
-                    </div>
-                    <div class="tool-chip" title="Read files">
-                        <span class="tool-dot lavender"></span>read_file
-                    </div>
-                    <div class="tool-chip" title="Write new files">
-                        <span class="tool-dot orange"></span>write_file
-                    </div>
-                    <div class="tool-chip" title="Edit files in place">
-                        <span class="tool-dot cyan"></span>replace_file
-                    </div>
-                    <div class="tool-chip" title="List directory contents">
-                        <span class="tool-dot green"></span>list_dir
-                    </div>
-                </div>
-            </div>
-
+            <!-- Sidebar Footer -->
             <div class="sidebar-footer">
-                <div class="server-status" id="server-status">
-                    <span class="status-pulse"></span>
-                    <span class="status-text">Backend Active (5000)</span>
+                <div class="status-indicator-pill" id="backend-status-pill">
+                    <span class="pulse-dot active"></span>
+                    <span class="status-title">Backend Active (5000)</span>
                 </div>
-                <div class="proxy-status">
-                    <span class="status-dot-sm"></span>
-                    <span>Proxy (8081)</span>
-                </div>
-                <div class="rag-status" id="rag-status-pill" title="RAG Vector Memory & Hardware Device Engine">
-                    <span class="status-dot-sm cyan"></span>
-                    <span id="rag-status-text">🧠 RAG: CPU | all-MiniLM</span>
+                <div class="status-indicator-pill" id="rag-status-pill" title="Hardware RAG & Timeline Memory">
+                    <span class="pulse-dot cyan"></span>
+                    <span id="rag-status-label">🧠 RAG Memory Ready</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- ── Main Center Workspace ───────────────────────────────────── -->
         <div class="main-workspace">
-            <!-- Top Bar -->
+            <!-- Topbar Navigation -->
             <header class="topbar">
                 <div class="topbar-left">
-                    <button class="icon-btn" id="toggle-sidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
+                    <button class="icon-btn" id="toggle-sidebar" title="Toggle Sidebar (Ctrl+B)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="18" height="18" rx="3"/>
                             <line x1="9" y1="3" x2="9" y2="21"/>
                         </svg>
                     </button>
-                    <span class="workspace-label">Agent Workspace</span>
+                    <span class="active-chat-title" id="active-chat-title">New Conversation</span>
                 </div>
 
                 <div class="topbar-right">
-                    <button class="playground-btn" id="open-playground-btn" title="Open Agent Playground & Persistent Code Space">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-                            <polyline points="2 17 12 22 22 17"/>
-                            <polyline points="2 12 12 17 22 12"/>
+                    <!-- Command Palette Quick Search Button (Ctrl+K) -->
+                    <button class="topbar-action-btn" id="cmd-palette-btn" title="Open Command Palette (Ctrl+K)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
-                        <span>Playground Space</span>
+                        <span>Command</span>
+                        <kbd class="topbar-kbd">Ctrl K</kbd>
                     </button>
 
-                    <div class="model-selector-wrap">
-                        <svg class="model-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                    <!-- Toggle Split Artifact View -->
+                    <button class="artifact-toggle-btn" id="toggle-artifact-pane-btn" title="Toggle Artifact Inspector" style="display:none;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <line x1="15" y1="3" x2="15" y2="21"/>
                         </svg>
-                        <select id="model-selector" class="model-select" title="Select AI Model">
+                        <span id="artifact-toggle-badge">Artifact (1)</span>
+                    </button>
+
+                    <!-- Model Selector -->
+                    <div class="model-select-wrapper">
+                        <svg class="model-sparkle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                            <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
+                        </svg>
+                        <select id="model-selector" class="model-select" title="Choose AI Model">
                             <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                             <option value="gemini-3.5-flash-thinking">Gemini 3.5 Thinking</option>
                             <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
-                            <option value="gemini-auto">Gemini Auto</option>
                             <option value="gemini-flash-lite">Gemini Flash Lite</option>
                         </select>
-                        <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="chevron-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     </div>
-                    <div class="user-avatar" title="Ishaan Sen">IS</div>
+
+                    <!-- ⚙️ UNIFIED MASTER SETTINGS BUTTON -->
+                    <button class="topbar-settings-btn" id="topbar-settings-btn" onclick="openMasterSettings()" title="Settings & Control Center (Ctrl+,)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        <span>Settings</span>
+                    </button>
+
+                    <!-- ⌨️ SHORTCUTS MODAL BUTTON -->
+                    <button class="topbar-action-btn" id="topbar-shortcuts-btn" onclick="openShortcutsModal()" title="Keyboard Shortcuts (? or Ctrl+Shift+/)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="4" width="20" height="16" rx="3"/>
+                            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/>
+                        </svg>
+                        <span>Shortcuts</span>
+                        <kbd class="topbar-kbd">?</kbd>
+                    </button>
+
+                    <!-- User Avatar & Profile Button -->
+                    <div class="user-menu-wrapper">
+                        <button class="user-avatar-btn" id="user-avatar-btn" onclick="openMasterSettingsTab('profile')" title="Click for Profile & Settings">IS</button>
+                    </div>
                 </div>
             </header>
 
             <!-- Chat Viewport -->
             <main class="chat-viewport" id="chat-viewport">
-                <!-- Welcome Screen -->
+                <!-- Welcome Screen Hero (Claude Style) -->
                 <div class="welcome-screen" id="welcome-screen">
-                    <div class="welcome-logo">
-                        <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#grad2)"/>
+                    <div class="welcome-hero-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#heroGrad)"/>
                             <defs>
-                                <linearGradient id="grad2" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                <linearGradient id="heroGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
                                     <stop stop-color="#5e6ad2"/>
                                     <stop offset="1" stop-color="#828fff"/>
                                 </linearGradient>
@@ -153,166 +208,956 @@
                         </svg>
                     </div>
                     <h1 class="welcome-title" id="welcome-title">Good morning, Ishaan</h1>
-                    <p class="welcome-sub">Your <strong>Gemini 1B local agent</strong> is ready. It can read files, run commands, write code, and execute scripts on your machine — with a 1 billion token context window.</p>
+                    <p class="welcome-sub">How can Gemini assist you today? Create full interactive apps with live artifacts, inspect your codebase, or invoke connected MCP servers with autonomous reasoning.</p>
 
-                    <div class="quick-actions">
-                        <button class="quick-card" onclick="setInput('check my desktop folder and tell me what files are there')">
-                            <div class="quick-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    <!-- Claude Prompt Starter Grid -->
+                    <div class="starter-grid">
+                        <button class="starter-card" onclick="quickPrompt('Create a modern, interactive Pomodoro timer with sleek animations and sound alerts as a full single-file HTML/CSS/JS app.')">
+                            <div class="starter-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e6ad2" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
                                 </svg>
                             </div>
-                            <div class="quick-text">
-                                <strong>Inspect Desktop</strong>
-                                <span>Scan & list Desktop folder</span>
+                            <div class="starter-info">
+                                <strong>Build Interactive App</strong>
+                                <span>Create a single-file Pomodoro timer artifact</span>
                             </div>
                         </button>
-                        <button class="quick-card" onclick="setInput('create a python test script test.py on Desktop and run it')">
-                            <div class="quick-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <polygon points="5 3 19 12 5 21 5 3"/>
+
+                        <button class="starter-card" onclick="quickPrompt('Solve and visualize 2D projectile motion with drag: build an interactive live Canvas artifact with velocity, launch angle, and gravity sliders, real-time trajectory curves, and instantaneous velocity vectors.')">
+                            <div class="starter-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                                    <path d="M4 19C4 19 8 7 20 5"/>
+                                    <polyline points="15 5 20 5 20 10"/>
+                                    <line x1="4" y1="19" x2="20" y2="19"/>
                                 </svg>
                             </div>
-                            <div class="quick-text">
-                                <strong>Create & Run Script</strong>
-                                <span>Write test.py on Desktop & execute</span>
+                            <div class="starter-info">
+                                <strong>Interactive STEM Visualizer</strong>
+                                <span>Physics simulation with live sliders & math</span>
                             </div>
                         </button>
-                        <button class="quick-card" onclick="setInput('list all running processes and show me which ones are agents or servers')">
-                            <div class="quick-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+
+                        <button class="starter-card" onclick="quickPrompt('Use your MCP tools and web search to research the latest trends in autonomous AI agents.')">
+                            <div class="starter-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                 </svg>
                             </div>
-                            <div class="quick-text">
-                                <strong>Check Running Processes</strong>
-                                <span>See active agents & servers</span>
+                            <div class="starter-info">
+                                <strong>Deep Web Research</strong>
+                                <span>Search web, summarize papers & synthesize</span>
                             </div>
                         </button>
-                        <button class="quick-card" onclick="setInput('read the file C:\\Users\\ISHAAN SEN\\.gemini\\antigravity-ide\\scratch\\gemini-chatbox\\agent_backend.py and explain what it does')">
-                            <div class="quick-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+
+                        <button class="starter-card" onclick="openTerminalDock()">
+                            <div class="starter-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27a644" stroke-width="2">
+                                    <polyline points="4 17 10 11 4 5"/>
+                                    <line x1="12" y1="19" x2="20" y2="19"/>
                                 </svg>
                             </div>
-                            <div class="quick-text">
-                                <strong>Analyze Agent Code</strong>
-                                <span>Read & explain agent_backend.py</span>
+                            <div class="starter-info">
+                                <strong>Live Workspace Terminal</strong>
+                                <span>Execute shell, PowerShell & Python commands</span>
                             </div>
                         </button>
                     </div>
                 </div>
 
-                <!-- Messages -->
-                <div class="messages-feed" id="messages"></div>
+                <!-- Messages Feed -->
+                <div class="messages-feed" id="messages-feed"></div>
             </main>
 
-            <!-- Composer / Input -->
-            <footer class="composer-wrapper">
-                <div class="composer-box" id="composer-box">
+            <!-- Composer (Claude Bottom Bar) -->
+            <footer class="composer-container">
+                <div class="composer-card" id="composer-card">
+                    <!-- File Attachments Chip Preview Bar -->
+                    <div class="attachments-bar" id="attachments-bar" style="display:none;"></div>
+
+                    <!-- Main Textarea -->
                     <textarea
                         id="message-input"
-                        placeholder="Ask the agent to build code, run commands, inspect files..."
+                        placeholder="Reply to Gemini, query MCP tools, or request an interactive artifact..."
                         rows="1"
                         autofocus
-                        aria-label="Chat message input"
+                        aria-label="Message Gemini"
                     ></textarea>
-                    <div class="composer-footer">
-                        <div class="agent-status-pill" id="agent-status-pill">
-                            <span class="pill-dot"></span>
-                            <span id="agent-status-text">10-Step Agent Loop Active</span>
+
+                    <!-- Bottom Controls Strip -->
+                    <div class="composer-bottom">
+                        <div class="composer-tools">
+                            <!-- File Upload Button -->
+                            <button class="action-icon-btn" id="attach-file-btn" title="Attach file or code (.py, .js, .pdf, .docx, .txt, images)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                                </svg>
+                            </button>
+                            <input type="file" id="file-upload-input" style="display:none;" multiple>
+
+                            <!-- Voice Input / Dictation Button -->
+                            <button class="action-icon-btn" id="voice-input-btn" title="Voice Dictation (Speak to prompt)">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" y1="19" x2="12" y2="23"/>
+                                    <line x1="8" y1="23" x2="16" y2="23"/>
+                                </svg>
+                            </button>
+
+                            <button class="decompose-toggle-btn active" id="decompose-toggle-btn" title="Toggle Deep Multi-Stage Prompt Decomposition (Divide & Conquer for zero hallucinations)">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                                <span>Deep Decompose</span>
+                            </button>
+
+                            <div class="active-agent-pill" id="agent-loop-pill">
+                                <span class="pill-dot"></span>
+                                <span id="agent-loop-text">Autonomous Agent Active</span>
+                            </div>
                         </div>
-                        <button id="send-button" aria-label="Send message" title="Send message" disabled>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <line x1="22" y1="2" x2="11" y2="13"/>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                            </svg>
-                        </button>
+
+                        <div class="composer-actions">
+                            <button id="send-button" class="send-btn" aria-label="Send message" disabled>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="12" y1="19" x2="12" y2="5"/>
+                                    <polyline points="5 12 12 5 19 12"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <p class="composer-hint">Agent has full terminal access · Files · Scripts · Search · 1B token context</p>
+                <div class="composer-caption">Gemini Studio can inspect files, write full applications, execute terminal commands, and render live interactive artifacts.</div>
             </footer>
         </div>
-    </div>
 
-    <!-- Playground Space Modal / Drawer -->
-    <div class="pg-modal-overlay" id="pg-modal-overlay">
-        <div class="pg-modal">
-            <div class="pg-header">
-                <div class="pg-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
-                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-                        <polyline points="2 17 12 22 22 17"/>
-                        <polyline points="2 12 12 17 22 12"/>
-                    </svg>
-                    <span>1B Agent Playground Space</span>
-                    <span class="pg-badge">Antigravity Local</span>
+        <!-- ── Right Split: Claude-Style Interactive Artifact Drawer ───── -->
+        <aside class="artifact-drawer" id="artifact-drawer" style="display:none;">
+            <div class="artifact-header">
+                <div class="artifact-title-group">
+                    <div class="artifact-type-icon" id="art-header-icon">💻</div>
+                    <div class="artifact-title-text">
+                        <span class="artifact-name" id="art-header-title">Interactive Artifact</span>
+                        <span class="artifact-badge" id="art-header-badge">HTML Application</span>
+                    </div>
                 </div>
-                <button class="pg-close-btn" id="close-pg-modal" title="Close Playground">✕</button>
+
+                <div class="artifact-header-actions">
+                    <!-- Tabs Switcher -->
+                    <div class="artifact-tabs">
+                        <button class="art-tab active" id="tab-preview-btn" title="Live Preview">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polygon points="10 8 16 12 10 16 10 8"/>
+                            </svg>
+                            <span>Preview</span>
+                        </button>
+                        <button class="art-tab" id="tab-code-btn" title="View Source Code">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="16 18 22 12 16 6"/>
+                                <polyline points="8 6 2 12 8 18"/>
+                            </svg>
+                            <span>Code</span>
+                        </button>
+                        <button class="art-tab" id="tab-console-btn" title="Console Logs">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 17 10 11 4 5"/>
+                                <line x1="12" y1="19" x2="20" y2="19"/>
+                            </svg>
+                            <span>Console</span>
+                            <span class="console-count-badge" id="console-count-badge" style="display:none;">0</span>
+                        </button>
+                        <button class="art-tab" id="tab-files-btn" title="Workspace Codebase Explorer">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            <span>Files</span>
+                        </button>
+                        <button class="art-tab" id="tab-terminal-btn" title="Integrated Terminal Dock">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 17 10 11 4 5"/>
+                                <line x1="12" y1="19" x2="20" y2="19"/>
+                            </svg>
+                            <span>Terminal</span>
+                        </button>
+                    </div>
+
+                    <!-- Quick Tools -->
+                    <button class="art-tool-btn" id="art-save-project-btn" title="Save this artifact code file into local playground/ folder">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        <span style="font-size:11px; margin-left:4px; font-weight:500;">Save</span>
+                    </button>
+                    <button class="art-tool-btn" id="art-copy-btn" title="Copy code to clipboard">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <button class="art-tool-btn" id="art-download-btn" title="Download artifact file">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </button>
+                    <button class="art-tool-btn" id="art-popout-btn" title="Pop out into new tab">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                    </button>
+                    <button class="art-tool-btn close" id="art-close-btn" title="Close Artifact Drawer">✕</button>
+                </div>
             </div>
-            
-            <div class="pg-body">
-                <div class="pg-tabs">
-                    <button class="pg-tab active" id="tab-files-btn">📂 Workspace Files</button>
-                    <button class="pg-tab" id="tab-history-btn">📜 Code History & Timeline</button>
-                    <button class="pg-tab" id="tab-memory-btn">🧠 Inter-Timeline Vector Memory</button>
-                </div>
 
-                <!-- Tab 1: Files -->
-                <div class="pg-tab-content active" id="tab-files">
-                    <div class="pg-path-banner">
-                        <span class="pg-path-label">Storage Path:</span>
-                        <code id="pg-dir-path">C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\1B-gemini-Local-Agent\playground</code>
-                    </div>
-                    <div class="pg-files-list" id="pg-files-list">
-                        <div class="pg-loading">Loading workspace files...</div>
-                    </div>
-                </div>
-
-                <!-- Tab 2: History Timeline -->
-                <div class="pg-tab-content" id="tab-history">
-                    <div class="pg-history-list" id="pg-history-list">
-                        <div class="pg-loading">Loading history log...</div>
-                    </div>
-                </div>
-
-                <!-- Tab 3: Vector Memory & RAG Vault -->
-                <div class="pg-tab-content" id="tab-memory">
-                    <div class="pg-path-banner">
-                        <span class="pg-path-label">Engine & Hardware:</span>
-                        <code id="rag-db-info">all-MiniLM Vector Memory (SQLite DB)</code>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
-                        <input type="text" id="rag-search-input" placeholder="Search vector memory & timeline knowledge..." class="folder-input" style="flex:1;">
-                        <button class="pg-act-btn run" id="rag-search-btn" style="padding:9px 18px; font-weight:600;">🔍 Search Memory</button>
-                    </div>
-                    <div class="vec-card-list" id="rag-memory-list">
-                        <div class="pg-loading">Loading vector memories...</div>
-                    </div>
-                </div>
-
-                <!-- Viewer / Live Output Area -->
-                <div class="pg-viewer" id="pg-viewer" style="display:none;">
-                    <div class="pg-viewer-header">
-                        <span id="pg-viewer-title">code.py</span>
-                        <div>
-                            <button class="pg-act-btn run" id="pg-run-file-btn">▶ Run File</button>
-                            <button class="pg-act-btn" id="pg-close-viewer-btn">Close Viewer</button>
+            <!-- Artifact Main Content Area -->
+            <div class="artifact-body">
+                <div class="art-view-pane active" id="pane-preview">
+                    <!-- Live Dev Server Bar -->
+                    <div class="app-server-bar" id="app-server-bar">
+                        <div class="server-bar-left">
+                            <span class="server-status-dot active" id="server-status-dot"></span>
+                            <span class="server-status-label" id="server-status-label">Sandbox Iframe Preview</span>
+                            <span class="server-port-badge" id="server-port-badge" style="display:none;">:8081</span>
+                        </div>
+                        <div class="server-bar-actions">
+                            <select id="server-app-selector" class="server-app-select" onchange="switchActiveAppProject(this.value)" title="Switch Active App Project">
+                                <option value="">(Current Artifact)</option>
+                            </select>
+                            <button class="server-btn" id="server-toggle-btn" onclick="toggleActiveAppServer()" title="Start/Stop Local Dev Server">
+                                <span>⚡ Start Server</span>
+                            </button>
+                            <button class="server-btn icon-only" onclick="popoutActiveAppServer()" title="Open in New Browser Tab ↗">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                            </button>
+                            <button class="server-btn icon-only" onclick="downloadActiveAppZip()" title="Download Full Project ZIP">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                    <pre class="pg-code-preview" id="pg-code-preview"><code></code></pre>
-                    <div class="pg-output-box" id="pg-output-box" style="display:none;">
-                        <div class="pg-output-header">Live Execution Output:</div>
-                        <pre id="pg-output-text"></pre>
+
+                    <!-- Self-Healing Error Banner -->
+                    <div class="app-error-banner" id="app-error-banner" style="display:none;">
+                        <div class="err-banner-left">
+                            <span class="err-icon">⚠️</span>
+                            <div class="err-text">
+                                <strong id="err-banner-title">Runtime Error Detected</strong>
+                                <span id="err-banner-msg">Script failed to execute properly</span>
+                            </div>
+                        </div>
+                        <button class="err-heal-btn" onclick="triggerAutoHealForActiveApp()">
+                            <span>🩺 Auto-Fix with AI</span>
+                        </button>
+                    </div>
+
+                    <iframe id="art-preview-frame" sandbox="allow-scripts allow-modals allow-forms allow-same-origin" allow="camera; microphone; display-capture; autoplay" title="Live Sandbox Preview"></iframe>
+                </div>
+
+                <div class="art-view-pane" id="pane-code">
+                    <div class="code-pane-toolbar">
+                        <div class="code-pane-meta">
+                            <span id="code-pane-lang">HTML</span>
+                            <span id="code-pane-lines">0 lines</span>
+                        </div>
+                        <div class="code-pane-actions">
+                            <button class="code-action-btn" id="run-edited-code-btn" title="Run updated code in Live Preview">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span>Run Changes</span>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea class="art-code-editor" id="art-code-editor" spellcheck="false" placeholder="Artifact source code..."></textarea>
+                </div>
+
+                <div class="art-view-pane" id="pane-console">
+                    <div class="console-toolbar">
+                        <span>Live Sandbox Console</span>
+                        <button class="console-clear-btn" id="clear-console-btn">Clear Logs</button>
+                    </div>
+                    <div class="console-logs-list" id="console-logs-list">
+                        <div class="console-empty">No console logs captured yet.</div>
+                    </div>
+                </div>
+
+                <!-- Pane 4: Multi-File Project & Codebase Explorer -->
+                <div class="art-view-pane" id="pane-files">
+                    <div class="files-pane-toolbar">
+                        <div class="files-pane-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            <span id="files-root-name">Multi-File Project Explorer</span>
+                        </div>
+                        <div class="files-pane-actions">
+                            <button class="files-action-btn" id="refresh-tree-btn" onclick="refreshProjectFiles()" title="Refresh file tree">🔄</button>
+                            <button class="files-action-btn primary" onclick="downloadActiveAppZip()" title="Download Full Project ZIP">📦 Export ZIP</button>
+                        </div>
+                    </div>
+                    
+                    <div class="multi-file-split-layout">
+                        <!-- Left: File Tree -->
+                        <div class="file-tree-sidebar">
+                            <div class="tree-header-small">
+                                <span id="active-app-name-tree">Files</span>
+                                <button class="tree-btn-mini" onclick="promptCreateNewAppFile()" title="Create New File">+ File</button>
+                            </div>
+                            <div class="workspace-tree-container" id="workspace-tree-container">
+                                <div class="session-skeleton">Loading app files...</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Active File Editor -->
+                        <div class="file-editor-view">
+                            <div class="file-editor-header">
+                                <span class="active-file-path-badge" id="active-file-path-badge">index.html</span>
+                                <button class="code-action-btn" onclick="saveActiveProjectFile()" title="Save edits to disk & reload">
+                                    <span>💾 Save & Hot-Reload</span>
+                                </button>
+                            </div>
+                            <textarea class="multi-file-editor-textarea" id="multi-file-editor-textarea" spellcheck="false" placeholder="Select a file from the tree on the left to edit..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pane 5: Integrated Terminal Dock -->
+                <div class="art-view-pane" id="pane-terminal">
+                    <div class="terminal-toolbar">
+                        <div class="terminal-title">
+                            <span class="terminal-prompt-sym">❯</span>
+                            <span>Interactive Terminal (PowerShell / Shell)</span>
+                        </div>
+                        <button class="console-clear-btn" onclick="clearTerminalOutput()">Clear</button>
+                    </div>
+                    <div class="terminal-output" id="terminal-output">
+                        <div class="terminal-welcome">✦ B1 Integrated Terminal. Type any shell command or Python snippet below.</div>
+                    </div>
+                    <form class="terminal-input-form" id="terminal-form" onsubmit="handleTerminalSubmit(event)">
+                        <span class="terminal-prompt-sym">❯</span>
+                        <input type="text" class="terminal-input" id="terminal-input" placeholder="e.g. dir, git status, python test.py, npm test..." autocomplete="off">
+                        <button type="submit" class="terminal-send-btn">Run</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         UNIFIED MASTER WORKSPACE SETTINGS & CONTROL CENTER MODAL
+         Step-by-step organized hub for all workspace tools & settings
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="modal-backdrop" id="master-settings-modal" style="display:none;" onclick="closeMasterSettings()">
+        <div class="master-settings-card" onclick="event.stopPropagation()">
+            <!-- Master Settings Left Sidebar (Step-by-Step Categories) -->
+            <div class="master-settings-sidebar">
+                <div class="settings-sidebar-header">
+                    <div class="settings-brand-pill">
+                        <span class="pulse-dot active"></span>
+                        <strong>B1 Settings Hub</strong>
+                    </div>
+                    <span class="settings-subtitle">Step-by-Step Controls</span>
+                </div>
+
+                <nav class="settings-nav-list">
+                    <button class="settings-nav-item active" id="stab-profile" onclick="switchMasterSettingsTab('profile')">
+                        <span class="snav-icon">👤</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Profile & Persona</span>
+                            <span class="snav-step">Step 1 &bull; Identity & Tone</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-instructions" onclick="switchMasterSettingsTab('instructions')">
+                        <span class="snav-icon">📝</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Project Prompt</span>
+                            <span class="snav-step">Step 2 &bull; System Guidelines</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-mcp" onclick="switchMasterSettingsTab('mcp')">
+                        <span class="snav-icon">🔌</span>
+                        <div class="snav-text">
+                            <span class="snav-title">MCP Tool Servers</span>
+                            <span class="snav-step">Step 3 &bull; Stdio & Presets</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-automations" onclick="switchMasterSettingsTab('automations')">
+                        <span class="snav-icon">⚡</span>
+                        <div class="snav-text">
+                            <span class="snav-title">App Automations</span>
+                            <span class="snav-step">Step 4 &bull; Pipelines & Custom</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-messaging" onclick="switchMasterSettingsTab('messaging')">
+                        <span class="snav-icon">💬</span>
+                        <div class="snav-text">
+                            <span class="snav-title">WhatsApp & Social</span>
+                            <span class="snav-step">Step 5 &bull; DeepLinks & Webhooks</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-security" onclick="switchMasterSettingsTab('security')">
+                        <span class="snav-icon">🛡️</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Security & OWASP</span>
+                            <span class="snav-step">Step 6 &bull; Code Audit & Auth</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-export" onclick="switchMasterSettingsTab('export')">
+                        <span class="snav-icon">📥</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Export & Backups</span>
+                            <span class="snav-step">Step 7 &bull; Markdown, JSON, ZIP</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-templates" onclick="switchMasterSettingsTab('templates')">
+                        <span class="snav-icon">📐</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Prompt Blueprints</span>
+                            <span class="snav-step">Step 8 &bull; STEM, Fullstack, AI</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-appearance" onclick="switchMasterSettingsTab('appearance')">
+                        <span class="snav-icon">🎨</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Theme & Appearance</span>
+                            <span class="snav-step">Step 9 &bull; Visual Atmosphere</span>
+                        </div>
+                    </button>
+
+                    <button class="settings-nav-item" id="stab-shortcuts" onclick="switchMasterSettingsTab('shortcuts')">
+                        <span class="snav-icon">⌨️</span>
+                        <div class="snav-text">
+                            <span class="snav-title">Keyboard Shortcuts</span>
+                            <span class="snav-step">Step 10 &bull; Hotkeys & Controls</span>
+                        </div>
+                    </button>
+                </nav>
+
+                <div class="settings-sidebar-footer">
+                    <kbd class="settings-esc-badge" onclick="closeMasterSettings()">ESC to close</kbd>
+                </div>
+            </div>
+
+            <!-- Master Settings Right Pane (Active Content) -->
+            <div class="master-settings-content">
+                <div class="settings-content-header">
+                    <div>
+                        <h2 class="settings-pane-heading" id="settings-heading">Profile & Specialist Persona</h2>
+                        <p class="settings-pane-desc" id="settings-desc">Customize your developer profile, B1 pairing mode, and specialist reasoning persona.</p>
+                    </div>
+                    <button class="modal-close" onclick="closeMasterSettings()">✕</button>
+                </div>
+
+                <div class="settings-panes-body">
+                    <!-- PANE 1: Profile & Persona -->
+                    <div class="master-pane active" id="mpane-profile">
+                        <div class="form-row-grid">
+                            <div class="form-group">
+                                <label>User Display Name</label>
+                                <input type="text" id="settings-profile-name" value="Ishaan Sen" class="folder-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Engineering Role</label>
+                                <input type="text" id="settings-profile-role" value="Lead Developer & AI Architect" class="folder-input">
+                            </div>
+                        </div>
+
+                        <div class="meta-row" style="margin-top:16px;">
+                            <label class="meta-label">Active Specialist Persona Archetype</label>
+                            <div class="persona-selection-grid">
+                                <div class="persona-choice-card active" data-persona="fullstack" onclick="selectPersona('fullstack'); updatePersonaCardSelection('fullstack');">
+                                    <div class="pcard-icon">⚡</div>
+                                    <div class="pcard-info">
+                                        <strong>Fullstack Engineer</strong>
+                                        <span>Webapps, UI/UX, algorithms & debugging</span>
+                                    </div>
+                                </div>
+                                <div class="persona-choice-card" data-persona="architect" onclick="selectPersona('architect'); updatePersonaCardSelection('architect');">
+                                    <div class="pcard-icon">🏗️</div>
+                                    <div class="pcard-info">
+                                        <strong>System Architect</strong>
+                                        <span>C4 diagrams, databases, RBAC & schemas</span>
+                                    </div>
+                                </div>
+                                <div class="persona-choice-card" data-persona="stem" onclick="selectPersona('stem'); updatePersonaCardSelection('stem');">
+                                    <div class="pcard-icon">🔬</div>
+                                    <div class="pcard-info">
+                                        <strong>STEM & Physics Simulator</strong>
+                                        <span>Euler-Cromer sims, calculus & 3D math</span>
+                                    </div>
+                                </div>
+                                <div class="persona-choice-card" data-persona="security" onclick="selectPersona('security'); updatePersonaCardSelection('security');">
+                                    <div class="pcard-icon">🛡️</div>
+                                    <div class="pcard-info">
+                                        <strong>Security & Red Team</strong>
+                                        <span>OWASP audits, token rotation & CVE scans</span>
+                                    </div>
+                                </div>
+                                <div class="persona-choice-card" data-persona="researcher" onclick="selectPersona('researcher'); updatePersonaCardSelection('researcher');">
+                                    <div class="pcard-icon">🔍</div>
+                                    <div class="pcard-info">
+                                        <strong>Deep Web Researcher</strong>
+                                        <span>Multi-source web search & report synthesis</span>
+                                    </div>
+                                </div>
+                                <div class="persona-choice-card" data-persona="cv_ml" onclick="selectPersona('cv_ml'); updatePersonaCardSelection('cv_ml');">
+                                    <div class="pcard-icon">👁️</div>
+                                    <div class="pcard-info">
+                                        <strong>Vision & Webcam ML</strong>
+                                        <span>Webcam ML, hand tracking & color vision</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions-row" style="margin-top:20px;">
+                            <button class="files-action-btn primary" onclick="saveUserProfileFromSettings()">Save Profile & Persona</button>
+                            <button class="files-action-btn" onclick="startOnboardingWizard()">Launch Onboarding Interview</button>
+                        </div>
+                    </div>
+
+                    <!-- PANE 2: Project Instructions -->
+                    <div class="master-pane" id="mpane-instructions" style="display:none;">
+                        <p class="modal-desc">Provide custom context, coding rules, or system guidelines for Gemini to follow in all responses.</p>
+                        <div class="form-group" style="margin-top:12px;">
+                            <label>System Prompt / Custom Instructions</label>
+                            <textarea id="project-instructions-textarea" class="modal-textarea" rows="7" placeholder="e.g. Always write code in TypeScript with strict typing. Default to modern functional components and Tailwind CSS. Avoid unneeded boilerplate."></textarea>
+                        </div>
+                        <div class="form-group" style="margin-top:12px;">
+                            <label>Default Target Workspace Directory</label>
+                            <input type="text" id="settings-target-folder" class="folder-input" placeholder="e.g. ~/Desktop/project or C:\Users\..." value="">
+                        </div>
+                        <div class="form-actions-row" style="margin-top:18px;">
+                            <button class="files-action-btn primary" id="save-instructions-btn" onclick="saveInstructionsFromSettings()">Save System Instructions</button>
+                            <button class="files-action-btn" onclick="clearProjectInstructions()">Reset to Default</button>
+                        </div>
+                    </div>
+
+                    <!-- PANE 3: MCP Tool Servers -->
+                    <div class="master-pane" id="mpane-mcp" style="display:none;">
+                        <div class="mcp-modal-nav">
+                            <button class="mcp-nav-tab active" id="mcp-tab-active-btn">
+                                <span>Active Servers</span>
+                                <span class="mcp-tab-badge" id="mcp-active-badge">11</span>
+                            </button>
+                            <button class="mcp-nav-tab" id="mcp-tab-add-btn">
+                                <span>+ Add Custom Server</span>
+                            </button>
+                            <button class="mcp-nav-tab" id="mcp-tab-presets-btn">
+                                <span>⚡ 1-Click Presets</span>
+                            </button>
+                            <button class="mcp-nav-tab" id="mcp-tab-json-btn">
+                                <span>{ } Import JSON</span>
+                            </button>
+                        </div>
+
+                        <!-- Sub-panel 1: Active Servers List -->
+                        <div class="mcp-panel active" id="mcp-panel-active">
+                            <p class="modal-desc">Connected MCP servers available to Gemini in real-time. Tools are dynamically translated for function calling.</p>
+                            <div class="mcp-server-list" id="mcp-server-list">
+                                <div class="session-skeleton">Loading MCP servers...</div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel 2: Add Custom Server Form -->
+                        <div class="mcp-panel" id="mcp-panel-add">
+                            <p class="modal-desc">Configure any local or stdio MCP server (e.g. Node.js, Python, or Go binaries).</p>
+                            <div class="mcp-form-grid">
+                                <div class="meta-row">
+                                    <label class="meta-label">Server ID / Name</label>
+                                    <input type="text" id="mcp-name-input" class="folder-input" placeholder="e.g. local-tools or my-mcp-server">
+                                </div>
+                                <div class="meta-row">
+                                    <label class="meta-label">Executable Command</label>
+                                    <input type="text" id="mcp-cmd-input" class="folder-input" placeholder="e.g. npx, node, python, or C:\tools\mcp.exe">
+                                </div>
+                                <div class="meta-row">
+                                    <label class="meta-label">Arguments (space separated or JSON array)</label>
+                                    <input type="text" id="mcp-args-input" class="folder-input" placeholder="e.g. -y @modelcontextprotocol/server-filesystem C:\Users">
+                                </div>
+                                <div class="meta-row">
+                                    <label class="meta-label">Environment Variables (JSON object, optional)</label>
+                                    <input type="text" id="mcp-env-input" class="folder-input" placeholder='e.g. {"API_KEY": "sk-...", "DEBUG": "1"}'>
+                                </div>
+                                <button class="btn-primary" id="mcp-add-btn" style="margin-top:6px;">+ Register & Connect Server</button>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel 3: 1-Click Presets -->
+                        <div class="mcp-panel" id="mcp-panel-presets">
+                            <p class="modal-desc">Quickly install standard Model Context Protocol servers with one click.</p>
+                            <div class="mcp-presets-grid" id="mcp-presets-grid">
+                                <div class="session-skeleton">Loading presets...</div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel 4: Raw JSON Import / Export -->
+                        <div class="mcp-panel" id="mcp-panel-json">
+                            <p class="modal-desc">Paste a standard Claude Desktop / Cursor <code>mcpServers</code> configuration JSON block to import multiple servers at once.</p>
+                            <textarea id="mcp-json-textarea" class="modal-textarea" rows="8" placeholder='{
+  "mcpServers": {
+    "my-custom-mcp": {
+      "command": "python",
+      "args": ["my_server.py"],
+      "env": {}
+    }
+  }
+}'></textarea>
+                            <button class="btn-primary" id="mcp-import-json-btn" style="margin-top:10px;">Import JSON Configuration</button>
+                        </div>
+                    </div>
+
+                    <!-- PANE 4: Automations & Workflows -->
+                    <div class="master-pane" id="mpane-automations" style="display:none;">
+                        <div class="auto-section-title">
+                            <span>Detected Software & IDE Connectors</span>
+                            <span class="auto-badge" id="software-detected-count">Scanning...</span>
+                        </div>
+                        <div class="software-grid" id="software-grid-container">
+                            <div class="session-skeleton" style="padding:14px;">Detecting installed developer tools...</div>
+                        </div>
+
+                        <div class="auto-section-title" style="margin-top:20px;">
+                            <span>Autonomous Workflows & Pipelines</span>
+                            <span class="auto-badge">1-Click Execution</span>
+                        </div>
+                        <div class="pipelines-list" id="pipelines-list-container">
+                            <div class="session-skeleton" style="padding:14px;">Loading pipeline blueprints...</div>
+                        </div>
+
+                        <div class="auto-section-title" style="margin-top:20px;">
+                            <span>Custom Apps & Step-by-Step Integrations</span>
+                            <button class="auto-add-btn" onclick="toggleAddCustomAppForm()">+ Add Custom App</button>
+                        </div>
+
+                        <!-- Add Custom App Form (Collapsible) -->
+                        <div class="custom-app-form-card" id="custom-app-form-card" style="display:none;">
+                            <div class="form-row-grid">
+                                <div class="form-group">
+                                    <label>App Name</label>
+                                    <input type="text" id="new-app-name" placeholder="e.g. My Express API or Blender">
+                                </div>
+                                <div class="form-group">
+                                    <label>Category</label>
+                                    <input type="text" id="new-app-cat" placeholder="e.g. Backend API, 3D Tool">
+                                </div>
+                                <div class="form-group">
+                                    <label>Icon Emoji</label>
+                                    <input type="text" id="new-app-icon" placeholder="🚀" style="max-width:80px;" value="🚀">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Primary Command / Binary</label>
+                                <input type="text" id="new-app-cmd" placeholder="e.g. python server.py or node index.js">
+                            </div>
+                            <div class="form-group">
+                                <label>Step-by-Step Working Instructions (One per line)</label>
+                                <textarea id="new-app-steps" rows="3" placeholder="Step 1: Check dependencies | cmd: pip install -r requirements.txt&#10;Step 2: Start server | cmd: python main.py&#10;Step 3: Test health endpoint | cmd: curl http://localhost:8000/health"></textarea>
+                            </div>
+                            <div class="form-actions-row">
+                                <button class="files-action-btn primary" onclick="submitNewCustomApp()">Save App & Steps</button>
+                                <button class="files-action-btn" onclick="toggleAddCustomAppForm()">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div class="custom-apps-list" id="custom-apps-list-container">
+                            <div class="session-skeleton" style="padding:14px;">Loading custom apps...</div>
+                        </div>
+
+                        <!-- Pipeline Execution Log Dock -->
+                        <div class="pipeline-execution-box" id="pipeline-exec-box" style="display:none;margin-top:16px;">
+                            <div class="pipeline-exec-header">
+                                <span id="pipeline-exec-title">Running Pipeline...</span>
+                                <button class="pipeline-clear-btn" onclick="document.getElementById('pipeline-exec-box').style.display='none'">✕ Close Log</button>
+                            </div>
+                            <div class="pipeline-exec-output" id="pipeline-exec-output"></div>
+                        </div>
+
+                        <!-- 🚀 App Builder & 1-Click Scaffolder -->
+                        <div class="auto-section-title" style="margin-top:24px;">
+                            <span>🚀 1-Click Multi-File App Scaffolder</span>
+                            <span class="auto-badge" style="background:rgba(94, 106, 210, 0.2); color:#828fff;">Autonomous Studio</span>
+                        </div>
+                        <div class="app-templates-grid" id="app-templates-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-top:8px;">
+                            <div class="session-skeleton">Loading app templates...</div>
+                        </div>
+
+                        <div class="auto-section-title" style="margin-top:20px;">
+                            <span>📁 Generated App Workspaces</span>
+                            <span class="auto-badge" id="app-workspaces-count">0 Active</span>
+                        </div>
+                        <div class="app-projects-list" id="app-projects-list" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <div class="session-skeleton">Loading app projects...</div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 5: WhatsApp & Messaging -->
+                    <div class="master-pane" id="mpane-messaging" style="display:none;">
+                        <div class="auto-section-title">
+                            <span>Messaging & Social Notifications</span>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <button class="auto-add-btn" onclick="toggleAddCustomMsgForm()">+ Add Custom Messaging App</button>
+                                <span class="auto-badge" id="messaging-status-badge">4 Connectors</span>
+                            </div>
+                        </div>
+
+                        <!-- Add Custom Messaging App Form (Collapsible) -->
+                        <div class="custom-app-form-card" id="custom-msg-form-card" style="display:none;">
+                            <div class="form-row-grid">
+                                <div class="form-group">
+                                    <label>App Name</label>
+                                    <input type="text" id="new-msg-name" placeholder="e.g. Microsoft Teams, Signal, Pushover">
+                                </div>
+                                <div class="form-group">
+                                    <label>Category</label>
+                                    <input type="text" id="new-msg-cat" placeholder="e.g. Team Chat, Push Alert">
+                                </div>
+                                <div class="form-group">
+                                    <label>Icon Emoji</label>
+                                    <input type="text" id="new-msg-icon" placeholder="📢" style="max-width:80px;" value="📢">
+                                </div>
+                            </div>
+                            <div class="form-row-grid" style="grid-template-columns: 180px 1fr;">
+                                <div class="form-group">
+                                    <label>Protocol Type</label>
+                                    <select id="new-msg-protocol" class="auto-select" style="height:32px;">
+                                        <option value="webhook">🌐 Webhook POST (JSON)</option>
+                                        <option value="deeplink">🔗 DeepLink / URL Scheme</option>
+                                        <option value="command">💻 CLI Command Execution</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Target URL / Scheme / Command Template</label>
+                                    <input type="text" id="new-msg-target" placeholder="e.g. https://webhook.site/... or teams://send?text={message}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Step-by-Step Connection Instructions (One per line)</label>
+                                <textarea id="new-msg-steps" rows="2" placeholder="Step 1: Obtain API key or Webhook URL from provider&#10;Step 2: Paste endpoint here and test dispatch"></textarea>
+                            </div>
+                            <div class="form-actions-row">
+                                <button class="files-action-btn primary" onclick="submitNewCustomMsgApp()">Save Messaging App</button>
+                                <button class="files-action-btn" onclick="toggleAddCustomMsgForm()">Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Dispatch Composer -->
+                        <div class="quick-msg-box">
+                            <div class="quick-msg-header">
+                                <span style="font-size:13px;font-weight:600;color:var(--ink);">🚀 1-Click Message Dispatcher</span>
+                            </div>
+                            <div class="form-row-grid" style="grid-template-columns: 140px 1fr auto;">
+                                <select id="msg-dispatch-platform" class="auto-select">
+                                    <option value="whatsapp">💬 WhatsApp</option>
+                                    <option value="telegram">✈️ Telegram</option>
+                                    <option value="discord">🎮 Discord</option>
+                                    <option value="slack">💼 Slack</option>
+                                </select>
+                                <input type="text" id="msg-dispatch-text" placeholder="Type notification message or alert..." value="Hello from B1! Build complete and all unit tests passed.">
+                                <button class="pipeline-run-btn" onclick="dispatchQuickMessage()">
+                                    <span>⚡ Dispatch</span>
+                                </button>
+                            </div>
+                            <div class="msg-dispatch-result" id="msg-dispatch-result" style="display:none;"></div>
+                        </div>
+
+                        <!-- Supported Messaging Connectors List -->
+                        <div class="messaging-connectors-list" id="messaging-connectors-container">
+                            <div class="session-skeleton" style="padding:14px;">Loading messaging connectors...</div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 6: Security & OWASP -->
+                    <div class="master-pane" id="mpane-security" style="display:none;">
+                        <div class="sec-audit-body" id="sec-audit-results" style="max-height:360px;overflow-y:auto;">
+                            <div class="session-skeleton" style="padding:20px;">Scanning workspace codebase for vulnerabilities, hardcoded secrets, and SQLi vectors...</div>
+                        </div>
+                        <div class="sec-audit-footer" style="margin-top:16px;">
+                            <button class="files-action-btn primary" onclick="runSecurityAudit()">🔄 Re-Scan Workspace</button>
+                            <button class="files-action-btn" onclick="checkPermissions()">🛡️ Check Permissions</button>
+                        </div>
+                    </div>
+
+                    <!-- PANE 7: Export & Backups -->
+                    <div class="master-pane" id="mpane-export" style="display:none;">
+                        <p class="export-modal-desc">Download this conversation or export data including all analytical working, reasoning steps, and code snippets.</p>
+                        <div class="export-options-grid" style="margin-top:16px;">
+                            <div class="export-option-card" onclick="exportConversation('markdown')">
+                                <div class="export-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                        <polyline points="10 9 9 9 8 9"/>
+                                    </svg>
+                                </div>
+                                <div class="export-info">
+                                    <strong>Markdown Notes (.md)</strong>
+                                    <span>Standard formatted readable notes with syntax code blocks</span>
+                                </div>
+                            </div>
+                            <div class="export-option-card" onclick="exportConversation('json')">
+                                <div class="export-icon">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00e5a3" stroke-width="2">
+                                        <polyline points="16 18 22 12 16 6"/>
+                                        <polyline points="8 6 2 12 8 18"/>
+                                    </svg>
+                                </div>
+                                <div class="export-info">
+                                    <strong>JSON Structured Transcript (.json)</strong>
+                                    <span>Full structured transcript with thinking logs and metadata</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 8: Prompt Blueprints -->
+                    <div class="master-pane" id="mpane-templates" style="display:none;">
+                        <p class="export-modal-desc">Click any high-precision blueprint to instantly load it into the composer.</p>
+                        <div class="templates-grid" id="templates-grid-container" style="max-height:360px;overflow-y:auto;margin-top:12px;">
+                            <div class="session-skeleton" style="padding:16px;">Loading curated blueprints...</div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 9: Appearance & Themes -->
+                    <div class="master-pane" id="mpane-appearance" style="display:none;">
+                        <p class="modal-desc">Choose your preferred workspace aesthetic theme and visual density.</p>
+                        <div class="theme-picker-grid" style="margin-top:16px;">
+                            <div class="theme-card active" onclick="applyTheme('linear-obsidian'); updateThemeCardSelection('linear-obsidian');">
+                                <div class="theme-preview" style="background:#010102;border:1px solid #23252a;">
+                                    <div style="width:14px;height:14px;border-radius:50%;background:#5e6ad2;"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <strong>Linear Obsidian (Default)</strong>
+                                    <span>Ultra-dark #010102 with Linear Lavender accents</span>
+                                </div>
+                            </div>
+
+                            <div class="theme-card" onclick="applyTheme('midnight-lavender'); updateThemeCardSelection('midnight-lavender');">
+                                <div class="theme-preview" style="background:#08060f;border:1px solid #2a2545;">
+                                    <div style="width:14px;height:14px;border-radius:50%;background:#8b5cf6;"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <strong>Midnight Nebula</strong>
+                                    <span>Deep violet indigo with vibrant purple glow</span>
+                                </div>
+                            </div>
+
+                            <div class="theme-card" onclick="applyTheme('cyber-matrix'); updateThemeCardSelection('cyber-matrix');">
+                                <div class="theme-preview" style="background:#030806;border:1px solid #1b3d2e;">
+                                    <div style="width:14px;height:14px;border-radius:50%;background:#10b981;"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <strong>Cyber Matrix</strong>
+                                    <span>Emerald phosphor dark terminal aesthetic</span>
+                                </div>
+                            </div>
+
+                            <div class="theme-card" onclick="applyTheme('monochrome-slate'); updateThemeCardSelection('monochrome-slate');">
+                                <div class="theme-preview" style="background:#0b0d10;border:1px solid #282c34;">
+                                    <div style="width:14px;height:14px;border-radius:50%;background:#ffffff;"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <strong>Monochrome Slate</strong>
+                                    <span>High contrast crisp white on charcoal slate</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 10: Keyboard Shortcuts Directory -->
+                    <div class="master-pane" id="mpane-shortcuts" style="display:none;">
+                        <p class="modal-desc">Fast developer keyboard shortcuts for rapid autonomous coding and navigation.</p>
+                        <div class="settings-shortcuts-grid" style="margin-top:16px;">
+                            <div class="shortcut-category-card">
+                                <div class="shortcut-cat-header">
+                                    <span class="shortcut-cat-icon">🚀</span>
+                                    <span class="shortcut-cat-title">Navigation & Workspace</span>
+                                </div>
+                                <div class="shortcut-list">
+                                    <div class="shortcut-row"><span>New Conversation</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>N</kbd></div></div>
+                                    <div class="shortcut-row"><span>Command Palette</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>K</kbd></div></div>
+                                    <div class="shortcut-row"><span>Toggle Sidebar</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>B</kbd></div></div>
+                                    <div class="shortcut-row"><span>Settings Hub</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>,</kbd></div></div>
+                                    <div class="shortcut-row"><span>Shortcuts Cheatsheet</span><div class="shortcut-keys"><kbd>?</kbd> or <kbd>F1</kbd></div></div>
+                                    <div class="shortcut-row"><span>Close / Dismiss</span><div class="shortcut-keys"><kbd>ESC</kbd></div></div>
+                                </div>
+                            </div>
+
+                            <div class="shortcut-category-card">
+                                <div class="shortcut-cat-header">
+                                    <span class="shortcut-cat-icon">💬</span>
+                                    <span class="shortcut-cat-title">Composer & Prompting</span>
+                                </div>
+                                <div class="shortcut-list">
+                                    <div class="shortcut-row"><span>Send Prompt</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
+                                    <div class="shortcut-row"><span>Multi-line Break</span><div class="shortcut-keys"><kbd>Shift</kbd> + <kbd>Enter</kbd></div></div>
+                                    <div class="shortcut-row"><span>Attach File / Vision</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>U</kbd></div></div>
+                                    <div class="shortcut-row"><span>Paste Image</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>V</kbd></div></div>
+                                    <div class="shortcut-row"><span>Focus / Clear Input</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></div></div>
+                                </div>
+                            </div>
+
+                            <div class="shortcut-category-card">
+                                <div class="shortcut-cat-header">
+                                    <span class="shortcut-cat-icon">⚡</span>
+                                    <span class="shortcut-cat-title">Autonomous Agent Controls</span>
+                                </div>
+                                <div class="shortcut-list">
+                                    <div class="shortcut-row"><span>Autonomous Agent Mode</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></div></div>
+                                    <div class="shortcut-row"><span>Toggle Deep Decompose</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></div></div>
+                                    <div class="shortcut-row"><span>Switch Specialist Persona</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></div></div>
+                                    <div class="shortcut-row"><span>MCP Servers Hub</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></div></div>
+                                </div>
+                            </div>
+
+                            <div class="shortcut-category-card">
+                                <div class="shortcut-cat-header">
+                                    <span class="shortcut-cat-icon">💻</span>
+                                    <span class="shortcut-cat-title">Code, Terminal & Sandbox</span>
+                                </div>
+                                <div class="shortcut-list">
+                                    <div class="shortcut-row"><span>Save & Hot-Reload</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div></div>
+                                    <div class="shortcut-row"><span>Toggle Terminal Dock</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd></div></div>
+                                    <div class="shortcut-row"><span>Workspace File Tree</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd></div></div>
+                                    <div class="shortcut-row"><span>Export Conversation</span><div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd></div></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ── Permission Modal (shown on first run for new users) ───────────── -->
+    <!-- ── Permission Prompt Modal ────────────────────────────────────── -->
     <div class="perm-overlay" id="perm-overlay" style="display:none;">
-        <div class="perm-modal" id="perm-modal">
+        <div class="perm-modal">
             <div class="perm-logo">
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
                     <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#permGrad)"/>
@@ -324,16 +1169,40 @@
                     </defs>
                 </svg>
             </div>
-            <h2 class="perm-title">Gemini 1B Agent wants permission</h2>
-            <p class="perm-desc">This agent needs your permission to operate on this computer. It will be able to:</p>
+            <h2 class="perm-title">Grant Local Agent Permissions</h2>
+            <p class="perm-desc">Gemini requests authorization to operate as an autonomous coding assistant on your machine:</p>
             <ul class="perm-list">
-                <li><span class="perm-icon">📂</span> Read files and folders on this PC</li>
-                <li><span class="perm-icon">✏️</span> Write and create files</li>
-                <li><span class="perm-icon">⚡</span> Execute PowerShell commands</li>
-                <li><span class="perm-icon">🔍</span> Search your codebase</li>
-                <li><span class="perm-icon">📋</span> List directory contents</li>
+                <li>
+                    <span class="perm-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    </span>
+                    Read and inspect workspace files & folders
+                </li>
+                <li>
+                    <span class="perm-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </span>
+                    Write source code and generate project files
+                </li>
+                <li>
+                    <span class="perm-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </span>
+                    Execute PowerShell and terminal scripts
+                </li>
+                <li>
+                    <span class="perm-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </span>
+                    Search directories for symbols and patterns
+                </li>
+                <li>
+                    <span class="perm-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+                    </span>
+                    Invoke Model Context Protocol (MCP) servers
+                </li>
             </ul>
-            <p class="perm-note">Permissions are saved locally and only apply to this machine. You can revoke them at any time by deleting <code>permissions.json</code>.</p>
             <div class="perm-actions">
                 <button class="perm-deny-btn" id="perm-deny-btn">Deny</button>
                 <button class="perm-allow-btn" id="perm-allow-btn">Allow Access</button>
@@ -342,6 +1211,221 @@
         </div>
     </div>
 
+    <!-- ── Interactive Conversational Onboarding / Sign-Up Modal ────────── -->
+    <div class="onboard-overlay" id="onboard-modal" style="display:none;">
+        <div class="onboard-card">
+            <div class="onboard-top-bar">
+                <div class="brand-text-block">
+                    <span class="brand-title">B1 Studio</span>
+                    <span class="brand-edition" id="onboard-step-pill">Step 1 of 5</span>
+                </div>
+                <div class="onboard-stepper-track">
+                    <span class="onboard-step-dot active" data-step="1"></span>
+                    <span class="onboard-step-dot" data-step="2"></span>
+                    <span class="onboard-step-dot" data-step="3"></span>
+                    <span class="onboard-step-dot" data-step="4"></span>
+                    <span class="onboard-step-dot" data-step="5"></span>
+                </div>
+            </div>
+
+            <div class="onboard-body" id="onboard-body">
+                <!-- Dynamically updated by app.js -->
+            </div>
+
+            <div class="onboard-footer">
+                <button class="onboard-btn-secondary" id="onboard-back-btn" style="visibility:hidden;">Back</button>
+                <button class="onboard-btn-primary" id="onboard-next-btn">
+                    <span id="onboard-next-label">Let's Begin</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Command Palette Modal (Ctrl+K) ──────────────────────────── -->
+    <div class="cmd-palette-overlay" id="cmd-palette-modal" style="display:none;" onclick="closeCommandPalette()">
+        <div class="cmd-palette-card" onclick="event.stopPropagation()">
+            <div class="cmd-search-bar">
+                <svg class="cmd-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="cmd-search-input" placeholder="Type a command, tool, or action..." autocomplete="off">
+                <kbd class="cmd-esc-badge" onclick="closeCommandPalette()">ESC</kbd>
+            </div>
+            <div class="cmd-category-pills">
+                <button class="cmd-cat-pill active" data-cat="all">All</button>
+                <button class="cmd-cat-pill" data-cat="actions">Actions</button>
+                <button class="cmd-cat-pill" data-cat="stem">STEM Sim</button>
+                <button class="cmd-cat-pill" data-cat="mcp">MCP Tools</button>
+                <button class="cmd-cat-pill" data-cat="theme">Themes</button>
+            </div>
+            <div class="cmd-results-list" id="cmd-results-list">
+                <!-- Dynamically populated by app.js -->
+            </div>
+            <div class="cmd-footer-strip">
+                <div class="cmd-hint"><kbd>↑</kbd><kbd>↓</kbd> Navigate</div>
+                <div class="cmd-hint"><kbd>↵</kbd> Select</div>
+                <div class="cmd-hint"><kbd>ESC</kbd> Close</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Image Inspection Lightbox Modal ────────────────────────────── -->
+    <div class="image-lightbox" id="image-lightbox" style="display:none;" onclick="closeImageLightbox()">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <img id="lightbox-img" src="" alt="Enlarged inspection view">
+            <button class="lightbox-close-btn" onclick="closeImageLightbox()">✕</button>
+        </div>
+    </div>
+
+    <!-- ── Keyboard Shortcuts Cheatsheet Modal (Linear Style) ──────────── -->
+    <div class="modal-backdrop" id="shortcuts-modal" style="display:none;" onclick="closeShortcutsModal()">
+        <div class="shortcuts-card" onclick="event.stopPropagation()">
+            <div class="shortcuts-header">
+                <div class="shortcuts-header-left">
+                    <div class="shortcuts-icon-pill">⌨️</div>
+                    <div>
+                        <h2 class="shortcuts-title">B1 Keyboard Shortcuts</h2>
+                        <p class="shortcuts-subtitle">Fast keyboard navigation & developer hotkeys</p>
+                    </div>
+                </div>
+                <div class="shortcuts-header-right">
+                    <input type="text" id="shortcuts-search-input" class="shortcuts-search" placeholder="Search shortcuts..." autocomplete="off">
+                    <button class="modal-close" onclick="closeShortcutsModal()">✕</button>
+                </div>
+            </div>
+
+            <div class="shortcuts-grid" id="shortcuts-grid">
+                <!-- Category 1: Navigation & Workspace -->
+                <div class="shortcut-category-card" data-category="navigation">
+                    <div class="shortcut-cat-header">
+                        <span class="shortcut-cat-icon">🚀</span>
+                        <span class="shortcut-cat-title">Navigation & Workspace</span>
+                    </div>
+                    <div class="shortcut-list">
+                        <div class="shortcut-row" data-search="new chat reset fresh start">
+                            <span class="shortcut-label">New Conversation</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>N</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="command palette quick search run actions">
+                            <span class="shortcut-label">Command Palette</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>K</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="toggle collapse sidebar menu drawer">
+                            <span class="shortcut-label">Toggle Sidebar</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>B</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="settings control center config profile">
+                            <span class="shortcut-label">Settings & Control Hub</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>,</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="help shortcuts cheatsheet keybindings">
+                            <span class="shortcut-label">Shortcuts Cheatsheet</span>
+                            <div class="shortcut-keys"><kbd>?</kbd> or <kbd>F1</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="close escape dismiss back cancel">
+                            <span class="shortcut-label">Close / Back (Hierarchical)</span>
+                            <div class="shortcut-keys"><kbd>ESC</kbd></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category 2: Composer & Prompting -->
+                <div class="shortcut-category-card" data-category="composer">
+                    <div class="shortcut-cat-header">
+                        <span class="shortcut-cat-icon">💬</span>
+                        <span class="shortcut-cat-title">Composer & Prompting</span>
+                    </div>
+                    <div class="shortcut-list">
+                        <div class="shortcut-row" data-search="send submit message prompt execute">
+                            <span class="shortcut-label">Send Message</span>
+                            <div class="shortcut-keys"><kbd>Enter</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="newline line break multiline enter">
+                            <span class="shortcut-label">Multi-line Break</span>
+                            <div class="shortcut-keys"><kbd>Shift</kbd> + <kbd>Enter</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="attach upload file vision image document">
+                            <span class="shortcut-label">Attach File / Image</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>U</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="paste image clipboard vision screenshot">
+                            <span class="shortcut-label">Paste Image from Clipboard</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>V</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="focus input clear composer wipe">
+                            <span class="shortcut-label">Focus / Clear Composer</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category 3: Autonomous Agent Controls -->
+                <div class="shortcut-category-card" data-category="agent">
+                    <div class="shortcut-cat-header">
+                        <span class="shortcut-cat-icon">⚡</span>
+                        <span class="shortcut-cat-title">Autonomous Agent Controls</span>
+                    </div>
+                    <div class="shortcut-list">
+                        <div class="shortcut-row" data-search="autonomous mode agent react loop tools execute">
+                            <span class="shortcut-label">Toggle Autonomous Mode</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="deep decompose prompt decomposition divide conquer reasoning">
+                            <span class="shortcut-label">Toggle Deep Decompose</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="cycle switch persona specialist architect stem security researcher">
+                            <span class="shortcut-label">Switch Specialist Persona</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="mcp model context protocol servers tools presets stdio">
+                            <span class="shortcut-label">MCP Tool Servers Hub</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category 4: Code, Terminal & Sandbox -->
+                <div class="shortcut-category-card" data-category="code">
+                    <div class="shortcut-cat-header">
+                        <span class="shortcut-cat-icon">💻</span>
+                        <span class="shortcut-cat-title">Code, Terminal & Sandbox</span>
+                    </div>
+                    <div class="shortcut-list">
+                        <div class="shortcut-row" data-search="save file disk hot reload editor artifact code">
+                            <span class="shortcut-label">Save & Hot-Reload File</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="terminal dock powershell shell command execution run">
+                            <span class="shortcut-label">Toggle Terminal Dock</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="workspace file explorer codebase project tree files">
+                            <span class="shortcut-label">Workspace File Tree</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd></div>
+                        </div>
+                        <div class="shortcut-row" data-search="export conversation markdown json download archive">
+                            <span class="shortcut-label">Export Chat (.md / .json)</span>
+                            <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shortcuts-footer">
+                <span class="shortcuts-hint">💡 Press <kbd>?</kbd> anywhere or <kbd>F1</kbd> to open this cheatsheet. Use <kbd>ESC</kbd> to dismiss.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Toast Notifications Container ──────────────────────────────── -->
+    <div class="b1-toast-container" id="b1-toast-container"></div>
+
+    <!-- App JavaScript Logic -->
     <script src="app.js"></script>
 </body>
 </html>
