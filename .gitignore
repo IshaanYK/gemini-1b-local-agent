@@ -3,16 +3,27 @@
 # ── Sensitive / user-specific files (NEVER commit these) ──
 .env
 permissions.json
+gemini-chatbox/permissions.json
+gemini-chatbox/storage/permissions.json
+*.db
+*.sqlite
+*.log
 
-# ── Generated session data ──
+# ── Temporary Uploads & Screenshot Artifacts ──
+gemini-chatbox/uploads/
+gemini-chatbox/b1_*.png
+gemini-chatbox/storage/*.db
+gemini-chatbox/storage/google_drive_sync/
 gemini-chatbox/handoff_context.json
 playground/
-gemini-chatbox/__pycache__/
-gemini-web2api/__pycache__/
 
-# ── OS / Editor ──
-.DS_Store
-Thumbs.db
+# ── Python / Node Cache ──
+__pycache__/
 *.pyc
 *.pyo
-__pycache__/
+node_modules/
+venv/
+.venv/
+.DS_Store
+Thumbs.db
+

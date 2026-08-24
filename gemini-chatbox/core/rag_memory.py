@@ -1,5 +1,5 @@
 """
-rag_memory.py — Self-Contained Local RAG & Inter-Timeline Vector Memory System
+core/rag_memory.py — Self-Contained Local RAG & Inter-Timeline Vector Memory System
 
 Capabilities:
 1. All-MiniLM Embedding Engine (all-MiniLM-L6-v2) with CPU/GPU/CUDA auto-detection.
@@ -97,19 +97,16 @@ def encode_text(text: str) -> list[float]:
         return vec
         
     for word in words:
-        # Generate two hash features per word for dense distribution
         h1 = abs(hash(word)) % 384
         h2 = abs(hash(word + "_2")) % 384
         vec[h1] += 1.0
         vec[h2] += 0.5
 
-    # N-gram subwords for partial semantic overlap
     for i in range(len(words) - 1):
         bigram = words[i] + "_" + words[i+1]
         hb = abs(hash(bigram)) % 384
         vec[hb] += 1.5
 
-    # L2 Normalization
     norm = math.sqrt(sum(v * v for v in vec))
     if norm > 0:
         vec = [v / norm for v in vec]
@@ -127,7 +124,10 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     return dot / (n1 * n2)
 
 # ── 3. SQLite Vector Store Manager ───────────────────────────────────────────
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vector_memory.db")
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if os.path.basename(os.path.dirname(os.path.abspath(__file__))) == "core" else os.path.dirname(os.path.abspath(__file__))
+STORAGE_DIR = os.path.join(_BASE_DIR, "storage")
+os.makedirs(STORAGE_DIR, exist_ok=True)
+DB_PATH = os.path.join(STORAGE_DIR, "vector_memory.db") if os.path.exists(os.path.join(STORAGE_DIR, "vector_memory.db")) else (os.path.join(_BASE_DIR, "vector_memory.db") if os.path.exists(os.path.join(_BASE_DIR, "vector_memory.db")) else os.path.join(STORAGE_DIR, "vector_memory.db"))
 
 def _get_db():
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -192,7 +192,6 @@ def search_memory(query: str, top_k: int = 4, min_score: float = 0.15) -> list[d
     results = []
     
     with _get_db() as conn:
-        # Search conversation timeline memories
         rows = conn.execute("SELECT id, text, source, vector_json, timestamp, metadata_json FROM memories").fetchall()
         for r in rows:
             try:
@@ -211,7 +210,6 @@ def search_memory(query: str, top_k: int = 4, min_score: float = 0.15) -> list[d
             except Exception:
                 pass
                 
-        # Search file chunks
         f_rows = conn.execute("SELECT id, filepath, chunk_index, text, vector_json, timestamp FROM file_chunks").fetchall()
         for r in f_rows:
             try:
@@ -230,7 +228,6 @@ def search_memory(query: str, top_k: int = 4, min_score: float = 0.15) -> list[d
             except Exception:
                 pass
 
-    # Sort by similarity score descending
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:top_k]
 
@@ -244,7 +241,7 @@ def index_file_content(filepath: str, chunk_size: int = 500, overlap: int = 100)
     with _get_db() as conn:
         existing = conn.execute("SELECT mtime FROM file_chunks WHERE filepath = ? LIMIT 1", (filepath,)).fetchone()
         if existing and abs(existing["mtime"] - mtime) < 1.0:
-            return 0  # Up to date
+            return 0
             
         conn.execute("DELETE FROM file_chunks WHERE filepath = ?", (filepath,))
         conn.commit()
@@ -258,7 +255,6 @@ def index_file_content(filepath: str, chunk_size: int = 500, overlap: int = 100)
     if not content.strip():
         return 0
         
-    # Split content into sliding chunks
     chunks = []
     start = 0
     while start < len(content):
@@ -318,19 +314,3 @@ def get_system_status() -> dict:
         "file_chunks_count": chunk_count,
         "db_path": DB_PATH
     }
-
-if __name__ == "__main__":
-    print("\n--- RAG Memory Engine Test ---")
-    status = get_system_status()
-    print("Status:", json.dumps(status, indent=2))
-    
-    print("\nSaving test memory...")
-    mid = save_memory("Project Quantum is our main AI agent framework built on Flask and Gemini 1B.", source="test")
-    print(f"Saved memory ID: {mid}")
-    
-    print("\nPerforming semantic search for 'quantum framework'...")
-    res = search_memory("quantum framework", top_k=2)
-    print("Results:", json.dumps(res, indent=2))
-    
-    print("\nRAG Prompt Context:")
-    print(get_rag_prompt_context("tell me about quantum project"))

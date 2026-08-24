@@ -1,0 +1,39 @@
+{
+  "whatsapp": {
+    "default_phone": "+917222949347",
+    "api_token": "",
+    "enabled": true
+  },
+  "telegram": {
+    "enabled": false,
+    "bot_token": "",
+    "default_chat_id": ""
+  },
+  "discord": {
+    "enabled": false,
+    "webhook_url": ""
+  },
+  "slack": {
+    "enabled": false,
+    "webhook_url": ""
+  },
+  "custom_connectors": [
+    {
+      "id": "microsoft_teams_channel",
+      "name": "Microsoft Teams Channel",
+      "icon": "\ud83d\udc65",
+      "category": "Workplace Chat",
+      "protocol": "webhook",
+      "target": "https://teams.microsoft.com/api/webhook/sample",
+      "description": "Custom WEBHOOK connector for Microsoft Teams Channel",
+      "guide": [
+        "Step 1: Open Teams Channel -> Connectors -> Incoming Webhook",
+        "Step 2: Copy incoming webhook URL and paste here",
+        "Step 3: Test dispatch for instant team alerts"
+      ],
+      "is_custom": true,
+      "status": "configured",
+      "created_at": "2026-08-23 23:27:46"
+    }
+  ]
+}

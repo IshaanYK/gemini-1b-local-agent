@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "mcp-filesystem": {
+      "name": "Local Filesystem MCP",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\ISHAAN SEN"
+      ],
+      "env": {},
+      "source": "local",
+      "enabled": true
+    },
+    "mcp-memory": {
+      "name": "Knowledge Graph Memory MCP",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {},
+      "source": "local",
+      "enabled": true
+    },
+    "github-mcp": {
+      "name": "github-mcp",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      },
+      "source": "local",
+      "enabled": true
+    }
+  }
+}

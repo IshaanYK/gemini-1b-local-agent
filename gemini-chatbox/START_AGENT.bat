@@ -9,8 +9,15 @@ echo       GEMINI LOCAL AGENT — STARTING UP
 echo  ============================================
 echo.
 
-set "PROXY_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-web2api"
-set "CHATBOX_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox"
+set "PROXY_DIR=%~dp0..\gemini-web2api"
+set "CHATBOX_DIR=%~dp0"
+
+:: Auto-detect Python
+set "PYTHON_EXE=python"
+if exist "%LOCALAPPDATA%\Programs\Python\Python311\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+if exist "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
+if exist "C:\Program Files\Python311\python.exe" set "PYTHON_EXE=C:\Program Files\Python311\python.exe"
 
 :: Check if proxy (8081) is already running
 netstat -ano | findstr ":8081 " | findstr LISTENING >nul
@@ -18,8 +25,8 @@ if %errorlevel% equ 0 (
     echo  [1/3] ^> Proxy  port 8081 already ACTIVE. Skipping.
 ) else (
     echo  [1/3] ^> Starting gemini_web2api proxy on port 8081...
-    start "Gemini Web2API Proxy :8081" cmd /k "cd /d "%PROXY_DIR%" && python gemini_web2api.py"
-    timeout /t 4 /nobreak >nul
+    start "Gemini Web2API Proxy :8081" cmd /k "cd /d "%PROXY_DIR%" && "%PYTHON_EXE%" gemini_web2api.py"
+    ping 127.0.0.1 -n 4 >nul
     echo        Proxy window launched.
 )
 
@@ -29,14 +36,14 @@ if %errorlevel% equ 0 (
     echo  [2/3] ^> Backend port 5000 already ACTIVE. Skipping.
 ) else (
     echo  [2/3] ^> Starting agent_backend on port 5000...
-    start "Gemini Agent Backend :5000" cmd /k "cd /d "%CHATBOX_DIR%" && python agent_backend.py"
-    timeout /t 3 /nobreak >nul
+    start "Gemini Agent Backend :5000" cmd /k "cd /d "%CHATBOX_DIR%" && "%PYTHON_EXE%" agent_backend.py"
+    ping 127.0.0.1 -n 3 >nul
     echo        Backend window launched.
 )
 
 :: Open the UI in browser
 echo  [3/3] ^> Opening chatbox in browser...
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 2 >nul
 start "" "%CHATBOX_DIR%\index.html"
 
 echo.
