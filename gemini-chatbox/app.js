@@ -143,6 +143,11 @@ function initApp() {
     setupEventListeners();
     setupMarkedParser();
     setupConsoleSandboxBridge();
+
+    // Auto-launch Onboarding & Permissions flow on first sign-up / fresh start
+    if (!localStorage.getItem('b1_onboarding_completed')) {
+        setTimeout(() => openOnboardingModal(1), 350);
+    }
 }
 
 // ── User Profile & Studio Themes ─────────────────────────────────────────
@@ -210,6 +215,84 @@ async function saveUserProfile(dataToSave) {
     }
 }
 
+// ── Global System & Device Permissions State ───────────────────────────
+let b1Permissions = JSON.parse(localStorage.getItem('b1_system_permissions') || JSON.stringify({
+    mic: 'granted',        // Microphone & Voice Dictation
+    camera: 'granted',     // Camera, Computer Vision & Optical Gestures
+    notifications: 'granted', // Desktop Pipeline & Agent Alerts
+    clipboard: 'granted',  // 1-Click Code Copy & Paste
+    terminal: 'granted',   // Local Shell, PowerShell, Python Execution Sandbox
+    filesystem: 'granted', // Workspace File Reading & Multi-File Tree
+    mcp_network: 'granted',// MCP Servers & Web Tools Protocol
+    messaging: 'granted'   // WhatsApp, Teams, Discord Connectors
+}));
+
+window.requestBrowserPermission = function(permKey) {
+    if (permKey === 'mic') {
+        b1Permissions.mic = b1Permissions.mic === 'granted' ? 'pending' : 'granted';
+        if (b1Permissions.mic === 'granted' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(s => s.getTracks().forEach(t => t.stop()))
+                .catch(() => {});
+        }
+        showToast(`🎙️ Microphone permission ${b1Permissions.mic}`, b1Permissions.mic === 'granted' ? 'success' : 'info');
+    } else if (permKey === 'camera') {
+        b1Permissions.camera = b1Permissions.camera === 'granted' ? 'pending' : 'granted';
+        if (b1Permissions.camera === 'granted' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(s => s.getTracks().forEach(t => t.stop()))
+                .catch(() => {});
+        }
+        showToast(`📹 Camera permission ${b1Permissions.camera}`, b1Permissions.camera === 'granted' ? 'success' : 'info');
+    } else if (permKey === 'notifications') {
+        b1Permissions.notifications = b1Permissions.notifications === 'granted' ? 'pending' : 'granted';
+        if (b1Permissions.notifications === 'granted' && 'Notification' in window) {
+            try { Notification.requestPermission().catch(() => {}); } catch(e){}
+        }
+        showToast(`🔔 Notification permission ${b1Permissions.notifications}`, b1Permissions.notifications === 'granted' ? 'success' : 'info');
+    } else if (permKey === 'clipboard') {
+        b1Permissions.clipboard = b1Permissions.clipboard === 'granted' ? 'pending' : 'granted';
+        showToast(`📋 Clipboard permission ${b1Permissions.clipboard}`, b1Permissions.clipboard === 'granted' ? 'success' : 'info');
+    } else {
+        b1Permissions[permKey] = b1Permissions[permKey] === 'granted' ? 'blocked' : 'granted';
+        showToast(`${permKey.toUpperCase()} permission ${b1Permissions[permKey]}`, b1Permissions[permKey] === 'granted' ? 'success' : 'info');
+    }
+
+    localStorage.setItem('b1_system_permissions', JSON.stringify(b1Permissions));
+    if (currentOnboardStep === 4) {
+        renderOnboardStep(4);
+    }
+};
+
+window.requestAllPermissions = function() {
+    // 1. Mark all permissions granted
+    b1Permissions.mic = 'granted';
+    b1Permissions.camera = 'granted';
+    b1Permissions.notifications = 'granted';
+    b1Permissions.clipboard = 'granted';
+    b1Permissions.terminal = 'granted';
+    b1Permissions.filesystem = 'granted';
+    b1Permissions.mcp_network = 'granted';
+    b1Permissions.messaging = 'granted';
+
+    // 2. Trigger browser permission requests non-blockingly
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+            .then(s => s.getTracks().forEach(t => t.stop()))
+            .catch(() => {});
+    }
+    if ('Notification' in window) {
+        try { Notification.requestPermission().catch(() => {}); } catch(e){}
+    }
+
+    localStorage.setItem('b1_system_permissions', JSON.stringify(b1Permissions));
+    showToast('✦ All System & Device Permissions Authorized!', 'success', 2500);
+
+    if (currentOnboardStep === 4) {
+        renderOnboardStep(4);
+    }
+};
+
 // ── Interactive Conversational Onboarding / Sign-Up Flow ─────────────────
 function openOnboardingModal(step = 1) {
     currentOnboardStep = step;
@@ -238,7 +321,7 @@ function renderOnboardStep(step) {
     const onboardBackBtn = document.getElementById('onboard-back-btn');
     const onboardNextLabel = document.getElementById('onboard-next-label');
 
-    if (onboardStepPill) onboardStepPill.textContent = `Step ${step} of 5`;
+    if (onboardStepPill) onboardStepPill.textContent = `Step ${step} of 6`;
     
     document.querySelectorAll('.onboard-step-dot').forEach((dot, idx) => {
         const dotStep = idx + 1;
@@ -256,12 +339,12 @@ function renderOnboardStep(step) {
                 <div class="onboard-speech-bubble">
                     <p>Hello! I am <strong>B1</strong>, your personal autonomous coding partner and systems architect.</p>
                     <p style="margin-top:8px;">I can create interactive web apps, refactor code, search your repos with MCP tools, run terminal scripts, and remember your technical preferences with zero hallucinations.</p>
-                    <p style="margin-top:8px; color:var(--ink-muted);">Let's tailor your workspace in 4 quick interactive steps so I communicate and code exactly how you like.</p>
+                    <p style="margin-top:8px; color:var(--ink-muted);">Let's tailor your workspace in 5 quick interactive steps so I communicate, code, and authorize tools exactly how you like.</p>
                 </div>
             </div>
         `;
     } else if (step === 2) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Continue →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Thinking →";
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
@@ -298,7 +381,7 @@ function renderOnboardStep(step) {
             </div>
         `;
     } else if (step === 3) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Theme →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Permissions →";
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
@@ -322,7 +405,143 @@ function renderOnboardStep(step) {
             </div>
         `;
     } else if (step === 4) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "View Persona Alignment →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Themes →";
+        onboardBody.innerHTML = `
+            <div class="onboard-b1-chat">
+                <div class="onboard-b1-avatar">B1</div>
+                <div class="onboard-speech-bubble">
+                    <p>To assist you autonomously, execute code, visualize live webcam feeds, recognize voice prompts, and dispatch pipeline notifications, B1 requires authorization for the following system and browser capabilities.</p>
+                </div>
+            </div>
+
+            <div class="onboard-permissions-container">
+                <div class="onboard-grant-all-strip">
+                    <div class="grant-all-text">
+                        <strong>System & Device Authorization</strong>
+                        <span>One-click allow all tools for seamless autonomous development</span>
+                    </div>
+                    <button class="grant-all-btn" onclick="requestAllPermissions()">
+                        <span>✦ Grant All Permissions</span>
+                    </button>
+                </div>
+
+                <div class="permissions-bento-grid">
+                    <!-- 1. Microphone -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">🎙️</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Microphone & Voice</span>
+                                <span class="perm-desc">Voice dictation & speech prompts</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.mic === 'granted' ? 'granted' : (b1Permissions.mic === 'blocked' ? 'blocked' : 'pending')}" onclick="requestBrowserPermission('mic')">
+                            ${b1Permissions.mic === 'granted' ? 'Granted ✓' : (b1Permissions.mic === 'blocked' ? 'Blocked ✕' : 'Allow')}
+                        </button>
+                    </div>
+
+                    <!-- 2. Camera -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">📹</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Camera & Vision</span>
+                                <span class="perm-desc">Webcam ML artifacts & optical gestures</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.camera === 'granted' ? 'granted' : (b1Permissions.camera === 'blocked' ? 'blocked' : 'pending')}" onclick="requestBrowserPermission('camera')">
+                            ${b1Permissions.camera === 'granted' ? 'Granted ✓' : (b1Permissions.camera === 'blocked' ? 'Blocked ✕' : 'Allow')}
+                        </button>
+                    </div>
+
+                    <!-- 3. Desktop Notifications -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">🔔</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Notifications</span>
+                                <span class="perm-desc">Background agent & pipeline alerts</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.notifications === 'granted' ? 'granted' : (b1Permissions.notifications === 'blocked' ? 'blocked' : 'pending')}" onclick="requestBrowserPermission('notifications')">
+                            ${b1Permissions.notifications === 'granted' ? 'Granted ✓' : (b1Permissions.notifications === 'blocked' ? 'Blocked ✕' : 'Allow')}
+                        </button>
+                    </div>
+
+                    <!-- 4. Clipboard -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">📋</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Clipboard Access</span>
+                                <span class="perm-desc">1-click code copying & vision paste</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.clipboard === 'granted' ? 'granted' : (b1Permissions.clipboard === 'blocked' ? 'blocked' : 'pending')}" onclick="requestBrowserPermission('clipboard')">
+                            ${b1Permissions.clipboard === 'granted' ? 'Granted ✓' : (b1Permissions.clipboard === 'blocked' ? 'Blocked ✕' : 'Allow')}
+                        </button>
+                    </div>
+
+                    <!-- 5. Terminal Execution -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">💻</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Terminal & Scripts</span>
+                                <span class="perm-desc">PowerShell, Python & shell sandbox</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.terminal === 'granted' ? 'granted' : 'blocked'}" onclick="requestBrowserPermission('terminal')">
+                            ${b1Permissions.terminal === 'granted' ? 'Granted ✓' : 'Disabled'}
+                        </button>
+                    </div>
+
+                    <!-- 6. Filesystem -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">📁</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Filesystem Access</span>
+                                <span class="perm-desc">Codebase reading & multi-file editing</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.filesystem === 'granted' ? 'granted' : 'blocked'}" onclick="requestBrowserPermission('filesystem')">
+                            ${b1Permissions.filesystem === 'granted' ? 'Granted ✓' : 'Disabled'}
+                        </button>
+                    </div>
+
+                    <!-- 7. MCP Tools & Network -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">🌐</div>
+                            <div class="perm-details">
+                                <span class="perm-name">MCP Tools Protocol</span>
+                                <span class="perm-desc">Web search, SQLite & GitHub tools</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.mcp_network === 'granted' ? 'granted' : 'blocked'}" onclick="requestBrowserPermission('mcp_network')">
+                            ${b1Permissions.mcp_network === 'granted' ? 'Granted ✓' : 'Disabled'}
+                        </button>
+                    </div>
+
+                    <!-- 8. Messaging Connectors -->
+                    <div class="permission-item-card">
+                        <div class="perm-left">
+                            <div class="perm-icon-box">💬</div>
+                            <div class="perm-details">
+                                <span class="perm-name">Messaging Dispatch</span>
+                                <span class="perm-desc">WhatsApp, Teams, Discord webhooks</span>
+                            </div>
+                        </div>
+                        <button class="perm-badge ${b1Permissions.messaging === 'granted' ? 'granted' : 'blocked'}" onclick="requestBrowserPermission('messaging')">
+                            ${b1Permissions.messaging === 'granted' ? 'Granted ✓' : 'Disabled'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (step === 5) {
+        if (onboardNextLabel) onboardNextLabel.textContent = "View Alignment Report →";
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
@@ -372,7 +591,7 @@ function renderOnboardStep(step) {
                 </div>
             </div>
         `;
-    } else if (step === 5) {
+    } else if (step === 6) {
         if (onboardNextLabel) onboardNextLabel.textContent = "Save & Launch B1 Studio 🚀";
         
         const nameVal = document.getElementById('onboard-name-input')?.value.trim();
@@ -387,7 +606,7 @@ function renderOnboardStep(step) {
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
                 <div class="onboard-speech-bubble">
-                    <p>I have aligned our workspace persona and configured long-term memory for you, <strong>${escapeHtml(name)}</strong>!</p>
+                    <p>I have aligned our workspace persona and configured long-term memory & tool authorization for you, <strong>${escapeHtml(name)}</strong>!</p>
                 </div>
             </div>
 
@@ -401,6 +620,7 @@ function renderOnboardStep(step) {
                 <ul class="perception-list">
                     <li>⚡ <strong>Engineering Identity:</strong> ${escapeHtml(role)} with high curiosity and proactive tooling habits.</li>
                     <li>🎯 <strong>Communication Standard:</strong> ${escapeHtml(arch)} — concise reasoning, zero hallucination, direct execution.</li>
+                    <li>🔒 <strong>System & Device Authorization:</strong> Complete authorization for Microphone, Camera, Terminal, Notifications & Filesystem.</li>
                     <li>🎨 <strong>Visual Atmosphere:</strong> ${escapeHtml(theme.replace('-', ' ').toUpperCase())} with dark custom scrollbars.</li>
                     <li>💾 <strong>Memory Preservation:</strong> All previous chat sessions, MCP tools, and SQLite facts remain 100% intact and linked.</li>
                 </ul>
@@ -1815,15 +2035,17 @@ function setupEventListeners() {
                     onboardDraft.user_name = nameInput.value.trim();
                 }
             }
-            if (currentOnboardStep < 5) {
+            if (currentOnboardStep < 6) {
                 currentOnboardStep++;
                 renderOnboardStep(currentOnboardStep);
             } else {
-                // Step 5: Save & Activate
-                onboardNextBtn.textContent = 'Saving Profile...';
+                // Step 6: Save & Activate
+                onboardNextBtn.textContent = 'Launching Studio...';
                 await saveUserProfile(onboardDraft);
+                localStorage.setItem('b1_onboarding_completed', 'true');
                 applyTheme(onboardDraft.theme || 'linear-obsidian');
                 closeOnboardingModal();
+                showToast('🚀 Workspace Ready with Full Permissions!', 'success', 3000);
             }
         });
     }

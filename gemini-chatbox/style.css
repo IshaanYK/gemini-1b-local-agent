@@ -2212,7 +2212,7 @@ html, body {
 
 .onboard-card {
     width: 100%;
-    max-width: 620px;
+    max-width: 650px;
     background: var(--surface-1);
     border: 1px solid var(--hairline-strong);
     border-radius: var(--r-xl);
@@ -2256,12 +2256,13 @@ html, body {
 }
 
 .onboard-body {
-    padding: 24px 28px;
+    padding: 22px 26px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
     max-height: 75vh;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .onboard-b1-chat {
@@ -2418,6 +2419,166 @@ html, body {
     font-size: 13px;
     color: var(--ink-muted);
     line-height: 1.5;
+}
+
+/* ── Onboarding Permissions Consent Step ── */
+.onboard-permissions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.onboard-grant-all-strip {
+    background: linear-gradient(90deg, rgba(94, 106, 210, 0.14) 0%, rgba(39, 166, 68, 0.12) 100%);
+    border: 1px solid rgba(94, 106, 210, 0.3);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.grant-all-text {
+    font-size: 12.5px;
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.grant-all-text span {
+    font-size: 11px;
+    color: var(--ink-subtle);
+    display: block;
+    margin-top: 1px;
+}
+
+.grant-all-btn {
+    background: #5e6ad2;
+    color: #fff;
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(94, 106, 210, 0.35);
+    transition: all var(--transition-fast);
+}
+
+.grant-all-btn:hover {
+    background: #6d7ae0;
+    box-shadow: 0 0 16px rgba(94, 106, 210, 0.5);
+    transform: translateY(-1px);
+}
+
+.permissions-bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 2px;
+}
+
+@media (max-width: 600px) {
+    .permissions-bento-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.permission-item-card {
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-md);
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: border-color var(--transition-fast);
+}
+
+.permission-item-card:hover {
+    border-color: var(--hairline-strong);
+}
+
+.perm-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.perm-icon-box {
+    font-size: 16px;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-xs);
+    background: var(--surface-3);
+    border: 1px solid var(--hairline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.perm-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.perm-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.perm-desc {
+    font-size: 10.5px;
+    color: var(--ink-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.perm-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--hairline);
+    background: var(--surface-3);
+    color: var(--ink-subtle);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+}
+
+.perm-badge:hover {
+    border-color: var(--primary);
+    color: var(--ink);
+}
+
+.perm-badge.granted {
+    background: rgba(39, 166, 68, 0.16);
+    border-color: rgba(39, 166, 68, 0.4);
+    color: #34d399;
+}
+
+.perm-badge.blocked {
+    background: rgba(255, 71, 87, 0.16);
+    border-color: rgba(255, 71, 87, 0.4);
+    color: #ff6b81;
 }
 
 .onboard-footer {
