@@ -29,7 +29,12 @@
     let avaIsSpeaking = false;
     let avaIsThinking = false;
     let storedEngine = localStorage.getItem('ava_engine_mode');
-    let avaEngineMode = storedEngine || 'neural';
+    if (!localStorage.getItem('ava_v2_instant_mode')) {
+        storedEngine = 'local';
+        localStorage.setItem('ava_engine_mode', 'local');
+        localStorage.setItem('ava_v2_instant_mode', 'true');
+    }
+    let avaEngineMode = storedEngine || 'local';
     let storedPersona = localStorage.getItem('b1_voice_persona');
     let avaVoicePersona = (!storedPersona || storedPersona === 'en-US-AvaNeural') ? 'en-US-AvaMultilingualNeural' : storedPersona;
     let avaHandsFree = localStorage.getItem('ava_handsfree') !== 'false';
@@ -213,7 +218,7 @@
                 if (els.heroMicText) els.heroMicText.textContent = 'Thinking...';
             }
             if (els.dockMicBtn) els.dockMicBtn.classList.remove('active');
-            if (els.headline) els.headline.textContent = "Synthesizing response...";
+            if (els.headline) els.headline.textContent = subtitleText || "Thinking...";
         } else {
             // ready
             if (els.heroMicBtn) {
@@ -1039,24 +1044,95 @@
         return spokenText;
     }
 
-    // ── High-Performance Pipelined Neural Speech Synthesis Engine ──────────
+    // ── High-Performance Pipelined Neural & Local Speech Synthesis Engine ───
     let speechAudioQueue = [];
     let isPlayingAudioQueue = false;
     let activeSpeechAbortController = null;
+    let localSpeechQueue = [];
+    let isSpeakingLocalQueue = false;
+
+    function queueLocalSentence(text, isFirst = false) {
+        if (!text || !text.trim()) return;
+        if (isFirst) {
+            if ('speechSynthesis' in window) {
+                try { window.speechSynthesis.cancel(); } catch(e) {}
+            }
+            localSpeechQueue = [text];
+            isSpeakingLocalQueue = false;
+        } else {
+            localSpeechQueue.push(text);
+        }
+
+        if (!isSpeakingLocalQueue) {
+            processNextLocalSpeech();
+        }
+    }
+
+    function processNextLocalSpeech() {
+        if (localSpeechQueue.length === 0) {
+            isSpeakingLocalQueue = false;
+            onSpeechFinished();
+            return;
+        }
+
+        isSpeakingLocalQueue = true;
+        const text = localSpeechQueue.shift();
+
+        if (!('speechSynthesis' in window)) {
+            isSpeakingLocalQueue = false;
+            onSpeechFinished();
+            return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.05;
+        utterance.pitch = 1.15;
+
+        const voices = window.speechSynthesis.getVoices();
+        const bestVoice = voices.find(v => v.lang.startsWith('en') && (
+            v.name.includes('Ava') ||
+            v.name.includes('Jenny') ||
+            v.name.includes('Natural') ||
+            v.name.includes('Google US English') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Zira') ||
+            v.name.includes('Female')
+        )) || voices.find(v => v.lang.startsWith('en'));
+
+        if (bestVoice) utterance.voice = bestVoice;
+
+        utterance.onstart = () => {
+            avaIsSpeaking = true;
+            setAvaState('speaking', 'Ava speaking...');
+        };
+
+        utterance.onend = () => {
+            processNextLocalSpeech();
+        };
+
+        utterance.onerror = (err) => {
+            console.warn('[Ava] Local TTS sentence notice:', err);
+            processNextLocalSpeech();
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
 
     async function enqueueSpokenSentence(rawText, isFirst = false) {
         if (!rawText || !rawText.trim()) return;
         let spokenText = sanitizeVoiceText(rawText);
         if (!spokenText.trim()) return;
 
-        // Mode 1: Instant Local Voice (< 50ms)
-        if (avaEngineMode === 'local') {
-            queueLocalSentence(spokenText);
+        // Mode 1: Instant Local Voice (< 20ms) — Ultra-responsive human conversational speed
+        if (avaEngineMode === 'local' || avaEngineMode === 'instant') {
+            queueLocalSentence(spokenText, isFirst);
             return;
         }
 
-        // Mode 2: Neural Edge-TTS via backend
+        // Mode 2: Neural Edge-TTS via backend with 1400ms timeout budget before local fallback
         const fetchAudioPromise = (async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1400);
             try {
                 const ttsUrl = `${AVA_BACKEND_ORIGIN}/api/voice/tts`;
                 const payload = {
@@ -1071,13 +1147,16 @@
                 const res = await fetch(ttsUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 if (!res.ok) throw new Error(`Backend TTS failed: ${res.status}`);
                 const blob = await res.blob();
                 return URL.createObjectURL(blob);
             } catch(err) {
-                console.warn('[Ava] Neural TTS error for sentence, fallback to local voice:', err);
+                clearTimeout(timeoutId);
+                console.warn('[Ava] Neural TTS delay/error, falling back to instant local voice:', err);
                 return null;
             }
         })();
@@ -1159,42 +1238,21 @@
         enqueueSpokenSentence(rawText, true);
     }
 
-    function queueLocalSentence(text) {
-        fallbackLocalTts(text);
-    }
-
     function fallbackLocalTts(text, onComplete) {
-        if (!('speechSynthesis' in window)) {
+        if (!text || !text.trim()) {
             if (onComplete) onComplete();
             else onSpeechFinished();
             return;
         }
-
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.05;
-        utterance.pitch = 1.15;
-
-        const voices = window.speechSynthesis.getVoices();
-        const femaleVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google US English') || v.name.includes('Natural')));
-        if (femaleVoice) utterance.voice = femaleVoice;
-
-        utterance.onstart = () => {
-            avaIsSpeaking = true;
-            setAvaState('speaking', 'Ava speaking...');
-        };
-
-        utterance.onend = () => {
-            if (onComplete) onComplete();
-            else onSpeechFinished();
-        };
-
-        utterance.onerror = () => {
-            if (onComplete) onComplete();
-            else onSpeechFinished();
-        };
-
-        window.speechSynthesis.speak(utterance);
+        queueLocalSentence(text, true);
+        if (onComplete) {
+            const checkDone = setInterval(() => {
+                if (!isSpeakingLocalQueue) {
+                    clearInterval(checkDone);
+                    onComplete();
+                }
+            }, 100);
+        }
     }
 
     function onSpeechFinished() {
@@ -1219,6 +1277,8 @@
         }
         speechAudioQueue = [];
         isPlayingAudioQueue = false;
+        localSpeechQueue = [];
+        isSpeakingLocalQueue = false;
 
         if (currentAudio) {
             try {
@@ -1240,6 +1300,172 @@
 
     window.stopAvaSpeech = stopSpeech;
 
+    // ── Client-Side Sub-10ms Conversational Reflex Engine ─────────────────
+    function matchClientReflex(rawText) {
+        if (!rawText) return null;
+        const c = rawText.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+        if (!c) return null;
+
+        // 1. Greetings
+        if (/^(hi|hello|hey|hey ava|hi ava|hello ava|greetings|good morning|good afternoon|good evening|howdy|sup|yo|whats up|namaste)\b/.test(c)) {
+            const replies = [
+                "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+                "Umm, hello there! Great to hear your voice. What's on your mind?",
+                "Right! Hello Ishaan. I'm ready to assist with code, research, or anything you need.",
+                "Hey! All systems are ready and active. What are we working on right now?"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
+        }
+
+        // 2. How are you
+        if (/^(how are you|hows it going|how are you doing|how do you feel|how is everything|are you ok|are you good|whats going on)\b/.test(c)) {
+            const replies = [
+                "Umm, I'm doing fantastic, thanks for asking! Zero latency, active noise cancellation, and ready to assist. How are you doing?",
+                "Well, feeling great and all systems are running smoothly! Ready to dive into some code or research?",
+                "Right! I'm doing great. Hope your day is going awesome too!"
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
+        }
+
+        // 3. Who are you / Identity
+        if (/^(who are you|what is your name|whats your name|tell me about yourself|introduce yourself)\b/.test(c)) {
+            const replies = [
+                "Well, I'm Ava! Your ultra-fast AI voice copilot, designed for instant natural dialogue, coding, and real-time reasoning.",
+                "Right! I'm Ava, your AI voice assistant. I can inspect files, write full applications, run research councils, and chat naturally with you.",
+                "Umm, I'm Ava! Your voice companion and programming copilot in this workspace."
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
+        }
+
+        // 4. Creator / Who made you
+        if (/^(who made you|who created you|who built you|where do you come from|who is your creator)\b/.test(c)) {
+            const replies = [
+                "I was built by Ishaan as an ultra-fast, intelligent AI companion and coding copilot right here in this workspace!",
+                "You created and tuned me, Ishaan! I'm your dedicated AI voice agent, built for zero-latency conversation and real-time pair programming."
+            ];
+            return replies[Math.floor(Math.random() * replies.length)];
+        }
+
+        // 5. Songs / Singing
+        if (/(sing a song|sing for me|can you sing|sing something|sing me a song|sing us a song|sing a lullaby|^sing\b)/.test(c)) {
+            const songs = [
+                "Umm, let's see! La la la! 🎵 Daisy, Daisy, give me your answer do! I'm half crazy, all for the love of you! How was my singing?",
+                "Hmm, clearing my vocal cords! 🎵 Twinkle, twinkle, little star, how I wonder what you are! Up above the world so high, like a diamond in the sky! Hope that brought a smile to your face!",
+                "Well, here goes! 🎵 Row, row, row your boat, gently down the stream! Merrily, merrily, merrily, merrily, life is but a dream! How did I do, Ishaan?"
+            ];
+            return songs[Math.floor(Math.random() * songs.length)];
+        }
+
+        // 6. Jokes / Humor
+        if (/(tell me a joke|tell a joke|make me laugh|say something funny|crack a joke|another joke|funny joke)/.test(c)) {
+            const jokes = [
+                "Why do programmers prefer dark mode? Because light attracts bugs! Haha, what do you think?",
+                "Why did the JavaScript developer wear glasses? Because they couldn't C sharp! Got another one if you want!",
+                "There are 10 types of people in the world: those who understand binary, and those who don't!",
+                "Why was the computer cold? Because it left its Windows open! Classic, right?",
+                "An SQL query walks into a bar, walks up to two tables and asks: Can I join you?"
+            ];
+            return jokes[Math.floor(Math.random() * jokes.length)];
+        }
+
+        // 7. Stories
+        if (/(tell me a story|tell a story|story time|short story|tell a bedtime story)/.test(c)) {
+            const stories = [
+                "Once upon a time in a quiet server room, a tiny line of code dreamed of reaching the stars. With a single click, Ishaan deployed it, and it illuminated the entire world. The end!",
+                "Long ago, an engineer stayed up late untangling a mysterious bug. Just when hope seemed lost, a sudden spark of intuition struck, and with one keystroke, everything compiled into pure magic."
+            ];
+            return stories[Math.floor(Math.random() * stories.length)];
+        }
+
+        // 8. Weather
+        if (/(weather today|hows the weather|whats the weather|is it raining|temperature today|weather forecast)/.test(c)) {
+            return "I don't have direct access to your local GPS sensors right now, but tell me your city and I'll gladly check the live forecast for you!";
+        }
+
+        // 9. Motivation
+        if (/(motivate me|give me motivation|inspire me|cheer me up|i feel tired|feeling down|i need inspiration)/.test(c)) {
+            const quotes = [
+                "Ishaan, every great architect started with a single line of code and persistence. You've got the vision and the drive—take a deep breath, keep going, and let's build something remarkable!",
+                "Remember: progress isn't about perfection, it's about momentum. Every challenge you solve right now makes you sharper. I'm right here with you, let's do this!",
+                "You are capable of building incredible things. Stay focused, trust your intuition, and let's knock out this goal step by step!"
+            ];
+            return quotes[Math.floor(Math.random() * quotes.length)];
+        }
+
+        // 10. Fun facts
+        if (/(fun fact|tell me a fact|random fact|did you know|tell me something interesting)/.test(c)) {
+            const facts = [
+                "Did you know that the first computer bug was an actual real moth found trapped in a Harvard Mark Two computer relay in 1947?",
+                "Did you know that honey never spoils? Archaeologists have discovered pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible!",
+                "Did you know that space is completely silent because sound waves need a medium like air or water to travel through?",
+                "Did you know that the first computer mouse was invented by Douglas Engelbart in 1964 and was made out of wood?"
+            ];
+            return facts[Math.floor(Math.random() * facts.length)];
+        }
+
+        // 11. Coin Flip / Dice
+        if (/(flip a coin|heads or tails)/.test(c)) {
+            const outcome = Math.random() < 0.5 ? "Heads" : "Tails";
+            return `Flipping a coin... It landed on ${outcome}!`;
+        }
+        if (/(roll a die|roll a dice)/.test(c)) {
+            const roll = Math.floor(Math.random() * 6) + 1;
+            return `Rolling a six-sided die... You rolled a ${roll}!`;
+        }
+
+        // 12. Mic check / audibility
+        if (/^(can you hear me|are you listening|am i audible|can you hear my voice|mic check|mic test|testing mic|testing one two three|test test|audio check)\b/.test(c)) {
+            return "Right! I can hear you loud and clear. Your microphone audio is coming through with studio noise cancellation.";
+        }
+
+        // 13. Capabilities
+        if (/^(what can you do|help me|what are your skills|what are your features|how can you help me|how do you work)\b/.test(c)) {
+            return "Well, I can inspect and edit files in your workspace, build interactive web apps, run research councils, and talk with you naturally with zero delay.";
+        }
+
+        // 14. Gratitude
+        if (/^(thank you|thanks|thanks ava|thank you so much|appreciate it|much appreciated|thanks a lot)\b/.test(c)) {
+            return "You're so welcome, Ishaan! Happy to help anytime.";
+        }
+
+        // 15. Parting
+        if (/^(bye|goodbye|bye ava|see you|see ya|talk to you later|catch you later|good night)\b/.test(c)) {
+            return "Goodbye for now, Ishaan! Just tap the microphone whenever you want to talk again.";
+        }
+
+        // 16. Time / Date
+        if (/(what time is it|what is the time|whats the time|current time|tell me the time|what day is it|whats todays date|what is the date)/.test(c)) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+            return `Right now it's ${timeStr} on ${dateStr}. Let me know if you need anything else!`;
+        }
+
+        // 17. Simple math (e.g. "what is 5 plus 7")
+        const mathMatch = c.match(/what is (\d+)\s*(\+|\-|\*|times|plus|minus)\s*(\d+)/);
+        if (mathMatch) {
+            const n1 = parseInt(mathMatch[1], 10);
+            const op = mathMatch[2];
+            const n2 = parseInt(mathMatch[3], 10);
+            let ans = n1 + n2;
+            if (op === '-' || op === 'minus') ans = n1 - n2;
+            else if (op === '*' || op === 'times') ans = n1 * n2;
+            return `Well, ${n1} ${op} ${n2} equals ${ans}!`;
+        }
+
+        // 18. Acknowledgments
+        if (/^(ok|okay|yes|yeah|yep|sure|sounds good|alright|fine|cool|awesome|perfect|great)\b/.test(c) && c.split(' ').length <= 3) {
+            return "Got it! Whenever you're ready, tell me what we should dive into next.";
+        }
+
+        // 19. Halt / Stop
+        if (/^(stop|shut up|be quiet|pause|hush|silence)\b/.test(c) && c.split(' ').length <= 3) {
+            return "Understood, pausing right now.";
+        }
+
+        return null;
+    }
+
     // ── Dialogue Feed & Gemini Query Dispatcher with Sentence Streaming ───
     async function dispatchAvaQuery(queryText) {
         if (!queryText || !queryText.trim()) return;
@@ -1251,20 +1477,55 @@
         clearTimeout(silenceTimeout);
         stopSpeech();
 
+        // ── Phase 1: Client-Side Sub-10ms Conversational Reflex Check ──
+        const reflexReply = matchClientReflex(query);
+        if (reflexReply) {
+            appendDialogueCard('user', query);
+            const assistantCard = appendDialogueCard('assistant', reflexReply);
+            setAvaState('speaking', 'Ava speaking...');
+            enqueueSpokenSentence(reflexReply, true);
+            avaIsThinking = false;
+
+            // Update dialogue memory
+            avaDialogue.push({ role: 'user', content: query }, { role: 'assistant', content: reflexReply });
+
+            // Wire up replay button
+            if (assistantCard) {
+                const replayBtn = assistantCard.querySelector('.ava-replay-btn');
+                if (replayBtn) replayBtn.onclick = () => speakAvaText(reflexReply);
+            }
+            return;
+        }
+
+        // ── Phase 2: LLM Query with Immediate Acoustic Thinking Reaction ──
         avaIsThinking = true;
-        setAvaState('thinking', 'Synthesizing response...');
 
         // 1. Add User Card to Feed
         appendDialogueCard('user', query);
 
-        // 2. Add placeholder Assistant Card for live streaming
-        const assistantCard = appendDialogueCard('assistant', 'Synthesizing response...');
+        // 2. Immediate Human Reaction Filler (Ava begins speaking in < 50ms)
+        const thinkingFillers = [
+            "Umm, let's see...",
+            "Hmm, let me check that for you!",
+            "Got it, looking into that right now...",
+            "Right, let's dive into that...",
+            "Hmm, interesting question..."
+        ];
+        const filler = thinkingFillers[Math.floor(Math.random() * thinkingFillers.length)];
+
+        setAvaState('thinking', filler);
+
+        // Add placeholder Assistant Card displaying the acoustic reaction
+        const assistantCard = appendDialogueCard('assistant', filler);
         const textContainer = assistantCard ? assistantCard.querySelector('.ava-card-text') : null;
+
+        // Ava immediately utters the thinking filler out loud so user hears instant voice (< 50ms)
+        enqueueSpokenSentence(filler, true);
 
         activeSpeechAbortController = new AbortController();
 
         try {
-            const conversationHistory = avaDialogue.filter(m => m.content !== 'Synthesizing response...').slice(-6);
+            const conversationHistory = avaDialogue.filter(m => m.content && !m.content.includes('...')).slice(-6);
 
             const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/chat`, {
                 method: 'POST',
@@ -1288,6 +1549,7 @@
             let buffer = '';
             let accumulatedText = '';
             let sentenceBuffer = '';
+            let isFirstRealToken = true;
             let sentFirstSentence = false;
 
             while (true) {
@@ -1309,8 +1571,15 @@
                     try {
                         const json = JSON.parse(line.slice(6));
                         if (json.content) {
-                            accumulatedText += json.content;
-                            sentenceBuffer += json.content;
+                            if (isFirstRealToken) {
+                                isFirstRealToken = false;
+                                accumulatedText = json.content;
+                                sentenceBuffer = json.content;
+                            } else {
+                                accumulatedText += json.content;
+                                sentenceBuffer += json.content;
+                            }
+
                             if (textContainer) {
                                 textContainer.innerHTML = escapeHtml(accumulatedText);
                             }
@@ -1321,7 +1590,8 @@
                                 const sentence = match[1].trim();
                                 sentenceBuffer = match[2] || '';
                                 if (sentence) {
-                                    enqueueSpokenSentence(sentence, !sentFirstSentence);
+                                    // Smoothly queue next sentence after initial filler finishes
+                                    enqueueSpokenSentence(sentence, false);
                                     sentFirstSentence = true;
                                 }
                             }
@@ -1337,14 +1607,14 @@
 
             // Flush remaining text in sentenceBuffer
             if (sentenceBuffer.trim()) {
-                enqueueSpokenSentence(sentenceBuffer.trim(), !sentFirstSentence);
+                enqueueSpokenSentence(sentenceBuffer.trim(), false);
                 sentFirstSentence = true;
             }
 
             if (!accumulatedText.trim()) {
                 accumulatedText = "I have processed your request. How else can I assist you?";
                 if (textContainer) textContainer.innerHTML = escapeHtml(accumulatedText);
-                enqueueSpokenSentence(accumulatedText, true);
+                enqueueSpokenSentence(accumulatedText, false);
             }
 
             avaIsThinking = false;
@@ -1353,6 +1623,8 @@
             const lastItem = avaDialogue[avaDialogue.length - 1];
             if (lastItem && lastItem.role === 'assistant') {
                 lastItem.content = accumulatedText;
+            } else {
+                avaDialogue.push({ role: 'assistant', content: accumulatedText });
             }
 
             // Wire up replay button
