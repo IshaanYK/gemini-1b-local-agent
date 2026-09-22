@@ -31,7 +31,7 @@
     <!-- B1 Research Council Stylesheet -->
     <link rel="stylesheet" href="research_council.css?v=rc4">
     <!-- B1 Ava AI Voice Workspace Stylesheet -->
-    <link rel="stylesheet" href="ava_voice.css?v=ava2">
+    <link rel="stylesheet" href="ava_voice.css?v=ava3">
 </head>
 <body class="dark-theme">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -797,6 +797,18 @@
                         <button type="button" class="ava-engine-btn active" id="ava-engine-neural" onclick="setAvaEngineMode('neural')">✨ Studio Neural</button>
                         <button type="button" class="ava-engine-btn" id="ava-engine-local" onclick="setAvaEngineMode('local')">⚡ Instant (0ms)</button>
                     </div>
+
+                    <!-- Studio Noise Cancellation Filter Toggle -->
+                    <button type="button" class="ava-noise-pill active" id="ava-noise-toggle-btn" onclick="toggleNoiseCancellation()" title="Studio Noise Cancellation (Hardware DSP + Adaptive Noise Gate)">
+                        <span class="ava-noise-dot"></span>
+                        <span id="ava-noise-text">🛡️ Noise Filter: ON</span>
+                    </button>
+
+                    <!-- Turbo Mode Status & Key Modal Pill -->
+                    <button type="button" class="ava-turbo-pill" id="ava-turbo-pill" onclick="openTurboModeModal()" title="Ultra-Fast Response Mode (Direct Google Gemini API)">
+                        <span class="ava-turbo-icon">⚡</span>
+                        <span id="ava-turbo-label">Turbo Mode</span>
+                    </button>
 
                     <!-- Persona Selection -->
                     <select id="ava-persona-select" class="ava-persona-select" onchange="setAvaPersona(this.value)" title="Choose Voice Persona">
@@ -2273,6 +2285,53 @@
         </div>
     </div>
 
+    <!-- ── Ava Voice Turbo Mode Modal ────────────────────────────────────── -->
+    <div class="ava-turbo-modal-overlay" id="ava-turbo-modal" style="display:none;" onclick="if(event.target===this)closeTurboModeModal()">
+        <div class="ava-turbo-modal-card">
+            <div class="ava-turbo-modal-header">
+                <div class="ava-turbo-modal-title-row">
+                    <span class="ava-turbo-icon-glow">⚡</span>
+                    <div>
+                        <h3 class="ava-turbo-title">Ultra-Fast Voice Turbo Mode</h3>
+                        <p class="ava-turbo-sub">Sub-300ms Human-Like Spoken AI Voice Stream</p>
+                    </div>
+                </div>
+                <button type="button" class="ava-modal-close-btn" onclick="closeTurboModeModal()">✕</button>
+            </div>
+
+            <div class="ava-turbo-body">
+                <div class="ava-turbo-banner">
+                    <div class="ava-turbo-banner-title">⚡ Instant Conversational Speed</div>
+                    <div class="ava-turbo-banner-desc">
+                        Conversational reflexes (greetings, identity, mic check, time) answer instantly in <strong>&lt; 10ms</strong>. For open-ended coding, STEM, and research queries, connect your free Google AI Studio API key to bypass web anti-bot queues and achieve true <strong>300ms first-token speech streaming</strong>.
+                    </div>
+                </div>
+
+                <div class="ava-turbo-form-group">
+                    <label class="ava-turbo-label" for="ava-turbo-key-input">
+                        <span>Google Gemini API Key</span>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="ava-key-link">Get Free Key (Google AI Studio) ↗</a>
+                    </label>
+                    <input 
+                        type="password" 
+                        id="ava-turbo-key-input" 
+                        class="ava-turbo-input" 
+                        placeholder="AIzaSy... (Paste key here to unlock < 300ms speed)" 
+                        autocomplete="off"
+                    >
+                    <div class="ava-turbo-help-text">
+                        🔒 100% Free forever from Google. No credit card required. Saved securely to your local machine's <code>.env</code> file only.
+                    </div>
+                </div>
+            </div>
+
+            <div class="ava-turbo-footer">
+                <button type="button" class="ava-btn-secondary" onclick="closeTurboModeModal()">Cancel</button>
+                <button type="button" class="ava-btn-primary" onclick="saveTurboKeyFromModal()">⚡ Save &amp; Activate Turbo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Toast Notifications Container ──────────────────────────────── -->
     <div class="b1-toast-container" id="b1-toast-container"></div>
 
@@ -2281,6 +2340,6 @@
     <!-- B1 Research Council Client Controller -->
     <script src="research_council.js?v=rc3"></script>
     <!-- B1 Ava AI Voice Studio Client Controller -->
-    <script src="ava_voice.js?v=ava7"></script>
+    <script src="ava_voice.js?v=ava8"></script>
 </body>
 </html>

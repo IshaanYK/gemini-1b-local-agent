@@ -29,10 +29,7 @@
     let avaIsSpeaking = false;
     let avaIsThinking = false;
     let storedEngine = localStorage.getItem('ava_engine_mode');
-    let avaEngineMode = 'neural'; // Always default to studio high-fidelity neural voice with authentic emotion
-    if (storedEngine === 'local') {
-        localStorage.setItem('ava_engine_mode', 'neural');
-    }
+    let avaEngineMode = storedEngine || 'neural';
     let storedPersona = localStorage.getItem('b1_voice_persona');
     let avaVoicePersona = (!storedPersona || storedPersona === 'en-US-AvaNeural') ? 'en-US-AvaMultilingualNeural' : storedPersona;
     let avaHandsFree = localStorage.getItem('ava_handsfree') !== 'false';
@@ -66,6 +63,16 @@
     let scriptProcessor = null;
     let pendingTranscript = '';
 
+    // Studio Noise Cancellation & Hardware DSP nodes
+    let noiseCancellationActive = true;
+    let dspHighPass = null;
+    let dspLowPass = null;
+    let dspNotchHum = null;
+    let dspGain = null;
+    let ambientNoiseFloor = 4.0;
+    const NOISE_GATE_THRESHOLD = 7.5;
+    let isTurboModeActive = false;
+
     // In-memory dialogue messages
     let avaDialogue = [];
 
@@ -98,7 +105,13 @@
             vuFill: document.getElementById('ava-vu-fill'),
             vuLabel: document.getElementById('ava-vu-label'),
             silentAlert: document.getElementById('ava-silent-mic-alert'),
-            topbarBadge: document.getElementById('voice-persona-tag')
+            topbarBadge: document.getElementById('voice-persona-tag'),
+            noiseToggleBtn: document.getElementById('ava-noise-toggle-btn'),
+            noiseText: document.getElementById('ava-noise-text'),
+            turboPill: document.getElementById('ava-turbo-pill'),
+            turboLabel: document.getElementById('ava-turbo-label'),
+            turboModal: document.getElementById('ava-turbo-modal'),
+            turboKeyInput: document.getElementById('ava-turbo-key-input')
         };
     }
 
@@ -116,6 +129,23 @@
                 els.langSelect.value = avaSpeechLang;
             }
 
+            // Sync Voice Engine Mode buttons
+            if (els.engineNeuralBtn && els.engineLocalBtn) {
+                if (avaEngineMode === 'local') {
+                    els.engineLocalBtn.classList.add('active');
+                    els.engineNeuralBtn.classList.remove('active');
+                } else {
+                    els.engineNeuralBtn.classList.add('active');
+                    els.engineLocalBtn.classList.remove('active');
+                }
+            }
+
+            // Sync Noise Cancellation button
+            if (els.noiseToggleBtn && els.noiseText) {
+                els.noiseToggleBtn.className = `ava-noise-pill ${noiseCancellationActive ? 'active' : ''}`;
+                els.noiseText.textContent = noiseCancellationActive ? '🛡️ Noise Filter: ON' : '🛡️ Noise Filter: OFF';
+            }
+
             // 1. Enumerate and bind working physical microphone
             await enumerateAndSetupMics();
 
@@ -127,6 +157,9 @@
 
             // 4. Fetch personas
             loadVoiceList();
+
+            // 5. Check Turbo Mode (low-latency Gemini API) status
+            window.checkTurboStatus();
 
             if (avaDialogue.length === 0) {
                 renderWelcomeCard();
@@ -265,9 +298,16 @@
             }
 
             const audioConstraints = {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
+                echoCancellation: { ideal: true },
+                noiseSuppression: { ideal: true },
+                autoGainControl: { ideal: true },
+                googEchoCancellation: { ideal: true },
+                googAutoGainControl: { ideal: true },
+                googNoiseSuppression: { ideal: true },
+                googHighpassFilter: { ideal: true },
+                googTypingNoiseDetection: { ideal: true },
+                googAudioMirroring: { ideal: false },
+                channelCount: 1
             };
 
             if (deviceId && deviceId !== 'default') {
@@ -275,6 +315,18 @@
             }
 
             micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+
+            // Apply track-level constraints if supported by browser
+            const activeTrack = micStream.getAudioTracks()[0];
+            if (activeTrack && activeTrack.applyConstraints) {
+                try {
+                    await activeTrack.applyConstraints({
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    });
+                } catch(e) {}
+            }
 
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (!audioContext || audioContext.state === 'closed') {
@@ -289,21 +341,59 @@
             }
 
             mediaStreamSource = audioContext.createMediaStreamSource(micStream);
+
+            // ── Web Audio DSP Noise Cancellation Filter Chain ───────────────
+            // 1. High-Pass Filter: cut rumble, desk taps, fan noise below 85Hz
+            dspHighPass = audioContext.createBiquadFilter();
+            dspHighPass.type = 'highpass';
+            dspHighPass.frequency.value = noiseCancellationActive ? 85 : 10;
+            dspHighPass.Q.value = 0.707;
+
+            // 2. 50Hz/60Hz Notch Filter: eliminate electrical ground hum
+            dspNotchHum = audioContext.createBiquadFilter();
+            dspNotchHum.type = 'notch';
+            dspNotchHum.frequency.value = 50;
+            dspNotchHum.Q.value = noiseCancellationActive ? 4.0 : 0.01;
+
+            // 3. Low-Pass Filter: cut coil whine, thermal static, and hiss above 7500Hz
+            dspLowPass = audioContext.createBiquadFilter();
+            dspLowPass.type = 'lowpass';
+            dspLowPass.frequency.value = noiseCancellationActive ? 7500 : 22000;
+            dspLowPass.Q.value = 0.707;
+
+            // 4. Speech Presence Enhancer: subtle vocal boost at 2.8kHz
+            const dspPresence = audioContext.createBiquadFilter();
+            dspPresence.type = 'peaking';
+            dspPresence.frequency.value = 2800;
+            dspPresence.gain.value = 2.0;
+            dspPresence.Q.value = 1.0;
+
+            // 5. Output Gain / Gate Node
+            dspGain = audioContext.createGain();
+            dspGain.gain.value = 1.0;
+
+            // Connect DSP chain:
+            // mic -> highPass -> notchHum -> lowPass -> presence -> gain -> analyser
+            mediaStreamSource.connect(dspHighPass);
+            dspHighPass.connect(dspNotchHum);
+            dspNotchHum.connect(dspLowPass);
+            dspLowPass.connect(dspPresence);
+            dspPresence.connect(dspGain);
+
             analyser = audioContext.createAnalyser();
             analyser.fftSize = 128;
             analyser.smoothingTimeConstant = 0.35;
-            mediaStreamSource.connect(analyser);
+            dspGain.connect(analyser);
 
-            // Hook ScriptProcessor for PCM recording fallback
-            setupPcmRecorder(mediaStreamSource, audioContext);
+            // Hook ScriptProcessor for PCM recording fallback using cleaned DSP stream
+            setupPcmRecorder(dspGain, audioContext);
 
-            const activeTrack = micStream.getAudioTracks()[0];
             const trackName = activeTrack ? activeTrack.label : 'Microphone';
             const shortName = trackName.split('(')[0].trim() || 'Mic';
 
             const els = getEls();
             if (els.vuLabel) {
-                els.vuLabel.textContent = `🎙️ ${shortName}: Active`;
+                els.vuLabel.textContent = `🎙️ ${shortName}: Active (Noise Filter ON)`;
             }
 
             // Hide warning if working device
@@ -311,7 +401,7 @@
                 els.silentAlert.style.display = 'none';
             }
 
-            console.log(`[Ava] Audio stream locked to hardware: ${trackName}`);
+            console.log(`[Ava] Audio stream locked to hardware with active DSP noise cancellation: ${trackName}`);
             return true;
 
         } catch(err) {
@@ -334,10 +424,15 @@
             scriptProcessor.onaudioprocess = (e) => {
                 if (!avaActive || avaIsSpeaking || avaIsThinking) return;
 
+                // Adaptive Noise Gate: if live volume is below noise threshold, suppress ambient noise
+                if (noiseCancellationActive && liveAudioVolume < 4.0) {
+                    return;
+                }
+
                 const inputData = e.inputBuffer.getChannelData(0);
 
-                // If user is currently speaking (liveAudioVolume > 5), collect raw samples for backup STT
-                if (liveAudioVolume > 5) {
+                // If user is actively speaking (liveAudioVolume > 5.5), collect samples for backup STT
+                if (liveAudioVolume > 5.5) {
                     const chunk = new Float32Array(inputData.length);
                     chunk.set(inputData);
                     audioBufferQueue.push(chunk);
@@ -351,6 +446,94 @@
             console.warn('[Ava] ScriptProcessor setup error:', e);
         }
     }
+
+    window.toggleNoiseCancellation = function() {
+        noiseCancellationActive = !noiseCancellationActive;
+        const els = getEls();
+        
+        if (dspHighPass && dspLowPass && dspNotchHum) {
+            if (noiseCancellationActive) {
+                dspHighPass.frequency.value = 85;
+                dspLowPass.frequency.value = 7500;
+                dspNotchHum.Q.value = 4.0;
+            } else {
+                dspHighPass.frequency.value = 10;
+                dspLowPass.frequency.value = 22000;
+                dspNotchHum.Q.value = 0.01;
+            }
+        }
+        
+        if (els.noiseToggleBtn) {
+            els.noiseToggleBtn.className = `ava-noise-pill ${noiseCancellationActive ? 'active' : ''}`;
+        }
+        if (els.noiseText) {
+            els.noiseText.textContent = noiseCancellationActive ? '🛡️ Noise Filter: ON' : '🛡️ Noise Filter: OFF';
+        }
+        
+        showToast(
+            noiseCancellationActive 
+                ? '🛡️ Studio Noise Cancellation: ACTIVE (DSP 85Hz-7.5kHz + Adaptive Gate)' 
+                : '⚠️ Noise Cancellation bypassed: RAW microphone audio',
+            'info', 
+            2200
+        );
+    };
+
+    // ── Turbo Mode (Direct Google Gemini API) Integration ──────────────────
+    window.checkTurboStatus = async function() {
+        try {
+            const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/settings/turbo-status`);
+            if (res.ok) {
+                const data = await res.json();
+                isTurboModeActive = !!data.turbo_active;
+                updateTurboUiBadge();
+            }
+        } catch(e) {}
+    };
+
+    function updateTurboUiBadge() {
+        const els = getEls();
+        if (els.turboPill) {
+            els.turboPill.className = `ava-turbo-pill ${isTurboModeActive ? 'active' : ''}`;
+        }
+        if (els.turboLabel) {
+            els.turboLabel.textContent = isTurboModeActive ? '⚡ Turbo Active (< 300ms)' : '⚡ Turbo Mode';
+        }
+    }
+
+    window.openTurboModeModal = function() {
+        const els = getEls();
+        if (els.turboModal) {
+            els.turboModal.style.display = 'flex';
+            window.checkTurboStatus();
+        }
+    };
+
+    window.closeTurboModeModal = function() {
+        const els = getEls();
+        if (els.turboModal) els.turboModal.style.display = 'none';
+    };
+
+    window.saveTurboKeyFromModal = async function() {
+        const els = getEls();
+        const key = els.turboKeyInput ? els.turboKeyInput.value.trim() : '';
+        try {
+            const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/settings/gemini-key`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: key })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                isTurboModeActive = data.turbo_active;
+                updateTurboUiBadge();
+                window.closeTurboModeModal();
+                showToast(data.message, 'info', 3500);
+            }
+        } catch(err) {
+            showToast('Failed to save API key: ' + err.message, 'error', 3000);
+        }
+    };
 
     // ── Microphone & Language Switch Handlers ───────────────────────────────
     window.switchAvaMicrophone = async function(deviceId) {
@@ -430,7 +613,17 @@
                 avgVolume = sum / freqData.length;
             }
 
-            liveAudioVolume = avgVolume;
+            // Adaptive Noise Floor Tracking: dynamically track room ambient hum/fans
+            if (avgVolume < 10) {
+                ambientNoiseFloor = ambientNoiseFloor * 0.94 + avgVolume * 0.06;
+            }
+
+            // Dynamic Noise Gate: strip ambient room noise floor if noise cancellation is on
+            const effectiveVolume = noiseCancellationActive 
+                ? Math.max(0, avgVolume - ambientNoiseFloor) 
+                : avgVolume;
+
+            liveAudioVolume = effectiveVolume;
 
             // Update Real-Time VU Meter Bar
             if (els.vuFill && els.vuLabel) {
@@ -443,23 +636,24 @@
                     els.vuLabel.textContent = '⚡ Thinking...';
                     els.vuLabel.classList.remove('active');
                 } else if (avaIsListening) {
-                    const pct = Math.min(100, Math.round(avgVolume * 2.8));
+                    const pct = Math.min(100, Math.round(effectiveVolume * 3.2));
                     els.vuFill.style.width = `${pct}%`;
 
-                    if (avgVolume > 6) {
+                    if (effectiveVolume > 5.0) {
                         // User is speaking!
                         userSpokeInThisTurn = true;
                         consecutiveSilentFrames = 0;
                         els.vuLabel.textContent = `🎙️ Hearing Your Voice (${pct}%)`;
                         els.vuLabel.classList.add('active');
 
-                        // Barge-in: Interrupt Ava if she was talking
-                        if (avaIsSpeaking) {
+                        // Barge-in: Interrupt Ava if she was talking, guarded by noise gate threshold
+                        if (avaIsSpeaking && effectiveVolume > NOISE_GATE_THRESHOLD) {
+                            console.log('[Ava] Authentic speech barge-in (vol ' + effectiveVolume.toFixed(1) + ') interrupting Ava');
                             stopSpeech();
                         }
                     } else {
                         consecutiveSilentFrames++;
-                        els.vuLabel.textContent = `🎙️ Listening (Ready)`;
+                        els.vuLabel.textContent = noiseCancellationActive ? `🎙️ Listening (Noise Filter ON)` : `🎙️ Listening (Raw Mic)`;
                         els.vuLabel.classList.remove('active');
 
                         // Check for dead silent device (like Steam Streaming Mic)
@@ -556,10 +750,15 @@
             };
 
             recognition.onresult = (event) => {
-                // Instant Barge-In: If user speaks while Ava is speaking, interrupt audio immediately!
+                // Instant Barge-In: If user speaks while Ava is speaking, interrupt audio immediately if above noise gate
                 if (avaIsSpeaking) {
-                    console.log('[Ava] User barge-in detected: halting speech playback immediately.');
-                    stopSpeech();
+                    if (liveAudioVolume > NOISE_GATE_THRESHOLD || !noiseCancellationActive) {
+                        console.log('[Ava] User barge-in detected (volume: ' + liveAudioVolume.toFixed(1) + '): halting speech playback immediately.');
+                        stopSpeech();
+                    } else {
+                        // Ambient typing or room noise below threshold: ignore
+                        return;
+                    }
                 }
 
                 let interim = '';
