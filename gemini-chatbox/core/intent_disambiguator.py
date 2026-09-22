@@ -141,3 +141,4 @@ class PromptDisambiguator:
         }
 
 disambiguator = PromptDisambiguator()
+disambiguate_intent = PromptDisambiguator.disambiguate

@@ -1,19 +1,19 @@
 """
-core/prompt_decomposer.py — Autonomous Prompt Decomposition & Zero-Hallucination Engine for B1
+core/prompt_decomposer.py — Autonomous Prompt Decomposition, Multi-Algorithm & Multi-Pipeline Engine for B1
 
 Capabilities:
-1. Intelligent Prompt Complexity Analysis: Detects whether a user prompt requires multi-step decomposition or immediate single-turn execution.
-2. Atomic Task Deconstruction (Divide & Conquer): Breaks down complex requests into 2-5 atomic sub-tasks with dedicated goals and required toolsets.
-3. Isolated Execution Context: Ensures each sub-task runs with its own focused memory scope, eliminating context pollution, token overflow, and hallucinations.
-4. Zero-Hallucination Fact Grounding: Cross-verifies generated claims and synthesis against actual executed tool outputs.
+1. Intelligent Complexity & Multi-Algorithm Analysis: Detects mathematical, computational, graph, and pipeline challenges.
+2. Dynamic DAG Deconstruction (Divide & Conquer): Generates topological sub-task graphs with dedicated algorithm & tool directives.
+3. Multi-Pipeline & Multi-Algorithm Awareness: Directly routes algorithmic, optimization, or multi-step engineering requests to specialized solvers.
+4. Isolated Execution Context & Zero-Hallucination Grounding: Prevents context pollution and validates all claims against verified tool and solver outputs.
 """
 
 import json
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 class PromptDecomposer:
-    """Decomposes complex requests into atomic sub-tasks and synthesizes grounded answers."""
+    """Decomposes complex requests into atomic sub-tasks, multi-algorithm execution plans, and pipeline DAGs."""
 
     @staticmethod
     def is_complex_prompt(prompt: str) -> bool:
@@ -24,16 +24,18 @@ class PromptDecomposer:
         if len(prompt.split()) <= 4:
             return False
         
-        # Indicators of multi-step complexity
+        # Indicators of multi-step complexity & algorithms
         multi_step_keywords = [
             "and also", "then", "after that", "first", "second", "finally",
             "search", "analyze", "create", "build", "refactor", "investigate",
             "compare", "debug", "audit", "write a", "implement", "pull request",
-            "repositories", "full stack", "dashboard"
+            "repositories", "full stack", "dashboard", "algorithm", "knapsack",
+            "dijkstra", "a*", "topological", "runge-kutta", "rk4", "euler", "gradient descent",
+            "pipeline", "orchestrate", "benchmark", "optimize", "simulation", "visualize"
         ]
         
         matches = sum(1 for kw in multi_step_keywords if kw in p_lower)
-        if matches >= 2 or len(prompt) > 120 or ("?" in prompt and ("and" in p_lower or "," in p_lower)):
+        if matches >= 2 or len(prompt) > 110 or ("?" in prompt and ("and" in p_lower or "," in p_lower)):
             return True
         return False
 
@@ -41,13 +43,67 @@ class PromptDecomposer:
     def deconstruct(prompt: str, available_tools: List[str] = None) -> List[Dict[str, Any]]:
         """
         Decomposes a complex prompt into structured atomic sub-tasks.
-        Returns a list of task steps: [{"id": 1, "title": "...", "objective": "...", "tool_hint": "..."}]
+        Returns a list of task steps: [{"id": 1, "title": "...", "objective": "...", "tool_hint": "...", "algorithm_hint": "..."}]
         """
         p_clean = prompt.strip()
         p_lower = p_clean.lower()
         subtasks = []
 
-        # 1. GitHub PR / Repository Search & Analysis
+        # 1. Multi-Algorithm & Optimization Challenges
+        algo_keywords = ["algorithm", "knapsack", "shortest path", "dijkstra", "a*", "a star", "topological sort", "toposort", "rk4", "runge kutta", "euler", "drag", "gradient descent", "edit distance", "levenshtein", "lcs", "benchmark algorithms"]
+        if any(kw in p_lower for kw in algo_keywords):
+            subtasks.append({
+                "id": 1,
+                "title": "Mathematical & Algorithmic Formulation",
+                "objective": f"Formulate the formal computational model, Big-O asymptotic complexity constraints, and state space for: {p_clean[:65]}.",
+                "tool_hint": "solve_complex_algorithm",
+                "algorithm_hint": "auto_detect"
+            })
+            subtasks.append({
+                "id": 2,
+                "title": "Execute High-Performance Algorithmic Solver",
+                "objective": "Execute the exact or heuristic multi-algorithm engine solver to compute optimal paths, state solutions, or numerical ODE trajectories.",
+                "tool_hint": "solve_complex_algorithm",
+                "algorithm_hint": "engine_execution"
+            })
+            if "benchmark" in p_lower or "compare" in p_lower:
+                subtasks.append({
+                    "id": 3,
+                    "title": "Comparative Benchmarking & Tradeoff Analysis",
+                    "objective": "Benchmark execution times across alternative algorithmic strategies (e.g. DP vs Greedy vs Heuristic) and format comparative metrics.",
+                    "tool_hint": "benchmark_algorithms"
+                })
+            subtasks.append({
+                "id": len(subtasks) + 1,
+                "title": "Synthesize Proof, Results & Interactive Visualizer",
+                "objective": "Present clear LaTeX equations, step-by-step derivation, output table, and interactive Canvas simulation if visualizable.",
+                "tool_hint": "synthesis"
+            })
+            return subtasks
+
+        # 2. Multi-Pipeline & Workflow Orchestration
+        if any(kw in p_lower for kw in ["pipeline", "pipelines", "workflow", "doctor", "health scan", "sync and commit", "orchestrate"]):
+            subtasks.append({
+                "id": 1,
+                "title": "Resolve Pipeline Dependency DAG & Pre-Flight Checks",
+                "objective": "Inspect target workspace state, dependencies, and configure required pipeline execution stages.",
+                "tool_hint": "orchestrate_multi_pipeline"
+            })
+            subtasks.append({
+                "id": 2,
+                "title": "Execute Multi-Stage Automated Pipeline",
+                "objective": "Run topological pipeline stages with auto-retry and real-time execution logging.",
+                "tool_hint": "orchestrate_multi_pipeline"
+            })
+            subtasks.append({
+                "id": 3,
+                "title": "Synthesize Pipeline Audit Report",
+                "objective": "Deliver structured summary of all executed stages, exit codes, and actionable next steps.",
+                "tool_hint": "synthesis"
+            })
+            return subtasks
+
+        # 3. GitHub PR / Repository Search & Analysis
         if "github" in p_lower or "repository" in p_lower or "pull request" in p_lower or "repo" in p_lower:
             if "pull request" in p_lower or "pr" in p_lower:
                 subtasks.append({
@@ -77,7 +133,7 @@ class PromptDecomposer:
                 })
             return subtasks
 
-        # 2. Workspace File / Codebase Inspection & Implementation
+        # 4. Workspace File / Codebase Inspection & Implementation
         if any(kw in p_lower for kw in ["files", "workspace", "codebase", "folder", "directory", "project"]):
             subtasks.append({
                 "id": 1,
@@ -100,19 +156,19 @@ class PromptDecomposer:
             })
             return subtasks
 
-        # 3. Web Research & Fact Synthesis
+        # 5. Web Research & Fact Synthesis
         if any(kw in p_lower for kw in ["search", "browse", "look up", "find online", "latest", "news", "documentation"]):
             subtasks.append({
                 "id": 1,
                 "title": "Execute Live Web Search",
                 "objective": f"Search the live web for verified facts and up-to-date information regarding: {p_clean[:60]}.",
-                "tool_hint": "search_web"
+                "tool_hint": "web_search"
             })
             subtasks.append({
                 "id": 2,
                 "title": "Extract High-Authority Web Content",
                 "objective": "Fetch full text from the most relevant search result URLs to eliminate hallucinations.",
-                "tool_hint": "fetch_web_content"
+                "tool_hint": "fetch_webpage_markdown"
             })
             subtasks.append({
                 "id": 3,
@@ -122,7 +178,7 @@ class PromptDecomposer:
             })
             return subtasks
 
-        # 4. Interactive UI / Artifact Creation
+        # 6. Interactive UI / Artifact Creation
         if any(kw in p_lower for kw in ["build", "create", "ui", "app", "dashboard", "game", "chart", "component", "frontend"]):
             subtasks.append({
                 "id": 1,
@@ -133,7 +189,7 @@ class PromptDecomposer:
             subtasks.append({
                 "id": 2,
                 "title": "Construct Complete Standalone HTML/CSS/JS Artifact",
-                "objective": "Build single-file self-contained code inside <antArtifact> tags with zero missing dependencies.",
+                "objective": "Build single-file self-contained code inside <antArtifact> tags with zero missing dependencies and pure native Canvas/SVG.",
                 "tool_hint": "artifact_generator"
             })
             subtasks.append({
@@ -144,7 +200,7 @@ class PromptDecomposer:
             })
             return subtasks
 
-        # 5. General Multi-Part Query Decomposition
+        # 7. General Multi-Part Query Decomposition
         clauses = [c.strip() for c in re.split(r'\band\b|\bthen\b|\balso\b|[;.]', p_clean) if len(c.strip()) > 8]
         if len(clauses) >= 2:
             for idx, clause in enumerate(clauses[:4], 1):

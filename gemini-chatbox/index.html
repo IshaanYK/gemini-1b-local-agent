@@ -27,10 +27,15 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
     <!-- App Stylesheet -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.5">
+    <!-- B1 Research Council Stylesheet -->
+    <link rel="stylesheet" href="research_council.css?v=rc4">
+    <!-- B1 Ava AI Voice Workspace Stylesheet -->
+    <link rel="stylesheet" href="ava_voice.css?v=ava2">
 </head>
 <body class="dark-theme">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeArtifactDrawer()"></div>
 
     <div class="app-layout" id="app-layout">
         <!-- ── Left Sidebar (Conversations & Knowledge) ────────────────── -->
@@ -61,6 +66,19 @@
                     </svg>
                     <span>New Chat</span>
                 </button>
+
+                <div class="sidebar-workspace-links">
+                    <button class="sidebar-ws-link" onclick="openResearchCouncil()" title="Research Council">
+                        <span class="sidebar-ws-link-icon">🔬</span>
+                        <span class="sidebar-ws-link-text">Research Council</span>
+                        <span class="sidebar-ws-link-badge">16</span>
+                    </button>
+                    <button class="sidebar-ws-link" onclick="openAvaWorkspace()" title="Ava Voice AI Studio">
+                        <span class="sidebar-ws-link-icon">🎙️</span>
+                        <span class="sidebar-ws-link-text">Ava Voice AI</span>
+                        <span class="sidebar-ws-link-badge indigo">AI</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Search Chats -->
@@ -118,7 +136,9 @@
 
         <!-- ── Main Center Workspace ───────────────────────────────────── -->
         <div class="main-workspace">
-            <!-- Topbar Navigation -->
+            <!-- ── Existing B1 Chat Workspace (100% Preserved) ─────────── -->
+            <div class="b1-chat-container" id="b1-chat-container">
+                <!-- Topbar Navigation -->
             <header class="topbar">
                 <div class="topbar-left">
                     <button class="icon-btn" id="toggle-sidebar" title="Toggle Sidebar (Ctrl+B)">
@@ -150,20 +170,27 @@
                         <span id="artifact-toggle-badge">Artifact (1)</span>
                     </button>
 
-                    <!-- Model Selector -->
+                    <!-- Model Selector & Switcher Button -->
                     <div class="model-select-wrapper">
-                        <svg class="model-sparkle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
-                            <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
-                        </svg>
-                        <select id="model-selector" class="model-select" title="Choose AI Model">
+                        <button type="button" class="model-switch-btn" id="topbar-model-btn" onclick="openModelSwitchModal()" title="Switch AI Model (Alt+M)">
+                            <svg class="model-sparkle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                                <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
+                            </svg>
+                            <span id="model-btn-label">Gemini 3.8 Flash</span>
+                            <span class="model-badge-chip" id="model-badge-chip">High</span>
+                            <svg class="chevron-icon-inline" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                        <select id="model-selector" class="model-select" title="Choose AI Model" style="display:none;">
+                            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (High)</option>
+                            <option value="gemini-3.8-pro">Gemini 3.8 Pro</option>
+                            <option value="gemini-3.8-flash-thinking">Gemini 3.8 Thinking</option>
                             <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                             <option value="gemini-3.5-flash-thinking">Gemini 3.5 Thinking</option>
                             <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
                             <option value="gemini-flash-lite">Gemini Flash Lite</option>
                         </select>
-                        <svg class="chevron-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
                     </div>
 
                     <!-- ⚙️ UNIFIED MASTER SETTINGS BUTTON -->
@@ -194,77 +221,231 @@
 
             <!-- Chat Viewport -->
             <main class="chat-viewport" id="chat-viewport">
-                <!-- Welcome Screen Hero (Claude Style) -->
+                <!-- LINEAR MISSION CONTROL DASHBOARD -->
                 <div class="welcome-screen" id="welcome-screen">
-                    <div class="welcome-hero-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#heroGrad)"/>
-                            <defs>
-                                <linearGradient id="heroGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#5e6ad2"/>
-                                    <stop offset="1" stop-color="#828fff"/>
-                                </linearGradient>
-                            </defs>
-                        </svg>
+                    <!-- Minimal Linear Hero Header -->
+                    <div class="dash-hero-compact">
+                        <div class="dash-hero-title-row">
+                            <div class="dash-hero-brand-icon">
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#heroGrad)"/>
+                                    <defs>
+                                        <linearGradient id="heroGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                                            <stop stop-color="#5e6ad2"/>
+                                            <stop offset="1" stop-color="#828fff"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <div class="dash-hero-text">
+                                <h1 class="dash-hero-greeting" id="welcome-title">Good afternoon, Ishaan</h1>
+                                <p class="dash-hero-subtitle">1B Gemini Autonomous Coding Agent · All systems operational</p>
+                            </div>
+                            <div class="dash-hero-status-strip">
+                                <span class="dash-hud-item"><span class="pulse-dot active"></span> Backend <strong>5000</strong></span>
+                                <span class="dash-hud-item"><span class="pulse-dot cyan"></span> Proxy <strong>8081</strong></span>
+                                <span class="dash-hud-item"><span class="dash-pill-icon">✦</span> 1B+ Context</span>
+                            </div>
+                        </div>
                     </div>
-                    <h1 class="welcome-title" id="welcome-title">Good morning, Ishaan</h1>
-                    <p class="welcome-sub">How can Gemini assist you today? Create full interactive apps with live artifacts, inspect your codebase, or invoke connected MCP servers with autonomous reasoning.</p>
 
-                    <!-- Claude Prompt Starter Grid -->
-                    <div class="starter-grid">
-                        <button class="starter-card" onclick="quickPrompt('Create a modern, interactive Pomodoro timer with sleek animations and sound alerts as a full single-file HTML/CSS/JS app.')">
-                            <div class="starter-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e6ad2" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <polyline points="12 6 12 12 16 14"/>
-                                </svg>
+                    <!-- ═══════════════════════════════════════════════════════
+                         SECTOR 1: SPECIALIZED WORKSPACES
+                         ═══════════════════════════════════════════════════════ -->
+                    <section class="dash-sector" id="sector-workspaces">
+                        <div class="dash-sector-header">
+                            <div class="dash-sector-tag">SECTOR 01</div>
+                            <div class="dash-sector-meta">
+                                <h2 class="dash-sector-title">Dedicated Workspaces</h2>
+                                <p class="dash-sector-desc">Separate, full-featured environments for voice, multi-agent research, live app generation, and terminal.</p>
                             </div>
-                            <div class="starter-info">
-                                <strong>Build Interactive App</strong>
-                                <span>Create a single-file Pomodoro timer artifact</span>
-                            </div>
-                        </button>
+                        </div>
 
-                        <button class="starter-card" onclick="quickPrompt('Solve and visualize 2D projectile motion with drag: build an interactive live Canvas artifact with velocity, launch angle, and gravity sliders, real-time trajectory curves, and instantaneous velocity vectors.')">
-                            <div class="starter-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                                    <path d="M4 19C4 19 8 7 20 5"/>
-                                    <polyline points="15 5 20 5 20 10"/>
-                                    <line x1="4" y1="19" x2="20" y2="19"/>
-                                </svg>
+                        <div class="dash-sector-grid">
+                            <!-- Card 1: Ava Voice AI Studio -->
+                            <div class="dash-sector-card">
+                                <div class="dash-sector-card-top">
+                                    <span class="dash-sector-card-icon" style="background:rgba(0, 240, 255, 0.12);color:#00f0ff;">🎙️</span>
+                                    <div class="dash-sector-card-headings">
+                                        <h3 class="dash-sector-card-name">Ava Voice AI Studio</h3>
+                                        <span class="dash-sector-card-tag green">Neural Speech</span>
+                                    </div>
+                                </div>
+                                <p class="dash-sector-card-text">Full conversational voice workspace featuring Ava's expressive neural voice, real-time waveform visualizer, and low-latency synthesis.</p>
+                                <div class="dash-sector-card-footer">
+                                    <button type="button" class="dash-sector-btn primary" onclick="openAvaWorkspace()">
+                                        <span>Launch Studio</span>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="starter-info">
-                                <strong>Interactive STEM Visualizer</strong>
-                                <span>Physics simulation with live sliders & math</span>
-                            </div>
-                        </button>
 
-                        <button class="starter-card" onclick="quickPrompt('Use your MCP tools and web search to research the latest trends in autonomous AI agents.')">
-                            <div class="starter-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
-                                    <circle cx="11" cy="11" r="8"/>
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                                </svg>
+                            <!-- Card 2: Research Council -->
+                            <div class="dash-sector-card">
+                                <div class="dash-sector-card-top">
+                                    <span class="dash-sector-card-icon" style="background:rgba(94, 106, 210, 0.15);color:#828fff;">🔬</span>
+                                    <div class="dash-sector-card-headings">
+                                        <h3 class="dash-sector-card-name">Research Council</h3>
+                                        <span class="dash-sector-card-tag">16 Specialists</span>
+                                    </div>
+                                </div>
+                                <p class="dash-sector-card-text">Autonomous multi-agent research chamber. 16 specialists debate claims, challenge hypotheses, scrape live sources, and synthesize reports.</p>
+                                <div class="dash-sector-card-footer">
+                                    <button type="button" class="dash-sector-btn" onclick="openResearchCouncil()">
+                                        <span>Convene Council</span>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="starter-info">
-                                <strong>Deep Web Research</strong>
-                                <span>Search web, summarize papers & synthesize</span>
-                            </div>
-                        </button>
 
-                        <button class="starter-card" onclick="openTerminalDock()">
-                            <div class="starter-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27a644" stroke-width="2">
-                                    <polyline points="4 17 10 11 4 5"/>
-                                    <line x1="12" y1="19" x2="20" y2="19"/>
-                                </svg>
+                            <!-- Card 3: Interactive App Builder -->
+                            <div class="dash-sector-card">
+                                <div class="dash-sector-card-top">
+                                    <span class="dash-sector-card-icon" style="background:rgba(245, 158, 11, 0.15);color:#fbbf24;">⚡</span>
+                                    <div class="dash-sector-card-headings">
+                                        <h3 class="dash-sector-card-name">Interactive App Builder</h3>
+                                        <span class="dash-sector-card-tag amber">Live Sandbox</span>
+                                    </div>
+                                </div>
+                                <p class="dash-sector-card-text">Generates single-file React and HTML applications with split-screen live preview, hot-reload, and AI error self-healing runtime.</p>
+                                <div class="dash-sector-card-footer">
+                                    <button type="button" class="dash-sector-btn" onclick="openAppSandbox()">
+                                        <span>Open Sandbox</span>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="starter-info">
-                                <strong>Live Workspace Terminal</strong>
-                                <span>Execute shell, PowerShell & Python commands</span>
+
+                            <!-- Card 4: Integrated Terminal -->
+                            <div class="dash-sector-card">
+                                <div class="dash-sector-card-top">
+                                    <span class="dash-sector-card-icon" style="background:rgba(168, 85, 247, 0.15);color:#c084fc;">💻</span>
+                                    <div class="dash-sector-card-headings">
+                                        <h3 class="dash-sector-card-name">Integrated Terminal</h3>
+                                        <span class="dash-sector-card-tag purple">PowerShell</span>
+                                    </div>
+                                </div>
+                                <p class="dash-sector-card-text">Live PowerShell console dock inside the agent workspace. Run terminal commands, manage local repositories, and install packages.</p>
+                                <div class="dash-sector-card-footer">
+                                    <button type="button" class="dash-sector-btn" onclick="openTerminalDock()">
+                                        <span>Open Terminal</span>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                        </button>
-                    </div>
+                        </div>
+                    </section>
+
+                    <!-- ═══════════════════════════════════════════════════════
+                         SECTOR 2: QUICK DIRECTIVES
+                         ═══════════════════════════════════════════════════════ -->
+                    <section class="dash-sector" id="sector-directives">
+                        <div class="dash-sector-header">
+                            <div class="dash-sector-tag">SECTOR 02</div>
+                            <div class="dash-sector-meta">
+                                <h2 class="dash-sector-title">Quick Directives</h2>
+                                <p class="dash-sector-desc">One-click agent directives for code generation, STEM physics, council debates, and algorithms.</p>
+                            </div>
+                        </div>
+
+                        <div class="dash-directives-list">
+                            <div class="dash-directive-row">
+                                <span class="dash-directive-badge amber">⚡ App</span>
+                                <div class="dash-directive-info">
+                                    <strong>Glassmorphic Pomodoro Timer</strong>
+                                    <span>Build an interactive, single-file HTML/CSS/JS web app with audio alerts & state.</span>
+                                </div>
+                                <button type="button" class="dash-directive-btn" onclick="quickPrompt('Build a modern, interactive Pomodoro timer with sleek animations and sound alerts as a full single-file HTML/CSS/JS app.')">
+                                    <span>Run Directive</span>
+                                    <kbd>↵</kbd>
+                                </button>
+                            </div>
+
+                            <div class="dash-directive-row">
+                                <span class="dash-directive-badge cyan">🧮 Physics</span>
+                                <div class="dash-directive-info">
+                                    <strong>2D Projectile Motion with Drag</strong>
+                                    <span>Interactive Canvas physics artifact with drag coefficients, trajectory curves & sliders.</span>
+                                </div>
+                                <button type="button" class="dash-directive-btn" onclick="quickPrompt('Solve and visualize 2D projectile motion with drag: build an interactive live Canvas artifact with velocity, launch angle, and gravity sliders, real-time trajectory curves, and instantaneous velocity vectors.')">
+                                    <span>Run Directive</span>
+                                    <kbd>↵</kbd>
+                                </button>
+                            </div>
+
+                            <div class="dash-directive-row">
+                                <span class="dash-directive-badge indigo">🔬 Research</span>
+                                <div class="dash-directive-info">
+                                    <strong>1B Context & Agent Bottlenecks</strong>
+                                    <span>Convene 16 council specialists to investigate local AI memory bottlenecks.</span>
+                                </div>
+                                <button type="button" class="dash-directive-btn" onclick="quickPrompt('Convene the Research Council to investigate: What are the current architectural bottlenecks of local AI agents and how does 1B token context solve them?')">
+                                    <span>Run Directive</span>
+                                    <kbd>↵</kbd>
+                                </button>
+                            </div>
+
+                            <div class="dash-directive-row">
+                                <span class="dash-directive-badge purple">📊 Benchmark</span>
+                                <div class="dash-directive-info">
+                                    <strong>QuickSort vs MergeSort vs Timsort</strong>
+                                    <span>Empirical benchmark and asymptotic comparison across 10,000 array elements.</span>
+                                </div>
+                                <button type="button" class="dash-directive-btn" onclick="quickPrompt('Benchmark and compare QuickSort, MergeSort, and Timsort on arrays of 10,000 elements with asymptotic complexity and empirical runtimes.')">
+                                    <span>Run Directive</span>
+                                    <kbd>↵</kbd>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ═══════════════════════════════════════════════════════
+                         SECTOR 3: SYSTEM CONTROLS & MEMORY
+                         ═══════════════════════════════════════════════════════ -->
+                    <section class="dash-sector" id="sector-system">
+                        <div class="dash-sector-header">
+                            <div class="dash-sector-tag">SECTOR 03</div>
+                            <div class="dash-sector-meta">
+                                <h2 class="dash-sector-title">System & Storage</h2>
+                                <p class="dash-sector-desc">Manage vector memory vault, connected MCP system tools, and workspace project files.</p>
+                            </div>
+                        </div>
+
+                        <div class="dash-system-strip">
+                            <div class="dash-system-item">
+                                <div class="dash-system-left">
+                                    <span class="dash-system-icon">🧠</span>
+                                    <div class="dash-system-text">
+                                        <strong>Vector Memory Vault</strong>
+                                        <span>Persistent semantic embeddings for cross-timeline memory</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="dash-system-action-btn" onclick="openMasterSettingsTab('rag')">Inspect Vault →</button>
+                            </div>
+
+                            <div class="dash-system-item">
+                                <div class="dash-system-left">
+                                    <span class="dash-system-icon">⚡</span>
+                                    <div class="dash-system-text">
+                                        <strong>MCP Tools & Presets</strong>
+                                        <span>6 Native system tools + active Model Context Protocol</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="dash-system-action-btn" onclick="openMasterSettingsTab('mcp')">Manage MCP →</button>
+                            </div>
+
+                            <div class="dash-system-item">
+                                <div class="dash-system-left">
+                                    <span class="dash-system-icon">📁</span>
+                                    <div class="dash-system-text">
+                                        <strong>Project Explorer</strong>
+                                        <span>Browse project filesystem and export full archive</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="dash-system-action-btn" onclick="openFilesExplorer()">Explore Files →</button>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <!-- Messages Feed -->
@@ -298,7 +479,7 @@
                             <input type="file" id="file-upload-input" style="display:none;" multiple>
 
                             <!-- Voice Input / Dictation Button -->
-                            <button class="action-icon-btn" id="voice-input-btn" title="Voice Dictation (Speak to prompt)">
+                            <button class="action-icon-btn" id="voice-input-btn" onclick="openAvaWorkspace()" title="Launch Ava Voice AI Studio (Ctrl+M)">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -307,17 +488,33 @@
                                 </svg>
                             </button>
 
-                            <button class="decompose-toggle-btn active" id="decompose-toggle-btn" title="Toggle Deep Multi-Stage Prompt Decomposition (Divide & Conquer for zero hallucinations)">
+                            <button class="decompose-toggle-btn active" id="decompose-toggle-btn" title="Toggle Analytical Reasoning & Step-by-Step Prompt Planning">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                                 </svg>
-                                <span>Deep Decompose</span>
+                                <span>Analytical Reasoning</span>
+                            </button>
+
+                            <button class="best-of-best-toggle-btn active" id="best-of-best-toggle-btn" title="Toggle Quality Optimizer (AST Verification, Self-Correction & Accuracy Engine)">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                <span>Quality Optimizer</span>
                             </button>
 
                             <div class="active-agent-pill" id="agent-loop-pill">
                                 <span class="pill-dot"></span>
-                                <span id="agent-loop-text">Autonomous Agent Active</span>
+                                <span id="agent-loop-text">Autonomous Agent Ready</span>
                             </div>
+
+                            <!-- Quick Model Switcher Pill in Composer -->
+                            <button type="button" class="composer-model-pill" id="composer-model-pill" onclick="openModelSwitchModal()" title="Switch AI Model (Alt+M)">
+                                <span class="model-pill-dot"></span>
+                                <span id="composer-model-label">Gemini 3.8 Flash</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                            </button>
                         </div>
 
                         <div class="composer-actions">
@@ -332,6 +529,403 @@
                 </div>
                 <div class="composer-caption">Gemini Studio can inspect files, write full applications, execute terminal commands, and render live interactive artifacts.</div>
             </footer>
+            </div>
+
+            <!-- ── B1 Research Council Workspace Container (Isolated Same-Tab) ── -->
+            <div class="research-council-workspace" id="b1-research-council-container" style="display:none;">
+                <!-- Council Topbar Navigation -->
+                <header class="rc-topbar">
+                    <div class="rc-topbar-left">
+                        <button class="icon-btn" id="rc-toggle-sidebar" title="Toggle Sidebar (Ctrl+B)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                                <line x1="9" y1="3" x2="9" y2="21"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="rc-back-btn" id="rc-back-b1-btn" onclick="backToB1()" title="Return to Chat Workspace">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="19" y1="12" x2="5" y2="12"/>
+                                <polyline points="12 19 5 12 12 5"/>
+                            </svg>
+                            <span>Back to Chat</span>
+                        </button>
+                        <div class="rc-brand-header">
+                            <span class="rc-brand-icon">🔬</span>
+                            <span class="rc-brand-title">Research Council</span>
+                            <span class="rc-brand-badge">Multi-Agent</span>
+                        </div>
+                        <span style="color:var(--rc-hairline-strong);">|</span>
+                        <span id="rc-session-title" style="font-size:12px;color:var(--rc-ink-subtle);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Deliberation Chamber</span>
+                    </div>
+
+                    <div class="rc-topbar-right">
+                        <div class="rc-status-stream-badge" id="rc-status-stream-badge">
+                            <span class="rc-pulse-dot" id="rc-pulse-dot" style="display:none;"></span>
+                            <span id="rc-status-text">Ready to Convene</span>
+                        </div>
+                        <button type="button" class="rc-action-btn" id="rc-history-btn" onclick="toggleResearchHistory()" title="View past research deliberations and reports">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Saved Investigations</span>
+                        </button>
+                        <button type="button" class="rc-action-btn primary" id="rc-export-btn" onclick="exportCouncilReport()" title="Export Deliberation Report as Markdown">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span>Export Report (.md)</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Council Query Bar & Active Investigation Banner -->
+                <div class="rc-query-container" id="rc-query-wrapper">
+                    <!-- 1. Collapsed Banner State (Shown after selection / deliberation) -->
+                    <div class="rc-inquiry-banner" id="rc-query-collapsed" style="display:none;">
+                        <div class="rc-inquiry-left">
+                            <span class="rc-inquiry-badge">Active Topic</span>
+                            <span class="rc-inquiry-title" id="rc-inquiry-title-display">Research topic...</span>
+                            <span class="rc-inquiry-depth-pill" id="rc-inquiry-depth-display">Standard (10 Agents)</span>
+                        </div>
+                        <div class="rc-inquiry-actions">
+                            <button type="button" class="rc-inquiry-btn" onclick="expandQueryBar()" title="Edit or expand current inquiry">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                                <span>Edit Topic</span>
+                            </button>
+                            <button type="button" class="rc-inquiry-btn primary" onclick="newInvestigation()" title="Start fresh research topic">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                <span>New Investigation</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Expanded Query Card (Shown initially or on user edit) -->
+                    <div class="rc-query-card" id="rc-query-expanded">
+                        <div class="rc-query-input-row">
+                            <input
+                                type="text"
+                                id="rc-query-input"
+                                class="rc-query-input"
+                                placeholder="Pose a complex research question, hypothesis, or multi-faceted topic to convene the council..."
+                                autocomplete="off"
+                            >
+                            <button type="button" class="rc-launch-btn" id="rc-launch-btn" onclick="launchCouncil()">
+                                <span>Launch Investigation</span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                    <polyline points="12 5 19 12 12 19"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="rc-query-controls-row">
+                            <div class="rc-depth-options">
+                                <span class="rc-depth-label">Research Depth:</span>
+                                <button type="button" class="rc-depth-pill" data-depth="rapid" onclick="setCouncilDepth('rapid')">⚡ Fast Scout (5 Agents)</button>
+                                <button type="button" class="rc-depth-pill active" data-depth="standard" onclick="setCouncilDepth('standard')">⚖️ Standard Council (10 Agents)</button>
+                                <button type="button" class="rc-depth-pill" data-depth="deep" onclick="setCouncilDepth('deep')">🔬 Comprehensive (16+ Agents)</button>
+                            </div>
+                            <div style="color:var(--rc-ink-tertiary);font-size:11px;">
+                                Autonomous Multi-Agent Deliberation & Real-Time Evidence Verification
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Council Workspace Sub-Tabs (Linear Segmented Control) -->
+                <nav class="rc-nav-tabs">
+                    <div class="rc-segmented-strip">
+                        <button type="button" class="rc-tab-item active" data-tab="chamber" onclick="switchCouncilTab('chamber')">
+                            <span class="rc-tab-icon">🏛️</span>
+                            <span>Live Deliberation</span>
+                        </button>
+                        <button type="button" class="rc-tab-item" data-tab="evidence" onclick="switchCouncilTab('evidence')">
+                            <span class="rc-tab-icon">📑</span>
+                            <span>Evidence Ledger</span>
+                            <span class="rc-tab-badge" id="rc-evidence-count-badge">0</span>
+                        </button>
+                        <button type="button" class="rc-tab-item" data-tab="synthesis" onclick="switchCouncilTab('synthesis')">
+                            <span class="rc-tab-icon">✍️</span>
+                            <span>Research Synthesis</span>
+                        </button>
+                        <button type="button" class="rc-tab-item" data-tab="roster" onclick="switchCouncilTab('roster')">
+                            <span class="rc-tab-icon">👥</span>
+                            <span>Council Roster</span>
+                            <span class="rc-tab-badge" id="rc-agent-count-badge">16</span>
+                        </button>
+                    </div>
+                </nav>
+
+                <!-- Council Content Viewports -->
+                <div class="rc-content-viewport">
+                    <!-- Tab 1: Chamber Deliberation Stream -->
+                    <div class="rc-tab-content-pane" id="rc-tab-chamber">
+                        <div class="rc-deliberation-stream" id="rc-deliberation-stream">
+                            <div class="rc-chamber-welcome">
+                                <span class="rc-welcome-badge">✦ Multi-Agent Collaborative Environment</span>
+                                <h2 class="rc-chamber-title">The B1 Research Council</h2>
+                                <p class="rc-chamber-desc">
+                                    A decentralized team of specialized AI agents working together on complex questions.
+                                    Agents debate, challenge one another, verify primary sources on the live web, and synthesize comprehensive findings without bias or hallucination.
+                                </p>
+                                <div class="rc-features-grid">
+                                    <div class="rc-feature-pill">
+                                        <strong>16 Core Specialists</strong>
+                                        <span>Architects, web scouts, academics, red teams & fact checkers.</span>
+                                    </div>
+                                    <div class="rc-feature-pill">
+                                        <strong>Dynamic Domain Experts</strong>
+                                        <span>Automatically spins up specialists for medicine, space, finance, or law.</span>
+                                    </div>
+                                    <div class="rc-feature-pill">
+                                        <strong>Live Web Verification</strong>
+                                        <span>Autonomous retrieval and citation of real-time public primary sources.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Evidence Ledger -->
+                    <div class="rc-tab-content-pane" id="rc-tab-evidence" style="display:none;">
+                        <table class="rc-evidence-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:28%;">Claim</th>
+                                    <th style="width:30%;">Supporting Evidence</th>
+                                    <th style="width:24%;">Counter-Evidence / Contradictions</th>
+                                    <th style="width:9%;">Confidence</th>
+                                    <th style="width:9%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rc-evidence-tbody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;padding:32px;color:var(--rc-ink-subtle);font-style:italic;">
+                                        No evidence logged yet. Convene the council to start collecting structured claims and citations.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Tab 3: Final Synthesis Report -->
+                    <div class="rc-tab-content-pane" id="rc-tab-synthesis" style="display:none;">
+                        <div class="rc-report-card">
+                            <div id="rc-report-content" style="color:var(--rc-ink-subtle);font-style:italic;">
+                                The final synthesized research report will be compiled by the Research Writer once council deliberation concludes.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Council Roster -->
+                    <div class="rc-tab-content-pane" id="rc-tab-roster" style="display:none;">
+                        <div class="rc-roster-grid" id="rc-roster-grid">
+                            <!-- Populated dynamically via /api/research/agents -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved Past Investigations Drawer -->
+                <div class="rc-history-drawer-overlay" id="rc-history-overlay" style="display:none;" onclick="toggleResearchHistory(false)"></div>
+                <div class="rc-history-drawer" id="rc-history-drawer" style="display:none;">
+                    <div class="rc-history-header">
+                        <div class="rc-history-title-row">
+                            <span style="font-size:16px;">📚</span>
+                            <h3 class="rc-history-title">Saved Investigations</h3>
+                        </div>
+                        <button type="button" class="rc-history-close-btn" onclick="toggleResearchHistory(false)" title="Close History">✕</button>
+                    </div>
+                    <div class="rc-history-search-row">
+                        <input type="text" id="rc-history-search" class="rc-history-search-input" placeholder="Search previous research topics..." oninput="filterResearchHistory(this.value)">
+                    </div>
+                    <div class="rc-history-list" id="rc-history-list">
+                        <!-- Loaded dynamically from /api/research/sessions -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── B1 Ava AI Voice Workspace Container (Isolated Same-Tab) ── -->
+        <div class="ava-voice-workspace" id="b1-ava-voice-container" style="display:none;">
+            <!-- Ava Topbar Navigation -->
+            <header class="ava-topbar">
+                <div class="ava-topbar-left">
+                    <button type="button" class="ava-back-btn" id="ava-back-b1-btn" onclick="backToChatFromAva()" title="Return to Chat Workspace">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        <span>Back to Chat</span>
+                    </button>
+                    <div class="ava-brand-block">
+                        <div class="ava-brand-icon">🎙️</div>
+                        <div class="ava-brand-text">
+                            <span class="ava-brand-title">Ava Voice AI Studio</span>
+                            <span class="ava-brand-sub">Neural Conversational AI Companion</span>
+                        </div>
+                    </div>
+                    <span style="color:var(--ava-hairline-strong);margin:0 4px;">|</span>
+                    <div class="ava-status-pill ready" id="ava-status-pill">
+                        <span class="ava-status-dot"></span>
+                        <span id="ava-status-text">Ready</span>
+                    </div>
+                </div>
+
+                <div class="ava-topbar-right">
+                    <!-- Microphone Device Selector -->
+                    <select id="ava-mic-select" class="ava-styled-select" onchange="switchAvaMicrophone(this.value)" title="Choose Microphone Device">
+                        <option value="">🎙️ Auto-Detecting Mic...</option>
+                    </select>
+
+                    <!-- Language / Accent Selector -->
+                    <select id="ava-lang-select" class="ava-styled-select" onchange="switchAvaLanguage(this.value)" title="Speech Recognition Language">
+                        <option value="en-IN" selected>🇮🇳 English (India)</option>
+                        <option value="en-US">🇺🇸 English (US)</option>
+                        <option value="en-GB">🇬🇧 English (UK)</option>
+                        <option value="hi-IN">🇮🇳 Hindi (हिन्दी)</option>
+                    </select>
+
+                    <!-- Fast Engine Switcher -->
+                    <div class="ava-engine-switch" title="Toggle between Ultra-Fast Local Voice and High-Fidelity Studio Neural Voice">
+                        <button type="button" class="ava-engine-btn active" id="ava-engine-neural" onclick="setAvaEngineMode('neural')">✨ Studio Neural</button>
+                        <button type="button" class="ava-engine-btn" id="ava-engine-local" onclick="setAvaEngineMode('local')">⚡ Instant (0ms)</button>
+                    </div>
+
+                    <!-- Persona Selection -->
+                    <select id="ava-persona-select" class="ava-persona-select" onchange="setAvaPersona(this.value)" title="Choose Voice Persona">
+                        <option value="en-US-AvaMultilingualNeural" selected>Ava Multilingual (Expressive Neural AI) ⭐</option>
+                        <option value="en-IN-NeerjaExpressiveNeural">Neerja Expressive (Indian English Human Emotion) ⭐</option>
+                        <option value="en-US-AriaNeural">Aria (Warm & Empathetic Voice)</option>
+                        <option value="en-US-EmmaMultilingualNeural">Emma Multilingual (Bright & Cheerful)</option>
+                        <option value="en-US-AndrewMultilingualNeural">Andrew Multilingual (Expressive Male Companion)</option>
+                        <option value="en-US-AvaNeural">Ava Standard (Classic Neutral Voice)</option>
+                        <option value="en-GB-SoniaNeural">Sonia (British Conversational Voice)</option>
+                    </select>
+
+                    <!-- Clear Conversation -->
+                    <button type="button" class="ava-action-btn" onclick="clearAvaDialogue()" title="Clear Dialogue">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        <span>Clear</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Ava Body -->
+            <div class="ava-body">
+                <!-- Hero Stage: Orb & Waves -->
+                <section class="ava-stage-section" id="ava-stage-section">
+                    <div class="ava-orb-container" onclick="toggleAvaListening()" title="Click to Talk / Push to Talk">
+                        <div class="ava-orb-ring ring-1"></div>
+                        <div class="ava-orb-ring ring-2"></div>
+                        <div class="ava-orb-ring ring-3"></div>
+                        <div class="ava-neural-orb" id="ava-neural-orb">
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Audio Frequency Waveform Canvas -->
+                    <div class="ava-canvas-wrap">
+                        <canvas id="ava-audio-canvas"></canvas>
+                    </div>
+
+                    <h2 class="ava-stage-headline" id="ava-stage-headline">I'm Ava. What would you like to build?</h2>
+                    <p class="ava-stage-sub" id="ava-stage-sub">Press the microphone or speak naturally. Continuous conversational voice mode is active.</p>
+
+                    <!-- Real-Time Audio Level VU Meter & Diagnostics -->
+                    <div class="ava-audio-meter-row" id="ava-audio-meter-row">
+                        <div class="ava-vu-track">
+                            <div class="ava-vu-fill" id="ava-vu-fill"></div>
+                        </div>
+                        <span class="ava-vu-label" id="ava-vu-label">🎙️ Mic: Probing...</span>
+                    </div>
+
+                    <div class="ava-silent-mic-alert" id="ava-silent-mic-alert" style="display:none;">
+                        <span>⚠️ No sound detected on selected mic.</span>
+                        <button type="button" class="ava-alert-fix-btn" onclick="autoFixSilentMic()">Switch to Working Mic</button>
+                    </div>
+
+                    <!-- Hero Controls -->
+                    <div class="ava-hero-controls">
+                        <button type="button" class="ava-hero-mic-btn" id="ava-hero-mic-btn" onclick="toggleAvaListening()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                            <span id="ava-hero-mic-text">Click to Speak</span>
+                        </button>
+
+                        <label class="ava-handsfree-toggle">
+                            <input type="checkbox" id="ava-handsfree-check" checked onchange="toggleAvaHandsFree(this.checked)">
+                            <span>Continuous Hands-Free VAD</span>
+                        </label>
+
+                        <button type="button" class="ava-action-btn" onclick="testAvaVoiceSample()" title="Test Voice Greeting">
+                            <span>▶ Sample Greeting</span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Quick Starter Chips -->
+                <div class="ava-prompt-chips">
+                    <button type="button" class="ava-chip" onclick="triggerAvaPrompt('Explain how transformers work in AI')">💡 How Transformers Work</button>
+                    <button type="button" class="ava-chip" onclick="triggerAvaPrompt('Write a clean Python script for async web scraping')">⚡ Python Async Scraper</button>
+                    <button type="button" class="ava-chip" onclick="triggerAvaPrompt('Brainstorm 3 high-leverage SaaS product ideas')">🚀 SaaS Product Ideas</button>
+                    <button type="button" class="ava-chip" onclick="triggerAvaPrompt('Give me a challenging technical interview question')">🎙️ Mock Tech Interview</button>
+                    <button type="button" class="ava-chip" onclick="triggerAvaPrompt('What tools and capabilities do we have in this workspace?')">🛠️ Workspace Capabilities</button>
+                </div>
+
+                <!-- Live Dialogue Feed -->
+                <div class="ava-dialogue-feed" id="ava-dialogue-feed">
+                    <!-- Welcome message rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Bottom Input Dock -->
+            <div class="ava-dock-wrapper">
+                <div class="ava-input-dock">
+                    <button type="button" class="ava-dock-mic-btn" id="ava-dock-mic-btn" onclick="toggleAvaListening()" title="Toggle Mic">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </button>
+
+                    <input type="text" class="ava-text-input" id="ava-text-input" placeholder="Type a message or speak directly to Ava..." autocomplete="off">
+
+                    <button type="button" class="ava-stop-btn" id="ava-stop-speech-btn" onclick="stopAvaSpeech()" style="display:none;" title="Halt Speech">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="6" width="12" height="12" rx="2"/>
+                        </svg>
+                        <span>Stop</span>
+                    </button>
+
+                    <button type="button" class="ava-send-btn" id="ava-send-btn" onclick="sendAvaTextInput()" title="Send Message">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- ── Right Split: Claude-Style Interactive Artifact Drawer ───── -->
@@ -842,11 +1436,32 @@
                         </div>
 
                         <div class="auto-section-title" style="margin-top:20px;">
-                            <span>Autonomous Workflows & Pipelines</span>
-                            <span class="auto-badge">1-Click Execution</span>
+                            <span>Autonomous Workflows & Multi-Pipelines</span>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <button class="auto-add-btn" style="background:rgba(94, 106, 210, 0.2);color:#828fff;border:1px solid rgba(94, 106, 210, 0.4);" onclick="runAllPipelinesConcurrent()">⚡ Run Concurrent Multi-Pipeline</button>
+                                <span class="auto-badge">1-Click Execution</span>
+                            </div>
                         </div>
                         <div class="pipelines-list" id="pipelines-list-container">
                             <div class="session-skeleton" style="padding:14px;">Loading pipeline blueprints...</div>
+                        </div>
+
+                        <!-- 🔬 Multi-Algorithm Problem Solver & Benchmark Studio -->
+                        <div class="auto-section-title" style="margin-top:24px;">
+                            <span>🔬 Multi-Algorithm Problem Solver & Benchmarks</span>
+                            <span class="auto-badge" style="background:rgba(16, 185, 129, 0.15);color:#34d399;border:1px solid rgba(16, 185, 129, 0.3);">High-Performance Engine</span>
+                        </div>
+                        <div class="algo-quick-grid" id="algo-quick-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px;">
+                            <div class="session-skeleton" style="padding:12px;">Loading algorithm solvers...</div>
+                        </div>
+
+                        <!-- Algorithm Output Box -->
+                        <div class="pipeline-execution-box" id="algo-exec-box" style="display:none;margin-top:12px;">
+                            <div class="pipeline-exec-header">
+                                <span id="algo-exec-title">Algorithm Result</span>
+                                <button class="pipeline-clear-btn" onclick="document.getElementById('algo-exec-box').style.display='none'">✕ Close Log</button>
+                            </div>
+                            <div class="pipeline-exec-output" id="algo-exec-output" style="max-height:220px;"></div>
                         </div>
 
                         <div class="auto-section-title" style="margin-top:20px;">
@@ -1228,6 +1843,12 @@
                     <span class="onboard-step-dot" data-step="5"></span>
                     <span class="onboard-step-dot" data-step="6"></span>
                 </div>
+                <button type="button" class="onboard-close-btn" onclick="closeOnboardingModal()" title="Close and Go to Workspace (Esc)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </div>
 
             <div class="onboard-body" id="onboard-body">
@@ -1236,6 +1857,7 @@
 
             <div class="onboard-footer">
                 <button class="onboard-btn-secondary" id="onboard-back-btn" style="visibility:hidden;">Back</button>
+                <button type="button" class="onboard-skip-link" onclick="closeOnboardingModal()" title="Skip onboarding">Skip to Dashboard</button>
                 <button class="onboard-btn-primary" id="onboard-next-btn">
                     <span id="onboard-next-label">Let's Begin</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1366,6 +1988,10 @@
                             <span class="shortcut-label">Focus / Clear Composer</span>
                             <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></div>
                         </div>
+                        <div class="shortcut-row" data-search="switch model choose ai gemini 3.8 pro flash thinking">
+                            <span class="shortcut-label">Switch AI Model</span>
+                            <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>M</kbd></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1428,10 +2054,233 @@
         </div>
     </div>
 
+    <!-- ── AI Model Switcher Modal (Linear Design System) ───────────── -->
+    <div class="modal-overlay" id="model-switcher-modal" style="display:none;" onclick="if(event.target===this) closeModelSwitchModal()">
+        <div class="model-switcher-dialog" role="dialog" aria-labelledby="model-switcher-heading">
+            <div class="model-switcher-header">
+                <div class="model-switcher-title-group">
+                    <div class="model-switcher-icon-wrap">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                            <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="model-switcher-title" id="model-switcher-heading">Select AI Model</h3>
+                        <p class="model-switcher-subtitle">Switch reasoning engine, thinking depth, and multimodal speed</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeModelSwitchModal()" title="Dismiss (Esc)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Model Quick Search -->
+            <div class="model-search-bar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" id="model-search-input" placeholder="Search models by name, capability (e.g. 3.8, pro, thinking, flash)..." oninput="filterModelCards(this.value)">
+            </div>
+
+            <!-- Model Cards List -->
+            <div class="model-cards-container" id="model-cards-container">
+                <!-- Dynamically rendered or pre-rendered with active state -->
+            </div>
+
+            <div class="model-switcher-footer">
+                <span class="model-footer-hint">💡 Shortcut: <kbd>Alt</kbd> + <kbd>M</kbd> to open anytime • <kbd>Esc</kbd> to dismiss</span>
+                <span class="model-footer-status" id="model-footer-status">Current: Gemini 3.8 Flash</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Linear Conversational Voice Call HUD (Ultra-Low Latency & Waveform) ── -->
+    <div class="voice-hud-dock" id="voice-hud-dock" style="display:none;">
+        <div class="voice-hud-inner">
+            <!-- Left: Persona Avatar & Wave Visualizer -->
+            <div class="voice-hud-left">
+                <div class="voice-avatar-orb" id="voice-avatar-orb">
+                    <span class="voice-orb-glow"></span>
+                    <span class="voice-orb-icon">🎙️</span>
+                </div>
+                <div class="voice-hud-meta">
+                    <div class="voice-hud-title-row">
+                        <span class="voice-persona-name" id="hud-persona-name">Ava</span>
+                        <span class="voice-persona-sub">Neural Voice AI</span>
+                        <span class="voice-status-pill" id="hud-status-pill">Ready</span>
+                    </div>
+                    <div class="voice-transcript-preview" id="hud-transcript-preview">Click mic or speak naturally...</div>
+                </div>
+            </div>
+
+            <!-- Center: Audio Frequency Waveform Visualizer -->
+            <div class="voice-wave-container" id="voice-wave-container">
+                <div class="voice-wave-bar" style="--i:1"></div>
+                <div class="voice-wave-bar" style="--i:2"></div>
+                <div class="voice-wave-bar" style="--i:3"></div>
+                <div class="voice-wave-bar" style="--i:4"></div>
+                <div class="voice-wave-bar" style="--i:5"></div>
+                <div class="voice-wave-bar" style="--i:6"></div>
+                <div class="voice-wave-bar" style="--i:7"></div>
+                <div class="voice-wave-bar" style="--i:8"></div>
+                <div class="voice-wave-bar" style="--i:9"></div>
+                <div class="voice-wave-bar" style="--i:10"></div>
+                <div class="voice-wave-bar" style="--i:11"></div>
+                <div class="voice-wave-bar" style="--i:12"></div>
+            </div>
+
+            <!-- Right: Interactive Controls -->
+            <div class="voice-hud-actions">
+                <!-- Push to talk / Hands free toggle -->
+                <button class="hud-action-btn active" id="hud-mic-toggle-btn" onclick="toggleVoiceListening()" title="Toggle Microphone / Push to Talk">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+
+                <!-- Stop Speaking / Barge-In Interrupt -->
+                <button class="hud-action-btn stop" id="hud-stop-speech-btn" onclick="stopCurrentSpeech()" title="Interrupt / Stop Voice (Barge-In)">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+                    </svg>
+                </button>
+
+                <!-- Voice Settings Popover Trigger -->
+                <button class="hud-action-btn" onclick="openVoiceSettingsModal()" title="Voice & Humanizer Settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+
+                <!-- Dismiss / Close HUD -->
+                <button class="hud-action-btn close" onclick="closeVoiceHUD()" title="Close Voice Mode (Esc)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Voice & Humanizer Settings Modal (Linear Design System) ─────── -->
+    <div class="modal-overlay" id="voice-settings-modal" style="display:none;" onclick="if(event.target===this) closeVoiceSettingsModal()">
+        <div class="voice-settings-dialog" role="dialog" aria-labelledby="voice-settings-title">
+            <div class="voice-settings-header">
+                <div class="voice-settings-title-group">
+                    <div class="voice-settings-icon-wrap">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="voice-settings-title" id="voice-settings-title">Voice & Speech Studio</h3>
+                        <p class="voice-settings-subtitle">Neural TTS, natural conversational fillers, and continuous hands-free STT</p>
+                    </div>
+                </div>
+                <button class="modal-close-btn" onclick="closeVoiceSettingsModal()" title="Close (Esc)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="voice-settings-body">
+                <!-- 1. Persona & Voice Selection -->
+                <div class="voice-setting-row">
+                    <label class="voice-setting-label">
+                        <span>Voice Persona</span>
+                        <span class="voice-setting-desc">Select neural voice profile and age character</span>
+                    </label>
+                    <select id="voice-select-input" class="voice-styled-select" onchange="updateVoicePersona(this.value)">
+                        <option value="en-US-AvaNeural" selected>Ava (Expressive Neural Voice AI) ⭐</option>
+                        <option value="en-US-AnaNeural">Ana (Youthful & Vibrant AI)</option>
+                        <option value="en-US-EmmaNeural">Emma (Bright & Warm Assistant)</option>
+                        <option value="en-US-JennyNeural">Jenny (Smooth Neutral Assistant)</option>
+                        <option value="en-GB-SoniaNeural">Sonia (British Conversational Voice)</option>
+                    </select>
+                </div>
+
+                <!-- 2. Humanizer & Disfluency Level -->
+                <div class="voice-setting-row">
+                    <label class="voice-setting-label">
+                        <span>Conversational Fillers ("Hmm...", "Umm...", "Oh!")</span>
+                        <span class="voice-setting-desc">Injects natural human hesitations, pauses, and disfluencies</span>
+                    </label>
+                    <div class="voice-segment-group">
+                        <button class="voice-segment-btn active" data-level="natural" onclick="setDisfluencyLevel('natural')">Natural (Lifelike)</button>
+                        <button class="voice-segment-btn" data-level="subtle" onclick="setDisfluencyLevel('subtle')">Subtle</button>
+                        <button class="voice-segment-btn" data-level="off" onclick="setDisfluencyLevel('off')">Off</button>
+                    </div>
+                </div>
+
+                <!-- 3. Pitch & Speed Sliders -->
+                <div class="voice-sliders-grid">
+                    <div class="voice-slider-item">
+                        <div class="voice-slider-header">
+                            <span>Vocal Pitch</span>
+                            <span id="voice-pitch-val">+4Hz (Expressive)</span>
+                        </div>
+                        <input type="range" id="voice-pitch-slider" min="0" max="8" value="4" step="1" oninput="updatePitchVal(this.value)">
+                    </div>
+                    <div class="voice-slider-item">
+                        <div class="voice-slider-header">
+                            <span>Speaking Rate</span>
+                            <span id="voice-rate-val">+5% (Energetic)</span>
+                        </div>
+                        <input type="range" id="voice-rate-slider" min="-10" max="20" value="5" step="5" oninput="updateRateVal(this.value)">
+                    </div>
+                </div>
+
+                <!-- 4. Behavior Toggles -->
+                <div class="voice-toggles-list">
+                    <label class="voice-toggle-row">
+                        <div class="voice-toggle-info">
+                            <strong>Continuous Hands-Free Conversation (VAD)</strong>
+                            <span>Automatically sends your speech when you pause talking for 800ms</span>
+                        </div>
+                        <input type="checkbox" id="voice-handsfree-chk" class="voice-toggle-switch" checked onchange="toggleHandsFreeMode(this.checked)">
+                    </label>
+
+                    <label class="voice-toggle-row">
+                        <div class="voice-toggle-info">
+                            <strong>Auto-Read Responses Aloud</strong>
+                            <span>Speaks Gemini's responses immediately using sentence-streaming</span>
+                        </div>
+                        <input type="checkbox" id="voice-autospeak-chk" class="voice-toggle-switch" checked onchange="toggleAutoSpeak(this.checked)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="voice-settings-footer">
+                <button class="voice-test-btn" onclick="testVoiceSample()">
+                    <span>▶ Test Voice Audio</span>
+                </button>
+                <button class="voice-save-btn" onclick="closeVoiceSettingsModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Toast Notifications Container ──────────────────────────────── -->
     <div class="b1-toast-container" id="b1-toast-container"></div>
 
     <!-- App JavaScript Logic -->
-    <script src="app.js"></script>
+    <script src="app.js?v=rc2"></script>
+    <!-- B1 Research Council Client Controller -->
+    <script src="research_council.js?v=rc3"></script>
+    <!-- B1 Ava AI Voice Studio Client Controller -->
+    <script src="ava_voice.js?v=ava7"></script>
 </body>
 </html>

@@ -11,12 +11,13 @@ import os
 import re
 import json
 import math
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 try:
-    from core import intent_disambiguator
+    from core import intent_disambiguator, grounding_guardian
 except ImportError:
     import intent_disambiguator
+    import grounding_guardian
 
 class QueryValidator:
     """Validates user queries for clarity, intent, ambiguity, and retrieval requirements."""
@@ -133,42 +134,42 @@ class SelfReflectiveRetriever:
 
 
 class FactGroundingChecker:
-    """Ensures responses are factually grounded against retrieved tool executions."""
+    """Ensures responses are factually grounded against retrieved tool executions and RAG memories."""
 
     @staticmethod
-    def verify_grounding(response_text: str, evidence_logs: List[str]) -> Dict[str, Any]:
+    def verify_grounding(
+        response_text: str, 
+        evidence_logs: List[str], 
+        rag_context_chunks: Optional[List[str]] = None,
+        workspace_files: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """Checks if key entities in response correspond with verified tool output logs."""
-        if not evidence_logs:
-            return {
-                "grounded": True,
-                "confidence": 0.85,
-                "unsupported_claims": []
-            }
-
-        evidence_corpus = " ".join(evidence_logs).lower()
-        
-        # Detect mentions of files, tables, PRs, or paths in response
-        detected_entities = re.findall(r'[`"]([^`"\n]+)[`"]', response_text)
-        unsupported = []
-
-        for entity in detected_entities:
-            entity_clean = entity.strip().lower()
-            if len(entity_clean) > 3 and entity_clean not in evidence_corpus:
-                # Potential unverified entity
-                unsupported.append(entity)
-
-        is_grounded = len(unsupported) <= 2
-        confidence = max(0.2, 1.0 - (len(unsupported) * 0.15))
-
+        report = grounding_guardian.grounding_guardian.verify_factual_grounding(
+            response_text,
+            evidence_logs=evidence_logs,
+            rag_context_chunks=rag_context_chunks,
+            workspace_files=workspace_files
+        )
         return {
-            "grounded": is_grounded,
-            "confidence": round(confidence, 2),
-            "unsupported_claims": unsupported[:5]
+            "grounded": report.get("is_grounded", True),
+            "confidence": report.get("grounding_score", 1.0),
+            "grounding_percentage": report.get("grounding_percentage", "100%"),
+            "risk_level": report.get("risk_level", "ZERO"),
+            "unsupported_claims": report.get("unsupported_claims", []),
+            "verified_claims": report.get("verified_claims", []),
+            "evidence_count": report.get("evidence_count", 0)
         }
+
+    @staticmethod
+    def validate_code(code_text: str, target_dir: Optional[str] = None) -> Dict[str, Any]:
+        """Validates code snippets against hallucinated library imports."""
+        return grounding_guardian.grounding_guardian.validate_code_imports(code_text, target_dir)
+
 
 # Global singleton
 self_rag_engine = {
     "validator": QueryValidator,
     "retriever": SelfReflectiveRetriever,
-    "grounding": FactGroundingChecker
+    "grounding": FactGroundingChecker,
+    "guardian": grounding_guardian.grounding_guardian
 }

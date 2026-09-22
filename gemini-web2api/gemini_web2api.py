@@ -66,7 +66,7 @@ DEFAULT_CONFIG = {
     "gemini_bl": "boq_assistant-bard-web-server_20260716.08_p0",
     "auth_user": None,
     "xsrf_token": None,
-    "default_model": "gemini-3.6-flash",
+    "default_model": "gemini-3.8-flash",
     "log_requests": True,
     "cookie_file": None,
     "proxy": None,
@@ -81,9 +81,29 @@ CONFIG = dict(DEFAULT_CONFIG)
 #   1=FAST, 2=THINKING, 3=PRO, 4=AUTO, 5=FAST_DYNAMIC_THINKING, 6=FLASH_LITE
 
 MODELS = {
+    "gemini-3.8-flash": {
+        "mode": 1, "think": 4,
+        "desc": "Latest Next-Gen model (Gemini 3.8 Flash - High Speed)",
+    },
+    "gemini-3.8": {
+        "mode": 1, "think": 4,
+        "desc": "Alias for Gemini 3.8 Flash",
+    },
+    "gemini-3.8-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Next-Gen frontier reasoning model (Gemini 3.8 Pro)",
+    },
+    "gemini-3.8-flash-thinking": {
+        "mode": 2, "think": 0,
+        "desc": "Gemini 3.8 Deep thinking mode (~20k chars output)",
+    },
+    "gemini-3.8-thinking": {
+        "mode": 2, "think": 0,
+        "desc": "Alias for Gemini 3.8 Thinking",
+    },
     "gemini-3.6-flash": {
         "mode": 1, "think": 4,
-        "desc": "Latest all-around model (Gemini 3.6 Flash)",
+        "desc": "All-around model (Gemini 3.6 Flash)",
     },
     "gemini-3.5-flash": {
         "mode": 1, "think": 4,
@@ -612,10 +632,28 @@ class GeminiHandler(BaseHTTPRequestHandler):
         think_override = None
         if "@think=" in model_name:
             model_name, think_str = model_name.rsplit("@think=", 1)
-            think_override = int(think_str)
+            try:
+                think_override = int(think_str)
+            except ValueError:
+                pass
         cfg = MODELS.get(model_name)
         if not cfg:
-            return None, None, None, f"Unknown model: {model_name}"
+            normalized = model_name.strip().lower().replace(" ", "-")
+            cfg = MODELS.get(normalized)
+            if not cfg and ("3.8" in normalized or "3-8" in normalized):
+                if "pro" in normalized:
+                    cfg = MODELS.get("gemini-3.8-pro")
+                elif "think" in normalized:
+                    cfg = MODELS.get("gemini-3.8-flash-thinking")
+                else:
+                    cfg = MODELS.get("gemini-3.8-flash")
+            elif not cfg and "flash" in normalized:
+                cfg = MODELS.get("gemini-3.8-flash")
+        if not cfg:
+            # Fallback to default model rather than failing
+            default_mod = CONFIG.get("default_model", "gemini-3.8-flash")
+            cfg = MODELS.get(default_mod, list(MODELS.values())[0])
+            model_name = default_mod
         return model_name, cfg["mode"], (think_override if think_override is not None else cfg["think"]), None
 
     def _call_gemini(self, prompt, model_id, think_mode, tools):

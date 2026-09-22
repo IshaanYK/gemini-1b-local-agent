@@ -1,0 +1,928 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   B1 Ava AI Voice Workspace — ava_voice.css
+   Linear Design System Specification (design-md-linear.app)
+   Near-black canvas (#010102), charcoal panels (#0f1011), hairline borders (#23252a),
+   and signature Linear lavender-blue (#5e6ad2) + cyan glow accents (#00f0ff).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --ava-canvas: #010102;
+    --ava-surface-1: #0f1011;
+    --ava-surface-2: #141516;
+    --ava-surface-3: #18191a;
+    --ava-surface-4: #1c1d1f;
+    --ava-hairline: #23252a;
+    --ava-hairline-strong: #34343a;
+    --ava-hairline-glow: rgba(94, 106, 210, 0.4);
+    --ava-primary: #5e6ad2;
+    --ava-primary-hover: #828fff;
+    --ava-primary-glow: rgba(94, 106, 210, 0.25);
+    --ava-cyan: #00f0ff;
+    --ava-cyan-glow: rgba(0, 240, 255, 0.28);
+    --ava-ink: #f7f8f8;
+    --ava-ink-muted: #d0d6e0;
+    --ava-ink-subtle: #8a8f98;
+    --ava-ink-tertiary: #62666d;
+    --ava-success: #27a644;
+    --ava-success-glow: rgba(39, 166, 68, 0.3);
+    --ava-warning: #f5a623;
+    --ava-danger: #eb5757;
+    --ava-radius-sm: 6px;
+    --ava-radius-md: 10px;
+    --ava-radius-lg: 16px;
+    --ava-radius-pill: 9999px;
+}
+
+/* ── Full-Page Workspace Container ───────────────────────────────────── */
+.ava-voice-workspace {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background: var(--ava-canvas);
+    color: var(--ava-ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ── Ava Top Navigation Bar ─────────────────────────────────────────── */
+.ava-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: var(--ava-surface-1);
+    border-bottom: 1px solid var(--ava-hairline);
+    min-height: 56px;
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+.ava-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ava-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink-muted);
+    padding: 6px 13px;
+    border-radius: var(--ava-radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.ava-back-btn:hover {
+    background: var(--ava-surface-3);
+    color: var(--ava-ink);
+    border-color: var(--ava-primary);
+    transform: translateX(-2px);
+}
+
+.ava-brand-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ava-brand-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, rgba(94,106,210,0.35), rgba(0,240,255,0.25));
+    border: 1px solid var(--ava-hairline-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ava-cyan);
+    font-size: 16px;
+    box-shadow: 0 0 16px rgba(94, 106, 210, 0.3);
+}
+
+.ava-brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.ava-brand-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    color: var(--ava-ink);
+}
+
+.ava-brand-sub {
+    font-size: 11px;
+    color: var(--ava-ink-subtle);
+    font-weight: 400;
+}
+
+.ava-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--ava-radius-pill);
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ava-ink-subtle);
+    transition: all 0.2s ease;
+}
+
+.ava-status-pill.ready {
+    color: var(--ava-ink-muted);
+    border-color: var(--ava-hairline);
+}
+
+.ava-status-pill.listening {
+    color: var(--ava-cyan);
+    background: rgba(0, 240, 255, 0.08);
+    border-color: rgba(0, 240, 255, 0.35);
+    box-shadow: 0 0 12px var(--ava-cyan-glow);
+}
+
+.ava-status-pill.speaking {
+    color: var(--ava-primary-hover);
+    background: rgba(94, 106, 210, 0.12);
+    border-color: rgba(94, 106, 210, 0.4);
+    box-shadow: 0 0 14px var(--ava-primary-glow);
+}
+
+.ava-status-pill.thinking {
+    color: var(--ava-warning);
+    background: rgba(245, 166, 35, 0.08);
+    border-color: rgba(245, 166, 35, 0.35);
+}
+
+.ava-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ava-ink-tertiary);
+    transition: all 0.2s ease;
+}
+
+.ava-status-pill.ready .ava-status-dot { background: var(--ava-success); }
+.ava-status-pill.listening .ava-status-dot { background: var(--ava-cyan); animation: ava-pulse 1.2s infinite; }
+.ava-status-pill.speaking .ava-status-dot { background: var(--ava-primary); animation: ava-pulse 0.8s infinite; }
+.ava-status-pill.thinking .ava-status-dot { background: var(--ava-warning); animation: ava-pulse 0.6s infinite; }
+
+@keyframes ava-pulse {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.3); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.ava-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ava-engine-switch {
+    display: inline-flex;
+    align-items: center;
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    border-radius: var(--ava-radius-pill);
+    padding: 2px;
+}
+
+.ava-engine-btn {
+    background: none;
+    border: none;
+    color: var(--ava-ink-subtle);
+    padding: 4px 11px;
+    font-size: 11.5px;
+    font-weight: 500;
+    border-radius: var(--ava-radius-pill);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ava-engine-btn.active {
+    background: var(--ava-primary);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(94, 106, 210, 0.4);
+}
+
+.ava-persona-select {
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink);
+    padding: 6px 12px;
+    border-radius: var(--ava-radius-md);
+    font-size: 12.5px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.ava-persona-select:focus {
+    border-color: var(--ava-primary);
+}
+
+.ava-action-btn {
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink-muted);
+    padding: 6px 12px;
+    border-radius: var(--ava-radius-md);
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.ava-action-btn:hover {
+    background: var(--ava-surface-3);
+    color: var(--ava-ink);
+    border-color: var(--ava-hairline-strong);
+}
+
+/* ── Workspace Main Body ─────────────────────────────────────────────── */
+.ava-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    padding-bottom: 90px;
+}
+
+/* ── Hero Stage: Glowing Neural Orb & Audio Waves ─────────────────────── */
+.ava-stage-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 20px 24px;
+    position: relative;
+    background: radial-gradient(circle at 50% 30%, rgba(94, 106, 210, 0.12) 0%, rgba(1, 1, 2, 0) 70%);
+    border-bottom: 1px solid var(--ava-hairline);
+    flex-shrink: 0;
+}
+
+.ava-orb-container {
+    position: relative;
+    width: 170px;
+    height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 22px;
+    cursor: pointer;
+}
+
+/* Dynamic background ripple rings */
+.ava-orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(94, 106, 210, 0.2);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.ava-orb-ring.ring-1 {
+    transform: scale(1.15);
+    border-color: rgba(94, 106, 210, 0.25);
+}
+
+.ava-orb-ring.ring-2 {
+    transform: scale(1.35);
+    border-color: rgba(0, 240, 255, 0.15);
+}
+
+.ava-orb-ring.ring-3 {
+    transform: scale(1.58);
+    border-color: rgba(94, 106, 210, 0.08);
+}
+
+/* Center Glowing Neural Orb */
+.ava-neural-orb {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #828fff 0%, #5e6ad2 50%, #20244f 100%);
+    box-shadow: 0 0 35px rgba(94, 106, 210, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.4);
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ava-neural-orb svg {
+    color: #ffffff;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+    transition: transform 0.2s ease;
+}
+
+/* Orb States */
+.ava-orb-container:hover .ava-neural-orb {
+    transform: scale(1.05);
+    box-shadow: 0 0 45px rgba(94, 106, 210, 0.7), inset 0 0 24px rgba(255, 255, 255, 0.6);
+}
+
+.ava-stage-section.listening .ava-neural-orb {
+    background: radial-gradient(circle at 35% 35%, #00f0ff 0%, #0099cc 55%, #063044 100%);
+    box-shadow: 0 0 50px rgba(0, 240, 255, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.5);
+    animation: ava-orb-listen-breath 1.6s infinite alternate ease-in-out;
+}
+
+.ava-stage-section.listening .ava-orb-ring.ring-1 {
+    animation: ava-listen-pulse 1.8s infinite ease-out;
+    border-color: rgba(0, 240, 255, 0.4);
+}
+
+.ava-stage-section.listening .ava-orb-ring.ring-2 {
+    animation: ava-listen-pulse 1.8s infinite ease-out 0.4s;
+    border-color: rgba(0, 240, 255, 0.25);
+}
+
+.ava-stage-section.speaking .ava-neural-orb {
+    background: radial-gradient(circle at 35% 35%, #b588ff 0%, #7e57c2 50%, #311b92 100%);
+    box-shadow: 0 0 60px rgba(181, 136, 255, 0.7), inset 0 0 22px rgba(255, 255, 255, 0.6);
+    animation: ava-orb-speak-vibe 0.5s infinite alternate ease-in-out;
+}
+
+.ava-stage-section.thinking .ava-neural-orb {
+    background: radial-gradient(circle at 35% 35%, #ffd166 0%, #f5a623 55%, #422900 100%);
+    box-shadow: 0 0 45px rgba(245, 166, 35, 0.6);
+    animation: ava-orb-spin 3s linear infinite;
+}
+
+@keyframes ava-orb-listen-breath {
+    0% { transform: scale(1); box-shadow: 0 0 35px rgba(0, 240, 255, 0.5); }
+    100% { transform: scale(1.08); box-shadow: 0 0 65px rgba(0, 240, 255, 0.85); }
+}
+
+@keyframes ava-orb-speak-vibe {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.06); }
+}
+
+@keyframes ava-listen-pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes ava-orb-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Real-time Frequency Wave Canvas */
+.ava-canvas-wrap {
+    width: 380px;
+    max-width: 90%;
+    height: 48px;
+    margin-bottom: 12px;
+}
+
+#ava-audio-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.ava-stage-headline {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ava-ink);
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.ava-stage-sub {
+    font-size: 13.5px;
+    color: var(--ava-ink-subtle);
+    text-align: center;
+    max-width: 540px;
+    line-height: 1.45;
+    margin-bottom: 16px;
+    min-height: 20px;
+}
+
+/* Hero Controls */
+.ava-hero-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ava-hero-mic-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--ava-primary);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 10px 22px;
+    border-radius: var(--ava-radius-pill);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(94, 106, 210, 0.4);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ava-hero-mic-btn:hover {
+    background: var(--ava-primary-hover);
+    box-shadow: 0 6px 25px rgba(94, 106, 210, 0.6);
+    transform: translateY(-1px);
+}
+
+.ava-hero-mic-btn.active {
+    background: var(--ava-cyan);
+    color: #010102;
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.7);
+}
+
+.ava-handsfree-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--ava-ink-subtle);
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    padding: 7px 14px;
+    border-radius: var(--ava-radius-pill);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s;
+}
+
+.ava-handsfree-toggle:hover {
+    border-color: var(--ava-hairline-strong);
+    color: var(--ava-ink-muted);
+}
+
+.ava-handsfree-toggle input {
+    cursor: pointer;
+    accent-color: var(--ava-primary);
+}
+
+/* ── Starter Prompt Chips ────────────────────────────────────────────── */
+.ava-prompt-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--ava-hairline);
+    background: var(--ava-surface-1);
+}
+
+.ava-chip {
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink-muted);
+    padding: 6px 13px;
+    border-radius: var(--ava-radius-pill);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ava-chip:hover {
+    background: var(--ava-surface-3);
+    color: var(--ava-ink);
+    border-color: var(--ava-primary);
+    transform: translateY(-1px);
+}
+
+/* ── Live Dialogue Feed ──────────────────────────────────────────────── */
+.ava-dialogue-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    flex: 1;
+}
+
+.ava-feed-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    color: var(--ava-ink-subtle);
+    text-align: center;
+    gap: 10px;
+}
+
+.ava-feed-empty svg {
+    opacity: 0.3;
+}
+
+.ava-feed-card {
+    display: flex;
+    gap: 14px;
+    background: var(--ava-surface-1);
+    border: 1px solid var(--ava-hairline);
+    border-radius: var(--ava-radius-lg);
+    padding: 18px 20px;
+    transition: border-color 0.16s ease;
+    animation: ava-card-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ava-feed-card:hover {
+    border-color: var(--ava-hairline-strong);
+}
+
+.ava-feed-card.user {
+    background: var(--ava-surface-2);
+    border-color: var(--ava-hairline-strong);
+}
+
+.ava-feed-card.assistant {
+    background: var(--ava-surface-1);
+    border-left: 3px solid var(--ava-primary);
+}
+
+@keyframes ava-card-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ava-card-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--ava-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ava-feed-card.user .ava-card-avatar {
+    background: #2a2c35;
+    color: var(--ava-ink);
+}
+
+.ava-feed-card.assistant .ava-card-avatar {
+    background: linear-gradient(135deg, #5e6ad2, #828fff);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(94, 106, 210, 0.4);
+}
+
+.ava-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    overflow-x: auto;
+}
+
+.ava-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ava-card-sender {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ava-ink);
+}
+
+.ava-card-time {
+    font-size: 11px;
+    color: var(--ava-ink-tertiary);
+}
+
+.ava-card-text {
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ava-ink-muted);
+    word-break: break-word;
+}
+
+.ava-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.ava-replay-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink-subtle);
+    padding: 4px 10px;
+    border-radius: var(--ava-radius-sm);
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ava-replay-btn:hover {
+    background: var(--ava-surface-3);
+    color: var(--ava-ink);
+    border-color: var(--ava-primary);
+}
+
+/* ── Bottom Voice & Text Input Dock ─────────────────────────────────── */
+.ava-dock-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 24px;
+    background: linear-gradient(to top, var(--ava-canvas) 85%, rgba(1, 1, 2, 0));
+    display: flex;
+    justify-content: center;
+    z-index: 25;
+}
+
+.ava-input-dock {
+    max-width: 860px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline-strong);
+    border-radius: var(--ava-radius-lg);
+    padding: 6px 8px 6px 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ava-input-dock:focus-within {
+    border-color: var(--ava-primary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--ava-primary);
+}
+
+.ava-dock-mic-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--ava-surface-3);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.ava-dock-mic-btn:hover {
+    background: var(--ava-primary);
+    color: #fff;
+    border-color: var(--ava-primary);
+}
+
+.ava-dock-mic-btn.active {
+    background: var(--ava-cyan);
+    color: #010102;
+    box-shadow: 0 0 14px var(--ava-cyan-glow);
+}
+
+.ava-text-input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ava-ink);
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+    padding: 6px 0;
+}
+
+.ava-text-input::placeholder {
+    color: var(--ava-ink-tertiary);
+}
+
+.ava-stop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(235, 87, 87, 0.15);
+    border: 1px solid rgba(235, 87, 87, 0.4);
+    color: #ff6b6b;
+    padding: 6px 12px;
+    border-radius: var(--ava-radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ava-stop-btn:hover {
+    background: rgba(235, 87, 87, 0.28);
+}
+
+.ava-send-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--ava-radius-md);
+    background: var(--ava-primary);
+    border: none;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.ava-send-btn:hover {
+    background: var(--ava-primary-hover);
+}
+
+.ava-send-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Sidebar Ava Voice Studio Launch Button ───────────────────────────── */
+.ava-voice-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px 12px;
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.12) 0%, rgba(94, 106, 210, 0.12) 100%);
+    border: 1px solid rgba(0, 240, 255, 0.28);
+    border-radius: var(--ava-radius-md);
+    color: var(--ava-ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ava-voice-nav-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.22) 0%, rgba(94, 106, 210, 0.22) 100%);
+    border-color: rgba(0, 240, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 240, 255, 0.25);
+}
+
+.ava-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ava-nav-icon {
+    font-size: 15px;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
+}
+
+.ava-nav-text {
+    letter-spacing: -0.2px;
+    color: #f7f8f8;
+}
+
+.ava-nav-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--ava-radius-pill);
+    background: rgba(0, 240, 255, 0.2);
+    color: #00f0ff;
+    border: 1px solid rgba(0, 240, 255, 0.35);
+}
+
+/* ── Linear Design System: Mic Selector, Language Dropdown & Real-Time VU Meter ── */
+.ava-styled-select {
+    background: var(--ava-surface-2);
+    border: 1px solid var(--ava-hairline);
+    color: var(--ava-ink);
+    padding: 6px 12px;
+    border-radius: var(--ava-radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.16s ease;
+    max-width: 210px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ava-styled-select:hover {
+    border-color: var(--ava-hairline-strong);
+    background: var(--ava-surface-3);
+}
+
+.ava-styled-select:focus {
+    border-color: var(--ava-primary);
+    box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.25);
+}
+
+.ava-audio-meter-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 12px auto 6px auto;
+    padding: 6px 16px;
+    background: rgba(15, 16, 17, 0.85);
+    border: 1px solid var(--ava-hairline);
+    border-radius: var(--ava-radius-pill);
+    backdrop-filter: blur(14px);
+    max-width: 440px;
+    width: 90%;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    animation: ava-fade-in 0.25s ease;
+}
+
+.ava-vu-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.ava-vu-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #5e6ad2 0%, #00f0ff 65%, #00ffaa 100%);
+    border-radius: 3px;
+    transition: width 0.06s ease-out;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.ava-vu-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ava-ink-subtle);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    letter-spacing: -0.2px;
+}
+
+.ava-vu-label.active {
+    color: #00f0ff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.ava-silent-mic-alert {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 8px auto 0 auto;
+    padding: 7px 16px;
+    background: rgba(235, 87, 87, 0.12);
+    border: 1px solid rgba(235, 87, 87, 0.4);
+    border-radius: var(--ava-radius-pill);
+    color: #ff9999;
+    font-size: 12px;
+    animation: ava-fade-in 0.2s ease;
+}
+
+.ava-alert-fix-btn {
+    background: #eb5757;
+    color: #ffffff;
+    border: none;
+    padding: 3px 10px;
+    border-radius: var(--ava-radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(235, 87, 87, 0.35);
+}
+
+.ava-alert-fix-btn:hover {
+    background: #ff6b6b;
+    transform: translateY(-1px);
+}
+
+

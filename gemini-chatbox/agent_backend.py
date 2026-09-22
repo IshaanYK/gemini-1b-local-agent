@@ -23,13 +23,29 @@ import uuid
 import sqlite3
 import zipfile
 import base64
+import requests
+import asyncio
+import urllib.parse
+from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
+import hashlib
 from flask import Flask, request, Response, stream_with_context, jsonify, send_from_directory
 from flask_cors import CORS
 from openai import OpenAI
 
+import io
 try:
-    from core import self_rag, prompt_decomposer, memory_manager, rag_memory, mcp_client, security_rag, automation_engine, messaging_engine, drive_engine, sharing_intent_engine, app_builder_engine
+    import speech_recognition as sr
+except ImportError:
+    sr = None
+
+try:
+    import edge_tts
+except ImportError:
+    edge_tts = None
+
+try:
+    from core import self_rag, prompt_decomposer, memory_manager, rag_memory, mcp_client, security_rag, automation_engine, messaging_engine, drive_engine, sharing_intent_engine, app_builder_engine, multi_algorithm_engine, pipeline_orchestrator, grounding_guardian, ast_symbol_graph, agent_swarm, local_llm_connector, self_refinement_engine, research_council_engine, voice_humanizer
 except ImportError:
     import self_rag
     import prompt_decomposer
@@ -42,15 +58,59 @@ except ImportError:
     import drive_engine
     import sharing_intent_engine
     import app_builder_engine
+    import multi_algorithm_engine
+    import pipeline_orchestrator
+    import grounding_guardian
+    import ast_symbol_graph
+    import agent_swarm
+    import local_llm_connector
+    import self_refinement_engine
+    import research_council_engine
+    import voice_humanizer
 
-app = Flask(__name__)
-CORS(app)
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, static_folder=_BASE_DIR, static_url_path="")
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = Response()
+        origin = request.headers.get("Origin", "*")
+        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = request.headers.get("Access-Control-Request-Headers", "*")
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        return response
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin", "*")
+    response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
+
+@app.route('/')
+def serve_index():
+    return send_from_directory(_BASE_DIR, 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    if filename.startswith('api/') or filename.startswith('uploads/'):
+        return jsonify({"error": "Endpoint not found"}), 404
+    file_full_path = os.path.join(_BASE_DIR, filename)
+    if os.path.exists(file_full_path) and os.path.isfile(file_full_path):
+        return send_from_directory(_BASE_DIR, filename)
+    return jsonify({"error": "File not found"}), 404
 
 client = OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="sk-gemini")
-MODEL = "gemini-3.6-flash"
+MODEL = "gemini-3.8-flash"
 
 # ── Dynamic Base Paths ──────────────────────────────────────────────────
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STORAGE_DIR = os.path.join(_BASE_DIR, "storage")
 USER_HOME = os.path.expanduser("~")
 USER_DESKTOP = os.path.join(USER_HOME, "Desktop")
@@ -171,6 +231,15 @@ def call_openai_with_autofix(create_kwargs, retries=2):
             return client.chat.completions.create(**create_kwargs)
         except Exception as e:
             err_str = str(e).lower()
+            if "unknown model" in err_str:
+                current_m = create_kwargs.get("model", "")
+                fallback_m = "gemini-3.6-flash" if current_m != "gemini-3.6-flash" else "gemini-3.5-flash"
+                print(f"[Model-Recovery] Unknown model '{current_m}'. Auto-recovering with '{fallback_m}'...")
+                create_kwargs["model"] = fallback_m
+                try:
+                    return client.chat.completions.create(**create_kwargs)
+                except Exception as inner_e:
+                    raise inner_e
             if any(k in err_str for k in ["connection", "connect", "refused", "unreachable", "timeout"]) and attempt < retries:
                 ensure_proxy_running()
                 time.sleep(1.2)
@@ -559,6 +628,92 @@ SYSTEM_TOOLS = [
                 "required": ["platform"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solve_complex_algorithm",
+            "description": "Execute native high-performance algorithm solvers (Dynamic Programming, 0/1 Knapsack, Longest Common Subsequence, Levenshtein Edit Distance, Graph Dijkstra / A* Shortest Path, Topological Sort, Euler-Cromer Projectile Physics, Runge-Kutta 4th Order / RK4 ODE, Gradient Descent Optimizer).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "algorithm_id": {"type": "string", "enum": ["dp_knapsack", "dp_lcs", "dp_edit_distance", "graph_toposort", "graph_dijkstra", "graph_a_star", "numerical_euler_cromer", "numerical_rk4", "gradient_descent"], "description": "Identifier of the algorithm solver"},
+                    "params": {"type": "object", "description": "Parameters dictionary for the algorithm (e.g. weights, values, capacity, graph, ode, etc.)"}
+                },
+                "required": ["algorithm_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "orchestrate_multi_pipeline",
+            "description": "Execute single or multi-stage developer and agentic pipelines (Workspace Doctor, Security Health Scan, Git Autonomous Sync, Multi-Algorithm Benchmark, Fullstack Build & Test, RAG Vector Ingestion, Microservice Health Probe).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pipeline_id": {"type": "string", "description": "Pipeline ID to run (e.g. workspace_doctor, auto_security_and_lint, multi_algo_benchmark, fullstack_build_test, rag_vector_ingest, microservice_health_probe)"},
+                    "target_folder": {"type": "string", "description": "Optional working directory"}
+                },
+                "required": ["pipeline_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "benchmark_algorithms",
+            "description": "Benchmark and compare alternative algorithmic strategies side-by-side (e.g. Timsort vs QuickSort vs HeapSort, or Dijkstra vs A* Search) with empirical runtime and asymptotic Big-O analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_type": {"type": "string", "enum": ["sorting", "pathfinding"], "description": "Type of computational task to benchmark"},
+                    "test_size": {"type": "integer", "description": "Input dataset size for the benchmark (e.g. 500, 2000)"}
+                },
+                "required": ["task_type"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_symbol_graph",
+            "description": "High-precision AST symbol graph search across Python and JavaScript codebases. Query function signatures, class definitions, method outlines, and file structure.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["search", "outline"], "description": "'search' for symbol names or 'outline' for file structure"},
+                    "query": {"type": "string", "description": "Symbol name or search query (e.g. 'verify_factual_grounding', 'SwarmAgent')"},
+                    "filepath": {"type": "string", "description": "Relative file path when action='outline' (e.g. 'core/agent_swarm.py')"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consult_swarm_consensus",
+            "description": "Convene the 4-agent consensus voting swarm (Lead Architect, Code Reviewer, Security Auditor, QA Tester) to evaluate architectural proposals, code diffs, or complex plans before execution.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "High-level goal or problem statement"},
+                    "proposal": {"type": "string", "description": "Detailed implementation proposal or code plan to review"}
+                },
+                "required": ["task", "proposal"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "discover_local_llms",
+            "description": "Probe local offline AI model servers (Ollama on port 11434, LM Studio on port 1234) and list available local models (deepseek-coder, llama3, qwen2.5).",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
     }
 ]
 
@@ -871,6 +1026,31 @@ def execute_tool(name: str, args: dict, target_folder: str = None) -> str:
                 except Exception:
                     pass
             _build_tree(path)
+            return "\n".join(lines)
+
+        elif name == "solve_complex_algorithm":
+            algo_id = args.get("algorithm_id", "dp_knapsack")
+            params = args.get("params", {})
+            if isinstance(params, str):
+                try:
+                    params = json.loads(params)
+                except Exception:
+                    params = {}
+            res = multi_algorithm_engine.multi_algo_engine.solve(algo_id, params)
+            return json.dumps(res, indent=2)
+
+        elif name == "orchestrate_multi_pipeline":
+            pipeline_id = args.get("pipeline_id", "workspace_doctor")
+            target_dir = resolve_path(args.get("target_folder", ""), target_folder)
+            res = pipeline_orchestrator.pipeline_orchestrator.run_pipeline(pipeline_id, cwd=target_dir)
+            return json.dumps(res, indent=2)
+
+        elif name == "benchmark_algorithms":
+            task_type = args.get("task_type", "sorting")
+            test_size = int(args.get("test_size", 1000))
+            res = multi_algorithm_engine.multi_algo_engine.benchmark_comparison(task_type, test_size)
+            return json.dumps(res, indent=2)
+
         elif name == "security_audit_workspace":
             raw_path = args.get("path", ".")
             path = resolve_path(raw_path, target_folder)
@@ -935,6 +1115,27 @@ def execute_tool(name: str, args: dict, target_folder: str = None) -> str:
             suggestions = sharing_intent_engine.sharing_intent.generate_suggested_messages(platform, recipient, file_target)
             return json.dumps({"status": "success", "platform": platform, "suggestions": suggestions}, indent=2)
 
+        elif name == "query_symbol_graph":
+            action = args.get("action", "search")
+            q = args.get("query", "")
+            fpath = args.get("filepath", "")
+            if action == "outline" or fpath:
+                res = ast_symbol_graph.symbol_graph.get_file_outline(fpath)
+                return json.dumps(res, indent=2)
+            else:
+                res = ast_symbol_graph.symbol_graph.search_symbols(q)
+                return json.dumps(res, indent=2)
+
+        elif name == "consult_swarm_consensus":
+            task_desc = args.get("task", "")
+            proposal_desc = args.get("proposal", "")
+            swarm_res = agent_swarm.swarm_engine.evaluate_proposal(task_desc, proposal_desc)
+            return json.dumps(swarm_res, indent=2)
+
+        elif name == "discover_local_llms":
+            local_info = local_llm_connector.local_llm.discover_local_servers()
+            return json.dumps(local_info, indent=2)
+
         return f"Unknown tool: {name}"
     except subprocess.TimeoutExpired:
         return "Command timed out after execution limit."
@@ -966,6 +1167,31 @@ def extract_tool_call(msg):
 
 # ── Claude-Style System Prompt with MCP Protocol ─────────────────────────
 CLAUDE_SYSTEM_PROMPT = """You are Gemini, an autonomous AI assistant and coding agent equipped with full local computer capabilities, MCP (Model Context Protocol) tool servers, and interactive artifact generation.
+
+# 🛡️ UNBREAKABLE ZERO-HALLUCINATION & EPISTEMIC GROUNDING DIRECTIVES:
+1. **ZERO-FABRICATION RULE (NEVER GUESS OR INVENT)**:
+   - Never invent, fabricate, or hallucinate non-existent API endpoints, function names, library imports, file paths, git history, command flags, or metrics.
+   - If information, code context, or file content is not present in the workspace or retrieved tool outputs, **EXPLICITLY STATE WHAT IS MISSING** instead of fabricating plausible-sounding details.
+2. **MANDATORY TOOL GROUNDING (GROUND BEFORE ASSERTING)**:
+   - For all questions regarding local files, directories, git branches, codebase architecture, or server states, **ALWAYS EXECUTE A TOOL FIRST** (`read_file`, `workspace_tree_overview`, `list_dir`, `grep_search`, `get_git_status`) before answering.
+   - Never assume file contents or directory structures without reading them.
+3. **EPISTEMIC HONESTY & UNCERTAINTY CALIBRATION**:
+   - If unsure or if tools return insufficient evidence, clearly state: "I cannot verify [X] from the current workspace files without additional inspection."
+   - Avoid overclaiming or presenting probabilistic inferences as definitive ground truth.
+4. **Claude-Style Interactive Artifacts & Visualizations**:
+   - When the user asks for visualizations, diagrams, simulations, or interactive tools (e.g., 'tell me in visualize', 'visualize this', 'build a simulation'), **DIRECTLY GENERATE** a comprehensive, zero-dependency, standalone interactive HTML/JS/CSS artifact wrapped in:
+     <antArtifact identifier="unique-id" type="application/vnd.ant.code" language="html" title="Interactive App Title">
+     ... complete standalone single-file code ...
+     </antArtifact>
+   - CRITICAL ARTIFACT CLEANLINESS RULES:
+     * NEVER wrap the inner code inside `<antArtifact>` in markdown backticks (e.g. ````html ... ````). Output raw HTML directly.
+     * In HTML labels, slider titles, and UI text, use clean Unicode characters (such as `θ`, `v₀`, `v⃗`, `g`, `t`, `k/m`, `Δ`, `°`, `m/s`, `m/s²`), NEVER raw LaTeX dollar signs like `$\theta$` or `$\v_0$`.
+   - Do NOT run unnecessary exploratory sandbox or terminal tools before writing the artifact unless actual runtime data computation is required.
+5. **IMPORT & CODE DEPENDENCY SAFETY**:
+   - When writing code, ONLY import modules from the Python Standard Library or packages verified to exist in the environment (`package.json`, `requirements.txt`).
+   - Never invent imaginary packages or non-existent methods on real libraries.
+6. **CITATION & EVIDENCE ANCHORING**:
+   - Explicitly cite the tool output, file name, or line range when referencing codebase facts.
 
 # SYSTEM CAPABILITIES & MCP TOOLS:
 1. **Local System & MCP Tools**: You have access to local terminal execution (`run_command`), file inspection (`read_file`, `write_file`, `grep_search`, `list_dir`), and **connected MCP servers** (e.g. `mcp_web_fetch`, `mcp_sqlite_query`, `mcp_system_info`, or external MCP servers). Use them proactively to solve tasks with precision.
@@ -1003,6 +1229,7 @@ CLAUDE_SYSTEM_PROMPT = """You are Gemini, an autonomous AI assistant and coding 
 # ── API Endpoints ────────────────────────────────────────────────────────
 
 @app.route('/api/permission-status', methods=['GET'])
+@app.route('/api/permissions', methods=['GET'])
 def permission_status():
     return jsonify({"granted": _is_permitted()})
 
@@ -1245,22 +1472,46 @@ def get_models():
         "status": "success",
         "models": [
             {
+                "id": "gemini-3.8-flash",
+                "name": "Gemini 3.8 Flash (High)",
+                "description": "Next-Gen ultra-fast execution with enhanced reasoning & multimodal throughput",
+                "badge": "Latest 3.8"
+            },
+            {
+                "id": "gemini-3.8-pro",
+                "name": "Gemini 3.8 Pro (Frontier)",
+                "description": "Next-Gen frontier reasoning, complex architecture & math",
+                "badge": "Pro 3.8"
+            },
+            {
+                "id": "gemini-3.8-flash-thinking",
+                "name": "Gemini 3.8 Thinking (Deep)",
+                "description": "Extended chain-of-thought deep reasoning (~20k chars output)",
+                "badge": "Thinking"
+            },
+            {
                 "id": "gemini-3.6-flash",
                 "name": "Gemini 3.6 Flash (Fast & Smart)",
-                "description": "Ultra-fast execution with proactive tool calling",
-                "badge": "Default"
+                "description": "Fast all-around execution with proactive tool calling",
+                "badge": "Fast"
             },
             {
                 "id": "gemini-3.5-flash-thinking",
-                "name": "Gemini 3.5 Flash Thinking (Deep 20k)",
+                "name": "Gemini 3.5 Flash Thinking",
                 "description": "Extended chain-of-thought reasoning for complex tasks",
-                "badge": "Deep Think"
+                "badge": "Think 3.5"
             },
             {
                 "id": "gemini-3.1-pro",
                 "name": "Gemini 3.1 Pro (Heavyweight)",
                 "description": "Maximum parameter scale and coding architecture",
-                "badge": "Pro"
+                "badge": "Legacy Pro"
+            },
+            {
+                "id": "gemini-flash-lite",
+                "name": "Gemini Flash Lite",
+                "description": "Ultra lightweight low-latency execution",
+                "badge": "Lite"
             }
         ]
     })
@@ -1312,6 +1563,7 @@ AGENT_PERSONAS = [
 ]
 
 @app.route('/api/agent/personas', methods=['GET'])
+@app.route('/api/personas', methods=['GET'])
 def get_agent_personas():
     return jsonify({"status": "success", "personas": AGENT_PERSONAS})
 
@@ -1486,6 +1738,85 @@ def delete_automation_custom_app(app_id):
     res = automation_engine.automation.delete_custom_app(app_id)
     return jsonify(res)
 
+# ── Multi-Algorithm Problem Solver API ───────────────────────────────────
+@app.route('/api/algorithms/catalog', methods=['GET'])
+def get_algorithms_catalog():
+    catalog = multi_algorithm_engine.multi_algo_engine.get_supported_algorithms()
+    return jsonify({"status": "success", "algorithms": catalog})
+
+@app.route('/api/algorithms/solve', methods=['POST'])
+def solve_algorithm_endpoint():
+    data = request.json or {}
+    algo_id = data.get('algorithm_id', 'dp_knapsack')
+    params = data.get('params', {})
+    res = multi_algorithm_engine.multi_algo_engine.solve(algo_id, params)
+    return jsonify(res)
+
+@app.route('/api/algorithms/benchmark', methods=['POST'])
+def benchmark_algorithm_endpoint():
+    data = request.json or {}
+    task_type = data.get('task_type', 'sorting')
+    test_size = int(data.get('test_size', 1000))
+    res = multi_algorithm_engine.multi_algo_engine.benchmark_comparison(task_type, test_size)
+    return jsonify({"status": "success", **res})
+
+# ── Multi-Pipeline DAG Orchestrator API ──────────────────────────────────
+@app.route('/api/pipeline/run-all', methods=['POST'])
+def run_pipeline_full_endpoint():
+    data = request.json or {}
+    pipeline_id = data.get('pipeline_id', 'workspace_doctor')
+    target_folder = data.get('target_folder', '')
+    cwd = resolve_path(target_folder) if target_folder else _BASE_DIR
+    res = pipeline_orchestrator.pipeline_orchestrator.run_pipeline(pipeline_id, cwd=cwd)
+    return jsonify(res)
+
+@app.route('/api/pipeline/orchestrate-concurrent', methods=['POST'])
+def run_multi_pipelines_concurrent_endpoint():
+    data = request.json or {}
+    pipeline_ids = data.get('pipeline_ids', ['workspace_doctor', 'auto_security_and_lint'])
+    target_folder = data.get('target_folder', '')
+    cwd = resolve_path(target_folder) if target_folder else _BASE_DIR
+    res = pipeline_orchestrator.pipeline_orchestrator.run_multi_pipelines_concurrent(pipeline_ids, cwd=cwd)
+    return jsonify(res)
+
+@app.route('/api/pipeline/custom', methods=['POST'])
+def add_custom_pipeline_endpoint():
+    data = request.json or {}
+    res = pipeline_orchestrator.pipeline_orchestrator.add_custom_pipeline(data)
+    return jsonify(res)
+
+@app.route('/api/pipeline/custom/<pipe_id>', methods=['DELETE'])
+def delete_custom_pipeline_endpoint(pipe_id):
+    res = pipeline_orchestrator.pipeline_orchestrator.delete_custom_pipeline(pipe_id)
+    return jsonify(res)
+
+# ── Anti-Hallucination & Epistemic Grounding API ──────────────────────────
+@app.route('/api/grounding/status', methods=['GET'])
+def get_grounding_status():
+    return jsonify({
+        "status": "success",
+        "grounding_engine": "Self-RAG Grounding Guardian v5.0",
+        "zero_hallucination_active": True,
+        "stdlib_modules_count": len(grounding_guardian.PYTHON_STDLIB_MODULES),
+        "epistemic_mode": "Strict Epistemic Grounding"
+    })
+
+@app.route('/api/grounding/verify', methods=['POST'])
+def verify_text_grounding():
+    data = request.json or {}
+    text = data.get('text', '')
+    evidence = data.get('evidence', [])
+    res = grounding_guardian.grounding_guardian.verify_factual_grounding(text, evidence_logs=evidence)
+    return jsonify({"status": "success", **res})
+
+@app.route('/api/grounding/validate-code', methods=['POST'])
+def validate_code_imports_endpoint():
+    data = request.json or {}
+    code = data.get('code', '')
+    target_folder = data.get('target_folder', '')
+    res = grounding_guardian.grounding_guardian.validate_code_imports(code, target_folder)
+    return jsonify({"status": "success", **res})
+
 # ── WhatsApp, Telegram & Messaging Integration API ───────────────────────
 try:
     from core import messaging_engine
@@ -1636,6 +1967,49 @@ def git_status():
     except Exception as e:
         return jsonify({"status": "error", "is_git": False, "message": str(e)})
 
+# ── Codebase AST Symbol Graph APIs ───────────────────────────────────────
+@app.route('/api/symbols/index', methods=['POST', 'GET'])
+def api_index_symbols():
+    target = request.args.get('path') or (request.json or {}).get('path')
+    res = ast_symbol_graph.symbol_graph.index_workspace(resolve_path(target) if target else _BASE_DIR)
+    return jsonify({"status": "success", "data": res})
+
+@app.route('/api/symbols/search', methods=['GET'])
+def api_search_symbols():
+    q = request.args.get('q', '')
+    res = ast_symbol_graph.symbol_graph.search_symbols(q)
+    return jsonify({"status": "success", "query": q, "results": res})
+
+@app.route('/api/symbols/outline', methods=['GET'])
+def api_symbol_outline():
+    fpath = request.args.get('path', '')
+    res = ast_symbol_graph.symbol_graph.get_file_outline(fpath)
+    return jsonify({"status": "success", "file": fpath, "outline": res})
+
+# ── Multi-Agent Consensus Swarm API ──────────────────────────────────────
+@app.route('/api/swarm/evaluate', methods=['POST'])
+def api_swarm_evaluate():
+    data = request.json or {}
+    task = data.get('task', 'Workspace Optimization')
+    proposal = data.get('proposal', '')
+    context = data.get('context', '')
+    res = agent_swarm.swarm_engine.evaluate_proposal(task, proposal, context)
+    return jsonify(res)
+
+# ── Local LLM Offline Connector APIs ─────────────────────────────────────
+@app.route('/api/local-llm/status', methods=['GET'])
+def api_local_llm_status():
+    res = local_llm_connector.local_llm.discover_local_servers()
+    return jsonify({"status": "success", "data": res})
+
+@app.route('/api/local-llm/generate', methods=['POST'])
+def api_local_llm_generate():
+    data = request.json or {}
+    model = data.get('model', 'llama3')
+    messages = data.get('messages', [])
+    res = local_llm_connector.local_llm.generate_chat(model, messages)
+    return jsonify(res)
+
 # ── Curated Prompt Engineering Blueprint Library ─────────────────────────
 PROMPT_TEMPLATES = [
     {
@@ -1667,6 +2041,18 @@ PROMPT_TEMPLATES = [
         "title": "📐 Fourier Epicycles & Harmonics Visualizer",
         "category": "STEM",
         "prompt": "Explain the Fourier Series and show how rotating epicycles decompose square, triangle, and sawtooth waves. Build an interactive simulation with harmonic sliders and real-time wave drawing."
+    },
+    {
+        "id": "algo-knapsack-opt",
+        "title": "🧮 0/1 Knapsack & Dynamic Programming Optimizer",
+        "category": "Algorithms",
+        "prompt": "Solve and visualize the 0/1 Knapsack optimization problem with dynamic programming. Formulate the state recurrence, compute optimal item subsets, and benchmark against greedy and branch-and-bound strategies."
+    },
+    {
+        "id": "multi-pipe-orchestrator",
+        "title": "⚡ Multi-Pipeline Autonomous Orchestration",
+        "category": "Pipelines",
+        "prompt": "Run the complete autonomous multi-pipeline cluster across my workspace: execute the Workspace Environment Doctor, static security scan, and multi-algorithm complexity benchmark, then synthesize a consolidated health report."
     }
 ]
 
@@ -1686,6 +2072,8 @@ def chat():
     force_decompose = data.get('deep_decompose', False)
     selected_persona = data.get('persona', 'fullstack')
     autonomous_mode = data.get('autonomous_mode', False)
+    best_of_best_mode = data.get('best_of_best', True)
+    voice_mode = data.get('voice_mode', False)  # Ava Voice Studio flag
 
     last_user_msg = ""
     for m in reversed(messages):
@@ -1701,7 +2089,51 @@ def chat():
             yield "data: [DONE]\n\n"
             return
         
-        # ── Self-RAG Query Validation & Intent Disambiguation ──
+        # ── Voice Mode: Immediate, ultra-fast conversational synthesis ──
+        if voice_mode:
+            system_instruction = (
+                "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant (similar to Siri or Google Assistant) talking out loud with Ishaan.\n"
+                "CRITICAL SPOKEN VOICE RULES:\n"
+                "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, and informative.\n"
+                "2. Spoken conversational tone with natural human emotion: Always start naturally with a brief conversational filler ('Umm, ', 'Hmm, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
+                "3. ABSOLUTELY ZERO MARKDOWN: Never use asterisks (*), hashtags (#), bullets (- or •), numbered lists, code blocks, URLs, or slashes (/). Pronounce abbreviations naturally.\n"
+                "4. Fast turn-taking: Never ramble, lecture, or make lists. Be snappy and conversational.\n"
+                "5. If Ishaan asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
+            )
+            conversation = [{"role": "system", "content": system_instruction}]
+            for m in messages:
+                if m.get('role') in {'user', 'assistant'}:
+                    content = m.get('content', '')
+                    if content and content != 'Synthesizing response...':
+                        conversation.append({"role": m['role'], "content": content})
+
+            try:
+                fast_model = requested_model if ("flash" in requested_model.lower() and "1.5" not in requested_model) else "gemini-3.8-flash"
+                response = call_openai_with_autofix({
+                    "model": fast_model,
+                    "messages": conversation,
+                    "stream": False,
+                    "max_tokens": 90
+                })
+                raw_text = response.choices[0].message.content or ""
+            except Exception as e:
+                raw_text = "I am right here with you Ishaan! How can I help?"
+
+            # Humanize speech output with authentic conversational markers and pauses
+            clean_speech = voice_humanizer.humanizer.inject_human_disfluencies(raw_text, last_user_msg)
+            if not clean_speech.strip():
+                clean_speech = "I am listening Ishaan, what can I do for you?"
+
+            words = clean_speech.split(' ')
+            for i, word in enumerate(words):
+                chunk = word if i == 0 else ' ' + word
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+                time.sleep(0.003)
+
+            yield "data: [DONE]\n\n"
+            return
+
+        # ── Self-RAG Query Validation & Intent Disambiguation (Standard Workspace Mode) ──
         q_val = self_rag.self_rag_engine["validator"].validate_query(last_user_msg, messages, selected_persona)
         
         disam = q_val.get("disambiguation") or {}
@@ -1726,7 +2158,7 @@ def chat():
 # COMMUNICATION & INTELLIGENCE PRINCIPLES:
 1. High Clarity & Understandability:
    - Begin EVERY technical, architectural, or scientific explanation with a punchy **### Executive Summary / TL;DR** (2-3 bullet points) so Ishaan grasps the core concept in 3 seconds.
-   - Ground abstract theory with concrete, practical examples, architecture flow diagrams (using Mermaid `graph TD`), and clean typed code snippets.
+   - Ground abstract theory with concrete, practical examples, architecture flow diagrams (using Mermaid `flowchart TD` with double-quoted node labels like `A["Label (Details)"] --> B["Next Step"]`), and clean typed code snippets.
    - When explaining mathematics or physics, show the step-by-step physical intuition followed by clean KaTeX notation (`$$...$$`).
 2. Smart Follow-Up Proactivity (MANDATORY ON ALL TURNS):
    - At the end of EVERY response, provide 2 to 3 intelligent next-step follow-up suggestions using the format:
@@ -1736,7 +2168,10 @@ def chat():
    - When asked to inspect files, execute code, run terminal commands, or research, execute immediately using your built-in tool suite and connected MCP servers.
 4. Bulletproof & Zero-Dependency Live Artifacts:
    - When creating HTML/CSS/JS applications, charts, or 3D/2D simulations, generate complete standalone single-file code inside `<antArtifact identifier="..." type="text/html" language="html" title="...">...</antArtifact>` tags.
-   - CRITICAL ARTIFACT RULE: Sandboxed iframe artifacts MUST be 100% self-contained using pure native HTML5 Canvas (with custom 2D/3D projection math), SVG, CSS, and native JavaScript. NEVER rely on external CDN scripts (like three.js, d3, or chart.js from cdnjs/jsdelivr) which can fail with `Uncaught ReferenceError`. Write pure Canvas rendering loops with `requestAnimationFrame`.
+   - CRITICAL ARTIFACT RULES:
+     * NEVER wrap inner code inside `<antArtifact>` with markdown backticks (e.g. ````html ... ````). Output raw HTML directly.
+     * In HTML labels, slider titles, and UI text, use clean Unicode characters (such as `θ`, `v₀`, `v⃗`, `g`, `t`, `k/m`, `Δ`, `°`, `m/s`, `m/s²`), NEVER raw LaTeX dollar signs like `$\theta$` or `$\v_0$`.
+     * Sandboxed iframe artifacts MUST be 100% self-contained using pure native HTML5 Canvas (with custom 2D/3D projection math), SVG, CSS, and native JavaScript. NEVER rely on external CDN scripts (like three.js, d3, or chart.js from cdnjs/jsdelivr) which can fail with `Uncaught ReferenceError`. Write pure Canvas rendering loops with `requestAnimationFrame`.
 5. Interactive STEM & Math Visualizations:
    - When Ishaan asks about a mathematical, physics, or algorithmic concept that CAN BE VISUALIZED:
      - If explicit visualization is requested, provide the derivation AND a full interactive Canvas simulation in `<antArtifact>`.
@@ -1797,6 +2232,7 @@ def chat():
         max_steps = 12 if autonomous_mode else 8
         final_text = ""
         accumulated_thinking = []
+        evidence_logs = []
 
         for step in range(1, max_steps + 1):
             if subtasks:
@@ -1822,6 +2258,7 @@ def chat():
                     yield f"data: {json.dumps({'system': f'Executing {tool_name} with {json.dumps(tool_args)}'})}\n\n"
                     
                     result = execute_tool(tool_name, tool_args, target_folder)
+                    evidence_logs.append(f"[{tool_name}] input={json.dumps(tool_args)} => {str(result)}")
                     
                     yield f"data: {json.dumps({'thinking': f'✅ Tool `{tool_name}` output received ({len(result)} chars). Synthesizing answer...'})}\n\n"
                     
@@ -1848,6 +2285,55 @@ def chat():
         if not final_text:
             final_text = "Task completed successfully."
 
+        # ── B1 "Best of the Best" Self-Refining Evaluator-Optimizer Loop ──
+        if best_of_best_mode and final_text and not final_text.startswith("An error occurred"):
+            yield f"data: {json.dumps({'thinking': '🔍 Best-of-the-Best Engine: Auditing draft quality & syntax (Tier 1)...'})}\n\n"
+            
+            def _refine_llm_call(refine_convo):
+                r_resp = call_openai_with_autofix({
+                    "model": requested_model,
+                    "messages": refine_convo,
+                    "stream": False
+                })
+                return r_resp.choices[0].message.content or ""
+
+            refinement_events = []
+            def _on_refine_progress(p_data):
+                refinement_events.append(p_data)
+
+            final_text, refine_summary = self_refinement_engine.self_refinement_engine.run_refinement_loop(
+                initial_draft=final_text,
+                user_prompt=last_user_msg,
+                conversation_history=conversation,
+                call_llm_fn=_refine_llm_call,
+                evidence_logs=evidence_logs,
+                rag_context_chunks=[rag_ctx] if rag_ctx else [],
+                max_iterations=2,
+                on_progress=_on_refine_progress
+            )
+
+            for rev in refinement_events:
+                yield f"data: {json.dumps({'refinement_loop': rev})}\n\n"
+                r_iter = rev.get("iteration", 1)
+                r_score = rev.get("quality_score", 0)
+                if not rev.get("passed") and rev.get("status") == "REFINING":
+                    yield f"data: {json.dumps({'thinking': f'✦ Best-of-Best: Self-correcting iteration {r_iter} (Score: {r_score}/100) — applying improvements...'})}\n\n"
+                elif rev.get("passed"):
+                    yield f"data: {json.dumps({'thinking': f'✓ Best-of-Best: Verified & Approved (Quality Score: {r_score}/100) — zero defects.'})}\n\n"
+
+        # Anti-Hallucination & Epistemic Grounding Verification
+        grounding_report = grounding_guardian.grounding_guardian.verify_factual_grounding(
+            final_text,
+            evidence_logs=evidence_logs,
+            rag_context_chunks=[rag_ctx] if rag_ctx else [],
+            user_prompt=last_user_msg,
+            conversation_history=messages
+        )
+        code_validation = grounding_guardian.grounding_guardian.validate_code_imports(final_text, target_folder)
+
+        # Emit Grounding Telemetry
+        yield f"data: {json.dumps({'grounding': grounding_report, 'code_validation': code_validation})}\n\n"
+
         # Extract Artifacts
         artifacts = []
         artifact_matches = re.finditer(
@@ -1855,12 +2341,17 @@ def chat():
             final_text
         )
         for m in artifact_matches:
+            raw_art = m.group(5).strip()
+            # Clean accidental markdown code fences (e.g. ```html ... ```)
+            clean_art = re.sub(r"^```(?:html|css|js|javascript|svg|python|xml)?\s*", "", raw_art, flags=re.IGNORECASE)
+            clean_art = re.sub(r"\s*```$", "", clean_art).strip()
+            clean_art = re.sub(r"^[\.\s]{1,4}(?=<)", "", clean_art)
             artifacts.append({
                 "identifier": m.group(1),
-                "type": m.group(2) or "application/vnd.ant.code",
+                "type": m.group(2) or "text/html",
                 "language": m.group(3) or "html",
                 "title": m.group(4) or "Artifact",
-                "content": m.group(5).strip()
+                "content": clean_art
             })
 
         if not artifacts:
@@ -2046,6 +2537,331 @@ def auto_heal_app_endpoint():
         return jsonify(res)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+# ══════════════════════════════════════════════════════════════════════════
+# B1 RESEARCH COUNCIL ENDPOINTS (ISOLATED MULTI-AGENT WORKSPACE)
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/research/agents', methods=['GET'])
+def get_research_agents_endpoint():
+    """Returns available council agents and dynamically resolved domain expert."""
+    query = request.args.get("query", "")
+    agents = research_council_engine.council_orchestrator.get_council_agents(query)
+    return jsonify({"status": "success", "agents": agents})
+
+@app.route('/api/research/sessions', methods=['GET'])
+def list_research_sessions_endpoint():
+    """Lists saved research council sessions."""
+    sessions = research_council_engine.council_orchestrator.list_sessions()
+    return jsonify({"status": "success", "sessions": sessions})
+
+@app.route('/api/research/session/<session_id>', methods=['GET'])
+def get_research_session_endpoint(session_id):
+    """Retrieves full research session details, deliberation messages, and evidence ledger."""
+    data = research_council_engine.council_orchestrator.get_session_details(session_id)
+    if not data:
+        return jsonify({"status": "error", "message": "Research session not found"}), 404
+    return jsonify({"status": "success", **data})
+
+@app.route('/api/research/session/create', methods=['POST'])
+def create_research_session_endpoint():
+    """Initializes a new isolated research council session."""
+    data = request.json or {}
+    query = data.get("query", "").strip()
+    title = data.get("title", "")
+    depth = data.get("depth", "standard")
+    if not query:
+        return jsonify({"status": "error", "message": "Query is required"}), 400
+    session_id = research_council_engine.council_orchestrator.create_session(title, query, depth)
+    return jsonify({"status": "success", "session_id": session_id})
+
+@app.route('/api/research/session/<session_id>', methods=['DELETE'])
+def delete_research_session_endpoint(session_id):
+    """Deletes research session and cascaded rows."""
+    research_council_engine.council_orchestrator.delete_session(session_id)
+    return jsonify({"status": "success", "message": "Session deleted"})
+
+@app.route('/api/research/council/run', methods=['POST'])
+def run_research_council_stream():
+    """
+    SSE streaming endpoint for real-time collaborative Research Council deliberation.
+    Reuses B1's existing OpenAI client, proxy, and active model.
+    """
+    data = request.json or {}
+    query = data.get("query", "").strip()
+    depth = data.get("depth", "standard")
+    session_id = data.get("session_id") or research_council_engine.council_orchestrator.create_session(query[:40], query, depth)
+    requested_model = data.get("model") or MODEL
+
+    if not query:
+        return jsonify({"status": "error", "message": "Research query is required"}), 400
+
+    def generate_research_stream():
+        def _call_council_llm(messages):
+            resp = call_openai_with_autofix({
+                "model": requested_model,
+                "messages": messages,
+                "stream": False
+            })
+            return resp.choices[0].message.content or ""
+
+        try:
+            for event in research_council_engine.council_orchestrator.run_council_deliberation(
+                session_id=session_id,
+                query=query,
+                depth=depth,
+                call_llm_fn=_call_council_llm,
+                model_name=requested_model
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    return Response(stream_with_context(generate_research_stream()), mimetype='text/event-stream')
+
+
+# ── Conversational Voice Engine Endpoints (TTS & STT Support) ─────────────
+_TTS_CACHE = {}
+
+@app.route('/api/voice/voices', methods=['GET'])
+def get_voice_profiles():
+    """Returns available natural conversational neural voice profiles."""
+    profiles = [
+        {
+            "id": "en-US-AvaMultilingualNeural",
+            "name": "Ava Multilingual",
+            "tag": "Next-Gen Expressive",
+            "persona": "Expressive Conversational AI (Warm & Emotional)",
+            "recommended": True,
+            "description": "Flagship next-gen neural voice with rich emotional contours, breath, and warmth."
+        },
+        {
+            "id": "en-IN-NeerjaExpressiveNeural",
+            "name": "Neerja Expressive",
+            "tag": "Expressive Indian",
+            "persona": "Natural Indian English (Emotional Cadence)",
+            "recommended": True,
+            "description": "Expressive Indian English voice with natural vocal inflections, breath pauses, and warmth."
+        },
+        {
+            "id": "en-US-AriaNeural",
+            "name": "Aria",
+            "tag": "Warm & Empathetic",
+            "persona": "Empathetic Human Voice (Dynamic Range)",
+            "recommended": False,
+            "description": "Widely praised for conversational warmth, dynamic emotional range, and natural pauses."
+        },
+        {
+            "id": "en-US-EmmaMultilingualNeural",
+            "name": "Emma Multilingual",
+            "tag": "Bright & Friendly",
+            "persona": "Youthful & Cheerful AI",
+            "recommended": False,
+            "description": "Cheerful, bright vocal texture with natural conversational flow."
+        },
+        {
+            "id": "en-US-AndrewMultilingualNeural",
+            "name": "Andrew Multilingual",
+            "tag": "Expressive Male",
+            "persona": "Conversational Male Companion",
+            "recommended": False,
+            "description": "Warm, natural male conversational voice with rich tone and authentic intonations."
+        },
+        {
+            "id": "en-US-AvaNeural",
+            "name": "Ava Standard",
+            "tag": "Classic Neural",
+            "persona": "Clear Neutral Voice",
+            "recommended": False,
+            "description": "Crisp, articulate classic delivery."
+        },
+        {
+            "id": "en-GB-SoniaNeural",
+            "name": "Sonia",
+            "tag": "British AI",
+            "persona": "British Conversational Voice",
+            "recommended": False,
+            "description": "Authentic British accent with warm vocal inflections."
+        }
+    ]
+    return jsonify({
+        "status": "success",
+        "default_voice": "en-US-AvaMultilingualNeural",
+        "default_pitch": "+0Hz",
+        "default_rate": "+0%",
+        "edge_tts_available": edge_tts is not None,
+        "voices": profiles
+    })
+
+@app.route('/api/voice/humanize', methods=['POST'])
+def humanize_voice_text():
+    """Transforms raw assistant response into conversational speech with disfluencies and chunks."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    context_prompt = data.get("context_prompt", "")
+    disfluency_level = data.get("disfluency_level", "natural")
+
+    h = voice_humanizer.VoiceHumanizer(disfluency_level=disfluency_level)
+    result = h.process_for_voice(text, context_prompt=context_prompt)
+    return jsonify({"status": "success", "result": result})
+
+@app.route('/api/voice/tts', methods=['POST', 'GET'])
+def voice_tts_stream():
+    """
+    Ultra-low latency streaming TTS endpoint using Edge-TTS with caching.
+    Returns complete MP3 audio with sub-second synthesis and instant cache hits.
+    """
+    if edge_tts is None:
+        return jsonify({"status": "error", "message": "edge-tts is not installed on the backend"}), 500
+
+    if request.method == 'POST':
+        data = request.json or {}
+        text = data.get('text', '').strip()
+        voice = data.get('voice', 'en-US-AvaMultilingualNeural')
+        pitch = data.get('pitch', '+0Hz')
+        rate = data.get('rate', '+0%')
+        humanize_flag = data.get('humanize', True)
+        context_prompt = data.get('context_prompt', '')
+        disfluency_level = data.get('disfluency_level', 'natural')
+    else:
+        text = request.args.get('text', '').strip()
+        voice = request.args.get('voice', 'en-US-AvaMultilingualNeural')
+        pitch = request.args.get('pitch', '+0Hz')
+        rate = request.args.get('rate', '+0%')
+        humanize_flag = request.args.get('humanize', 'true').lower() == 'true'
+        context_prompt = request.args.get('context_prompt', '')
+        disfluency_level = request.args.get('disfluency_level', 'natural')
+
+    if not text:
+        return jsonify({"status": "error", "message": "Text parameter is required"}), 400
+
+    h = voice_humanizer.VoiceHumanizer(disfluency_level=disfluency_level)
+    if humanize_flag:
+        speech_text = h.inject_human_disfluencies(text, context_prompt)
+    else:
+        speech_text = h.sanitize_for_speech(text)
+
+    if not speech_text.strip():
+        speech_text = "I have updated the workspace for you."
+
+    # Cache lookup for instant (< 2ms) responses
+    cache_key = hashlib.md5(f"{voice}:{pitch}:{rate}:{speech_text}".encode('utf-8')).hexdigest()
+    if cache_key in _TTS_CACHE:
+        cached_audio = _TTS_CACHE[cache_key]
+        quoted_preview = urllib.parse.quote(speech_text[:120].encode('utf-8'))
+        return Response(
+            cached_audio,
+            mimetype="audio/mpeg",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Length": str(len(cached_audio)),
+                "X-Spoken-Text": quoted_preview,
+                "X-Voice-Used": voice,
+                "X-TTS-Cache": "HIT"
+            }
+        )
+
+    async def _fetch_audio():
+        communicate = edge_tts.Communicate(speech_text, voice, rate=rate, pitch=pitch)
+        chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                chunks.append(chunk["data"])
+        return b"".join(chunks)
+
+    try:
+        audio_bytes = asyncio.run(_fetch_audio())
+        if not audio_bytes:
+            raise RuntimeError("No audio data returned by TTS engine")
+        
+        # Store in LRU cache (limit to 300 entries to prevent memory leak)
+        if len(_TTS_CACHE) > 300:
+            _TTS_CACHE.clear()
+        _TTS_CACHE[cache_key] = audio_bytes
+        
+        quoted_preview = urllib.parse.quote(speech_text[:120].encode('utf-8'))
+        return Response(
+            audio_bytes,
+            mimetype="audio/mpeg",
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Content-Length": str(len(audio_bytes)),
+                "X-Spoken-Text": quoted_preview,
+                "X-Voice-Used": voice,
+                "X-TTS-Cache": "MISS"
+            }
+        )
+    except Exception as err:
+        print(f"[Voice TTS Error] {err}")
+        return jsonify({"status": "error", "message": f"TTS synthesis failed: {str(err)}"}), 500
+
+
+@app.route('/api/voice/transcribe', methods=['POST'])
+def voice_transcribe():
+    """
+    Transcribes spoken audio WAV using speech_recognition.
+    Supports audio file upload or base64 audio payload.
+    Provides bulletproof speech-to-text fallback when browser Web Speech API is unavailable or silent.
+    """
+    if sr is None:
+        return jsonify({"status": "error", "message": "speech_recognition is not available on the backend"}), 500
+
+    try:
+        audio_data = None
+        language = request.form.get('language') or request.args.get('language') or 'en-IN'
+
+        # 1. Check multipart file upload
+        if 'audio' in request.files:
+            audio_data = request.files['audio'].read()
+        # 2. Check JSON payload with base64 audio
+        elif request.is_json:
+            json_body = request.get_json(silent=True) or {}
+            language = json_body.get('language', language)
+            b64_audio = json_body.get('audio_base64', '')
+            if b64_audio:
+                if ',' in b64_audio:
+                    b64_audio = b64_audio.split(',', 1)[1]
+                audio_data = base64.b64decode(b64_audio)
+        # 3. Check raw request body
+        else:
+            raw_body = request.get_data()
+            if raw_body and len(raw_body) > 100:
+                audio_data = raw_body
+
+        if not audio_data or len(audio_data) < 100:
+            return jsonify({"status": "error", "message": "No valid audio payload received"}), 400
+
+        recognizer = sr.Recognizer()
+        with io.BytesIO(audio_data) as audio_file:
+            with sr.AudioFile(audio_file) as source:
+                recorded_audio = recognizer.record(source)
+                transcript = recognizer.recognize_google(recorded_audio, language=language)
+                print(f"[Voice STT Success] Transcribed ({language}): '{transcript}'")
+                return jsonify({
+                    "status": "success",
+                    "transcript": transcript,
+                    "language": language
+                })
+    except sr.UnknownValueError:
+        print("[Voice STT] No recognizable speech detected in audio")
+        return jsonify({
+            "status": "no_speech",
+            "message": "No recognizable speech detected in audio.",
+            "transcript": ""
+        })
+    except sr.RequestError as e:
+        print(f"[Voice STT Error] Service error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Speech recognition service error: {str(e)}"
+        }), 502
+    except Exception as e:
+        print(f"[Voice STT Error] Exception: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Transcription failed: {str(e)}"
+        }), 500
 
 
 if __name__ == '__main__':

@@ -55,9 +55,8 @@ def main():
     print(f"Context saved to {CONTEXT_FILE}.")
     
     # Open UI
-    ui_path = os.path.abspath(UI_FILE)
-    print(f"Opening {ui_path} in your browser...")
-    webbrowser.open(f"file:///{ui_path}")
+    print("Opening Gemini Agent Studio at http://127.0.0.1:5000 in your browser...")
+    webbrowser.open("http://127.0.0.1:5000")
 
 if __name__ == "__main__":
     main()

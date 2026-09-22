@@ -15,15 +15,18 @@ if exist "%ROOT_DIR%gemini-web2api\gemini_web2api.py" (
     set "CHATBOX_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox"
 )
 
-:: Step 1: Ensure Web2API proxy is running on 8081
-netstat -ano | findstr :8081 >nul
-if %errorlevel% neq 0 (
-    echo [1/3] Starting Gemini Web2API Proxy...
-    start /b "" python "%PROXY_DIR%\gemini_web2api.py"
-    timeout /t 3 >nul
-) else (
-    echo [1/3] Proxy server is active on port 8081.
+:: Step 1: Ensure Web2API proxy is running on 8081 with latest models
+netstat -ano | findstr :8081 | findstr LISTENING >nul
+if %errorlevel% equ 0 (
+    echo [1/3] Refreshing Gemini Web2API Proxy on port 8081...
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do (
+        taskkill /F /PID %%p >nul 2>&1
+    )
+    timeout /t 1 >nul
 )
+echo [1/3] Starting Gemini Web2API Proxy...
+start /b "" python "%PROXY_DIR%\gemini_web2api.py"
+timeout /t 3 >nul
 
 :: Step 2: Handoff context & launch browser UI
 echo [2/3] Extracting conversation context...
@@ -31,7 +34,7 @@ cd /d "%CHATBOX_DIR%"
 python handoff.py
 
 :: Step 3: Run Flask Agent Backend
-echo [3/3] Agent Backend active at http://localhost:5000
+echo [3/3] Agent Backend active at http://127.0.0.1:5000
 echo.
 python agent_backend.py
 pause

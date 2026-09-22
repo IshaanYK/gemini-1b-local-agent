@@ -44,15 +44,15 @@ if %errorlevel% equ 0 (
 :: Open the UI in browser
 echo  [3/3] ^> Opening chatbox in browser...
 ping 127.0.0.1 -n 2 >nul
-start "" "%CHATBOX_DIR%\index.html"
+start "" "http://127.0.0.1:5000"
 
 echo.
 echo  ============================================
 echo   ALL SYSTEMS GO. Close this window anytime.
 echo  ============================================
 echo.
-echo   Web2API Proxy  : http://localhost:8081
-echo   Agent Backend  : http://localhost:5000
-echo   Chat UI        : file://...index.html
+echo   Web2API Proxy  : http://127.0.0.1:8081
+echo   Agent Backend  : http://127.0.0.1:5000
+echo   Chat UI        : http://127.0.0.1:5000
 echo.
 pause

@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import json
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if os.path.basename(os.path.dirname(os.path.abspath(__file__))) == "core" else os.path.dirname(os.path.abspath(__file__))
 
@@ -131,68 +131,63 @@ class AutomationEngine:
         return {"status": "error", "message": f"Unknown application ID: {app_id}"}
 
     def get_pipelines(self) -> List[Dict[str, Any]]:
-        """Returns catalog of pre-configured automated workflows."""
-        return [
-            {
-                "id": "workspace_doctor",
-                "title": "Workspace Environment Doctor",
-                "description": "Audits Python, Node, Git, MCP connections, and active dependencies",
-                "category": "Diagnostics",
-                "icon": "🩺",
-                "steps": [
-                    {"name": "Check Python Version & Packages", "cmd": "python --version"},
-                    {"name": "Audit Git Status & Cleanliness", "cmd": "git status -s"},
-                    {"name": "Verify Node/NPM Toolchain", "cmd": "node --version"},
-                    {"name": "Check Local RAG Vector Database", "cmd": "python -c \"from core import rag_memory; print(rag_memory.get_system_status())\""}
-                ]
-            },
-            {
-                "id": "auto_security_and_lint",
-                "title": "Automated Security & Code Health Scan",
-                "description": "Performs static vulnerability analysis, hardcoded secret detection & file audit",
-                "category": "Security & QA",
-                "icon": "🛡️",
-                "steps": [
-                    {"name": "Run Workspace Security Audit", "cmd": "python -c \"from core import security_rag; print(security_rag.scanner.scan_workspace())\""},
-                    {"name": "Inspect Tracked Git Changes", "cmd": "git diff --stat"}
-                ]
-            },
-            {
-                "id": "auto_git_sync",
-                "title": "Git Autonomous Sync & Commit",
-                "description": "Stages modified files, audits diffs, and creates a structured auto-commit",
-                "category": "Version Control",
-                "icon": "🐙",
-                "steps": [
-                    {"name": "Stage All Tracked Modifications", "cmd": "git add -u"},
-                    {"name": "Display Staged Changes", "cmd": "git status -s"}
-                ]
-            }
-        ]
+        """Returns catalog of pre-configured automated workflows from PipelineOrchestrator."""
+        try:
+            from core import pipeline_orchestrator
+            return pipeline_orchestrator.pipeline_orchestrator.list_all_pipelines()
+        except Exception:
+            return [
+                {
+                    "id": "workspace_doctor",
+                    "title": "Workspace Environment Doctor",
+                    "description": "Audits Python, Node, Git, MCP connections, and active dependencies",
+                    "category": "Diagnostics",
+                    "icon": "🩺",
+                    "steps": [
+                        {"name": "Check Python Version & Packages", "cmd": "python --version"},
+                        {"name": "Audit Git Status & Cleanliness", "cmd": "git status -s"},
+                        {"name": "Verify Node/NPM Toolchain", "cmd": "node --version"}
+                    ]
+                }
+            ]
 
     def run_pipeline_step(self, command: str, cwd: Optional[str] = None) -> Dict[str, Any]:
         """Executes a single step in an automated pipeline."""
-        work_dir = cwd or self.base_dir
         try:
-            if os.name == 'nt':
-                ps_cmd = f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command {subprocess.list2cmdline([command])}"
-                res = subprocess.run(ps_cmd, shell=True, capture_output=True, text=True, timeout=45, cwd=work_dir, encoding="utf-8", errors="replace")
-            else:
-                res = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=45, cwd=work_dir, encoding="utf-8", errors="replace")
+            from core import pipeline_orchestrator
+            return pipeline_orchestrator.pipeline_orchestrator.execute_command_resilient(command, cwd=cwd)
+        except Exception:
+            work_dir = cwd or self.base_dir
+            try:
+                if os.name == 'nt':
+                    ps_cmd = f"powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command {subprocess.list2cmdline([command])}"
+                    res = subprocess.run(ps_cmd, shell=True, capture_output=True, text=True, timeout=45, cwd=work_dir, encoding="utf-8", errors="replace")
+                else:
+                    res = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=45, cwd=work_dir, encoding="utf-8", errors="replace")
 
-            stdout = (res.stdout or "").strip()
-            stderr = (res.stderr or "").strip()
-            return {
-                "status": "success" if res.returncode == 0 else "warning",
-                "exit_code": res.returncode,
-                "stdout": stdout,
-                "stderr": stderr,
-                "output": f"{stdout}\n{stderr}".strip() if stderr else stdout
-            }
-        except subprocess.TimeoutExpired:
-            return {"status": "error", "exit_code": 124, "output": "Command timed out after 45 seconds."}
-        except Exception as e:
-            return {"status": "error", "exit_code": 1, "output": str(e)}
+                stdout = (res.stdout or "").strip()
+                stderr = (res.stderr or "").strip()
+                return {
+                    "status": "success" if res.returncode == 0 else "warning",
+                    "exit_code": res.returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "output": f"{stdout}\n{stderr}".strip() if stderr else stdout
+                }
+            except subprocess.TimeoutExpired:
+                return {"status": "error", "exit_code": 124, "output": "Command timed out after 45 seconds."}
+            except Exception as e:
+                return {"status": "error", "exit_code": 1, "output": str(e)}
+
+    def run_pipeline_full(self, pipeline_id: str, cwd: Optional[str] = None, callback: Optional[Callable] = None) -> Dict[str, Any]:
+        """Executes complete multi-stage pipeline with status tracking."""
+        from core import pipeline_orchestrator
+        return pipeline_orchestrator.pipeline_orchestrator.run_pipeline(pipeline_id, cwd=cwd, callback=callback)
+
+    def run_multi_pipelines_concurrent(self, pipeline_ids: List[str], cwd: Optional[str] = None) -> Dict[str, Any]:
+        """Executes multiple pipelines in parallel."""
+        from core import pipeline_orchestrator
+        return pipeline_orchestrator.pipeline_orchestrator.run_multi_pipelines_concurrent(pipeline_ids, cwd=cwd)
 
     # ── Custom App Integration & Step-by-Step Execution ─────────────────────
     def get_custom_apps_file(self) -> str:

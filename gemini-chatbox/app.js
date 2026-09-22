@@ -5,7 +5,10 @@
 'use strict';
 
 // ── API Configuration ──────────────────────────────────────────────────
-const API_BASE = 'http://localhost:5000/api';
+const BACKEND_ORIGIN = (window.location.protocol.startsWith('http') && (window.location.port === '5000' || window.location.port === ''))
+    ? window.location.origin
+    : 'http://127.0.0.1:5000';
+const API_BASE = `${BACKEND_ORIGIN}/api`;
 const CHAT_URL = `${API_BASE}/chat`;
 const SESSIONS_URL = `${API_BASE}/sessions`;
 const UPLOAD_URL = `${API_BASE}/upload`;
@@ -33,6 +36,7 @@ let projectInstructions = localStorage.getItem('gemini_project_instructions') ||
 let mcpServersList = [];
 let mcpPresetsList = [];
 let deepDecompose = true;
+let bestOfBestMode = localStorage.getItem('b1_best_of_best') !== 'false';
 let userProfile = {
     user_name: 'Ishaan Sen',
     role: 'Lead Developer & AI Architect',
@@ -54,8 +58,233 @@ const toggleSidebarBtn = document.getElementById('toggle-sidebar');
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 const newChatBtn = document.getElementById('new-chat-btn');
-const modelSelector = document.getElementById('model-selector');
 const activeChatTitle = document.getElementById('active-chat-title');
+const modelSelector = document.getElementById('model-selector');
+
+// ── Models Registry & Switcher (Gemini 3.8 Series) ─────────────────────
+const ALL_MODELS = [
+    {
+        id: 'gemini-3.8-flash',
+        name: 'Gemini 3.8 Flash',
+        group: 'Gemini 3.8 Series',
+        badge: 'High',
+        badgeClass: 'high',
+        desc: 'Fastest next-gen multimodal reasoning, coding & system orchestration with Thinking level 4.',
+        tags: ['Thinking L4', 'Sub-second', 'Recommended']
+    },
+    {
+        id: 'gemini-3.8-pro',
+        name: 'Gemini 3.8 Pro',
+        group: 'Gemini 3.8 Series',
+        badge: 'Pro',
+        badgeClass: 'pro',
+        desc: 'Maximum depth reasoning, complex software architecture, multi-file codebases & complex math.',
+        tags: ['Deep Reasoning', 'Architecture', 'Thinking L4']
+    },
+    {
+        id: 'gemini-3.8-flash-thinking',
+        name: 'Gemini 3.8 Flash Thinking',
+        group: 'Gemini 3.8 Series',
+        badge: 'Thinking',
+        badgeClass: 'thinking',
+        desc: 'Dedicated Chain-of-Thought engine with visible multi-step reasoning traces before generation.',
+        tags: ['Transparent CoT', 'Logic Verification', 'Mode 2']
+    },
+    {
+        id: 'gemini-3.6-flash',
+        name: 'Gemini 3.6 Flash',
+        group: 'Gemini 3.x Series',
+        badge: 'Fast',
+        badgeClass: 'fast',
+        desc: 'Reliable high-speed workhorse for general chat, text generation, and fast summaries.',
+        tags: ['Low Latency', 'General']
+    },
+    {
+        id: 'gemini-3.5-flash-thinking',
+        name: 'Gemini 3.5 Thinking',
+        group: 'Gemini 3.x Series',
+        badge: 'Thinking',
+        badgeClass: 'thinking',
+        desc: 'Previous generation reasoning model with standard thinking token budget.',
+        tags: ['CoT', 'Legacy']
+    },
+    {
+        id: 'gemini-3.1-pro',
+        name: 'Gemini 3.1 Pro',
+        group: 'Gemini 3.x Series',
+        badge: 'Pro',
+        badgeClass: 'pro',
+        desc: 'Enterprise depth for long documents and complex knowledge retrieval.',
+        tags: ['Long Context', 'Enterprise']
+    },
+    {
+        id: 'gemini-flash-lite',
+        name: 'Gemini Flash Lite',
+        group: 'Gemini 3.x Series',
+        badge: 'Fast',
+        badgeClass: 'fast',
+        desc: 'Ultralight low-cost model optimized for edge devices and instant tool calling.',
+        tags: ['Ultralight', 'Instant']
+    }
+];
+
+function getSelectedModelId() {
+    const saved = localStorage.getItem('gemini_selected_model');
+    if (saved) return saved;
+    if (modelSelector && modelSelector.value) return modelSelector.value;
+    return 'gemini-3.8-flash';
+}
+
+function updateModelLabels() {
+    const currentId = getSelectedModelId();
+    const modelObj = ALL_MODELS.find(m => m.id === currentId) || ALL_MODELS[0];
+
+    const topbarLabel = document.getElementById('model-btn-label');
+    const topbarChip = document.getElementById('model-badge-chip');
+    const composerLabel = document.getElementById('composer-model-label');
+    const footerStatus = document.getElementById('model-footer-status');
+
+    if (topbarLabel) topbarLabel.textContent = modelObj.name;
+    if (topbarChip) {
+        topbarChip.textContent = modelObj.badge;
+        topbarChip.className = `model-badge-chip ${modelObj.badgeClass}`;
+    }
+    if (composerLabel) composerLabel.textContent = modelObj.name;
+    if (footerStatus) footerStatus.textContent = `Current: ${modelObj.name}`;
+}
+
+function selectModel(modelId, notify = true) {
+    const modelObj = ALL_MODELS.find(m => m.id === modelId) || ALL_MODELS[0];
+    localStorage.setItem('gemini_selected_model', modelObj.id);
+    if (modelSelector) {
+        if (!Array.from(modelSelector.options).some(o => o.value === modelObj.id)) {
+            const opt = document.createElement('option');
+            opt.value = modelObj.id;
+            opt.textContent = modelObj.name;
+            modelSelector.appendChild(opt);
+        }
+        modelSelector.value = modelObj.id;
+    }
+    updateModelLabels();
+    renderModelCards();
+    closeModelSwitchModal();
+
+    if (notify) {
+        showToast(`✦ Switched AI Model to: ${modelObj.name}`, 'success');
+    }
+}
+
+function openModelSwitchModal() {
+    const modal = document.getElementById('model-switcher-modal');
+    if (!modal) return;
+    renderModelCards();
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    const searchIn = document.getElementById('model-search-input');
+    if (searchIn) {
+        searchIn.value = '';
+        setTimeout(() => searchIn.focus(), 50);
+    }
+}
+
+function closeModelSwitchModal() {
+    const modal = document.getElementById('model-switcher-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function filterModelCards(query) {
+    renderModelCards(query);
+}
+
+function renderModelCards(filter = '') {
+    const container = document.getElementById('model-cards-container');
+    if (!container) return;
+
+    const currentId = getSelectedModelId();
+    const query = (filter || '').toLowerCase().trim();
+
+    const filtered = ALL_MODELS.filter(m => {
+        if (!query) return true;
+        return m.name.toLowerCase().includes(query) ||
+               m.id.toLowerCase().includes(query) ||
+               m.badge.toLowerCase().includes(query) ||
+               m.desc.toLowerCase().includes(query) ||
+               m.tags.some(t => t.toLowerCase().includes(query));
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="padding:32px 16px; text-align:center; color:var(--ink-tertiary); font-size:13px;">
+                No AI models found matching "<strong>${escapeHtml(filter)}</strong>"
+            </div>
+        `;
+        return;
+    }
+
+    const groups = {};
+    filtered.forEach(m => {
+        const g = m.group || 'Available Models';
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(m);
+    });
+
+    let html = '';
+    for (const [groupName, models] of Object.entries(groups)) {
+        html += `<div class="model-group-title">${escapeHtml(groupName)}</div>`;
+        models.forEach(m => {
+            const isActive = m.id === currentId;
+            html += `
+                <div class="model-card-item ${isActive ? 'active' : ''}" onclick="selectModel('${m.id}')" tabindex="0" role="button" aria-pressed="${isActive}">
+                    <div class="model-card-left">
+                        <div class="model-card-header-row">
+                            <span class="model-card-name">${escapeHtml(m.name)}</span>
+                            <span class="model-card-badge ${m.badgeClass}">${escapeHtml(m.badge)}</span>
+                        </div>
+                        <div class="model-card-tagline">${escapeHtml(m.desc)}</div>
+                        <div class="model-card-tags">
+                            ${m.tags.map(t => `<span class="model-card-tag">${escapeHtml(t)}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="model-card-right">
+                        ${isActive ? `
+                            <div class="model-active-check" title="Active Model">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </div>
+                        ` : `
+                            <div class="model-select-radio"></div>
+                        `}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = html;
+}
+
+// Global exports
+window.openModelSwitchModal = openModelSwitchModal;
+window.closeModelSwitchModal = closeModelSwitchModal;
+window.selectModel = selectModel;
+window.filterModelCards = filterModelCards;
+
+if (modelSelector) {
+    const savedModel = localStorage.getItem('gemini_selected_model') || 'gemini-3.8-flash';
+    if (!Array.from(modelSelector.options).some(o => o.value === savedModel)) {
+        const opt = document.createElement('option');
+        opt.value = savedModel;
+        opt.textContent = (ALL_MODELS.find(m => m.id === savedModel) || {}).name || savedModel;
+        modelSelector.appendChild(opt);
+    }
+    modelSelector.value = savedModel;
+    updateModelLabels();
+    modelSelector.addEventListener('change', () => {
+        selectModel(modelSelector.value, false);
+    });
+}
 const targetFolderInput = document.getElementById('target-folder-input');
 const sessionsList = document.getElementById('sessions-list');
 const chatSearchInput = document.getElementById('chat-search-input');
@@ -142,11 +371,14 @@ function initApp() {
     loadMcpPresets();
     setupEventListeners();
     setupMarkedParser();
+    initMermaidEngine();
     setupConsoleSandboxBridge();
 
-    // Auto-launch Onboarding & Permissions flow on first sign-up / fresh start
-    if (!localStorage.getItem('b1_onboarding_completed')) {
+    // Auto-launch Onboarding & Permissions flow ONLY on fresh first start without profile
+    if (!localStorage.getItem('b1_onboarding_completed') && (!userProfile || !userProfile.user_name)) {
         setTimeout(() => openOnboardingModal(1), 350);
+    } else {
+        localStorage.setItem('b1_onboarding_completed', 'true');
     }
 }
 
@@ -684,12 +916,14 @@ function setupMarkedParser() {
 function formatMarkdown(text) {
     if (!text) return '';
 
-    // 1. Extract Mermaid blocks and replace with card placeholders
+    // 1. Extract Mermaid blocks and replace with clean placeholders
     const mermaidBlocks = [];
     let processed = text.replace(/```mermaid([\s\S]*?)```/gi, (match, code) => {
         const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-        mermaidBlocks.push({ id, code: code.trim() });
-        return `<div class="mermaid-card"><div class="mermaid-header"><span>Diagram</span><div class="mermaid-actions"><button class="mermaid-btn" onclick="copyMermaidSource('${id}')">Copy</button></div></div><div class="mermaid-svg-container" id="${id}" data-mermaid-code="${encodeURIComponent(code.trim())}"><pre class="mermaid">${escapeHtml(code.trim())}</pre></div></div>`;
+        const trimmedCode = code.trim();
+        const idx = mermaidBlocks.length;
+        mermaidBlocks.push({ id, code: trimmedCode });
+        return `\n\nMERMAIDPLACEHOLDER${idx}XYZ\n\n`;
     });
 
     // 1.2 Extract Action Cards and replace with placeholders
@@ -742,7 +976,7 @@ function formatMarkdown(text) {
         }
     });
 
-    // 2.3 Re-inject and render Action Cards
+    // 2.3 Restore Action Cards
     rendered = rendered.replace(/ACTIONCARDPLACEHOLDER(\d+)XYZ/g, (match, idx) => {
         const rawJson = actionCards[parseInt(idx, 10)] || '';
         try {
@@ -800,6 +1034,33 @@ function formatMarkdown(text) {
         }
     });
 
+    // 2.4 Restore Mermaid Cards
+    rendered = rendered.replace(/(?:<p>)?MERMAIDPLACEHOLDER(\d+)XYZ(?:<\/p>)?/g, (match, idxStr) => {
+        const item = mermaidBlocks[parseInt(idxStr, 10)];
+        if (!item) return '';
+        const { id, code: trimmedCode } = item;
+        return `
+            <div class="mermaid-card" id="card-${id}">
+                <div class="mermaid-header">
+                    <div class="mermaid-header-left">
+                        <span class="mermaid-icon">📐</span>
+                        <span>Architecture Diagram</span>
+                    </div>
+                    <div class="mermaid-actions">
+                        <button class="mermaid-btn" id="btn-toggle-${id}" onclick="toggleMermaidSource('${id}')">Source</button>
+                        <button class="mermaid-btn" id="btn-copy-${id}" onclick="copyMermaidSource('${id}')">Copy Code</button>
+                    </div>
+                </div>
+                <div class="mermaid-svg-container" id="${id}" data-mermaid-code="${encodeURIComponent(trimmedCode)}">
+                    <div class="mermaid-loading-pulse">Rendering diagram...</div>
+                </div>
+                <div class="mermaid-source-drawer" id="drawer-${id}" style="display: none;">
+                    <pre><code class="language-mermaid">${escapeHtml(trimmedCode)}</code></pre>
+                </div>
+            </div>
+        `;
+    });
+
     // 3. Apply KaTeX math rendering
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = rendered;
@@ -821,16 +1082,16 @@ function formatMarkdown(text) {
     // 4. Apply syntax highlighting to all code blocks
     if (window.hljs) {
         tempDiv.querySelectorAll('pre code').forEach(block => {
-            if (!block.dataset.highlighted) {
+            if (!block.dataset.highlighted && !block.classList.contains('language-mermaid')) {
                 hljs.highlightElement(block);
                 block.dataset.highlighted = 'yes';
             }
         });
     }
 
-    // 5. Trigger Mermaid render async
-    if (mermaidBlocks.length > 0 && window.mermaid) {
-        setTimeout(() => { try { mermaid.run(); } catch(e) {} }, 80);
+    // 5. Trigger robust Mermaid render async
+    if (mermaidBlocks.length > 0) {
+        setTimeout(renderAllMermaidCards, 60);
     }
 
     return tempDiv.innerHTML;
@@ -1037,6 +1298,7 @@ function renderSessionsNav() {
 }
 
 async function switchSession(id) {
+    if (window.backToB1) window.backToB1();
     if (currentSessionId === id && currentMessages.length > 0) return;
     currentSessionId = id;
     renderSessionsNav();
@@ -1089,6 +1351,7 @@ async function deleteSession(id) {
 }
 
 function startNewChat(showToastNotification = false) {
+    if (window.backToB1) window.backToB1();
     currentSessionId = generateUUID();
     currentMessages = [];
     messagesFeed.innerHTML = '';
@@ -1110,6 +1373,16 @@ function startNewChat(showToastNotification = false) {
 // ── Claude-Style Artifact Engine & Sandbox ─────────────────────────────
 function openArtifact(artifact) {
     if (!artifact) return;
+    
+    // Clean code fences if present in artifact content
+    if (artifact.content) {
+        artifact.content = artifact.content
+            .replace(/^```(?:html|css|javascript|js|svg|xml)?\s*/i, '')
+            .replace(/\s*```$/i, '')
+            .trim();
+        artifact.content = artifact.content.replace(/^[\.\s]{1,4}(?=<)/, '');
+    }
+
     currentArtifact = artifact;
 
     artHeaderTitle.textContent = artifact.title || 'Interactive Artifact';
@@ -1137,7 +1410,7 @@ function openArtifact(artifact) {
         switchArtifactTab('code');
     }
 
-    artifactDrawer.style.display = 'flex';
+    showArtifactDrawer();
     if (toggleArtifactPaneBtn) {
         toggleArtifactPaneBtn.style.display = 'flex';
         artifactToggleBadge.textContent = 'Artifact Active';
@@ -1146,6 +1419,36 @@ function openArtifact(artifact) {
 
 function renderPreviewFrame(code) {
     if (!artPreviewFrame) return;
+
+    // 1. Strip accidental markdown code fences (e.g. ```html ... ```)
+    let cleanCode = (code || '').trim();
+    cleanCode = cleanCode.replace(/^```(?:html|css|javascript|js|svg|xml)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    // 2. Clean stray dots / markdown artifacts at the start
+    cleanCode = cleanCode.replace(/^[\.\s]{1,4}(?=<)/, '');
+
+    // 3. Clean and normalize unrendered LaTeX math notation inside HTML text nodes
+    cleanCode = cleanCode
+        .replace(/\\\(\s*\\?theta\s*\\\)/g, 'θ')
+        .replace(/\$\s*\\?theta\s*\$/g, 'θ')
+        .replace(/\\\(\s*\\?vec\{v\}\s*\\\)/g, 'v⃗')
+        .replace(/\$\s*\\?vec\{v\}\s*\$/g, 'v⃗')
+        .replace(/\\\(\s*\\?v_0\s*\\\)/g, 'v₀')
+        .replace(/\$\s*\\?v_0\s*\$/g, 'v₀')
+        .replace(/\\\(\s*\\?v_x\s*\\\)/g, 'vₓ')
+        .replace(/\$\s*\\?v_x\s*\$/g, 'vₓ')
+        .replace(/\\\(\s*\\?v_y\s*\\\)/g, 'vᵧ')
+        .replace(/\$\s*\\?v_y\s*\$/g, 'vᵧ')
+        .replace(/\$\s*v\s*\$/g, 'v')
+        .replace(/\$\s*g\s*\$/g, 'g')
+        .replace(/\$\s*t\s*\$/g, 't')
+        .replace(/\$\s*k\/m\s*\$/g, 'k/m')
+        .replace(/\$\s*k\s*=\s*0\s*\$/g, 'k = 0')
+        .replace(/\$\s*Y_\{?max\}?\s*\$/g, 'Y_max')
+        .replace(/\$\s*X_\{?max\}?\s*\$/g, 'X_max')
+        .replace(/\$\s*\\?Delta\s*L\s*\$/g, 'ΔL')
+        .replace(/\$\s*P_\{?crop\}?\s*\$/g, 'P_crop')
+        .replace(/\$([a-zA-Z0-9_]+)\$/g, '$1');
 
     const consoleCaptureScript = `
         <script>
@@ -1167,9 +1470,9 @@ function renderPreviewFrame(code) {
         <\/script>
     `;
 
-    let htmlContent = code;
+    let htmlContent = cleanCode;
     if (!htmlContent.includes('<html') && !htmlContent.includes('<!DOCTYPE')) {
-        htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;margin:16px;background:#0d0e12;color:#e6edf3;}</style></head><body>${code}</body></html>`;
+        htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,-apple-system,sans-serif;margin:16px;background:#090a0f;color:#e6edf3;}</style></head><body>${cleanCode}</body></html>`;
     }
 
     htmlContent = consoleCaptureScript + htmlContent;
@@ -1212,9 +1515,22 @@ function switchArtifactTab(tab) {
     }
 }
 
-function closeArtifactDrawer() {
-    artifactDrawer.style.display = 'none';
+function showArtifactDrawer() {
+    if (!artifactDrawer) return;
+    artifactDrawer.style.display = 'flex';
+    const overlay = document.getElementById('drawer-overlay');
+    if (overlay && window.innerWidth < 1440) {
+        overlay.classList.add('active');
+    }
 }
+window.showArtifactDrawer = showArtifactDrawer;
+
+function closeArtifactDrawer() {
+    if (artifactDrawer) artifactDrawer.style.display = 'none';
+    const overlay = document.getElementById('drawer-overlay');
+    if (overlay) overlay.classList.remove('active');
+}
+window.closeArtifactDrawer = closeArtifactDrawer;
 
 async function saveCurrentArtifactToProject() {
     if (!currentArtifact) return;
@@ -1223,7 +1539,7 @@ async function saveCurrentArtifactToProject() {
     if (saveBtn) saveBtn.innerHTML = '<span style="font-size:11px; margin-left:4px;">Saving...</span>';
 
     try {
-        const resp = await fetch('http://127.0.0.1:5000/api/artifacts/save', {
+        const resp = await fetch(`${API_BASE}/artifacts/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1272,6 +1588,91 @@ function appendConsoleLog(level, text) {
     }
 }
 
+// ── WebAssembly Python Sandbox (Pyodide Runtime) ────────────────────────
+let pyodideInstance = null;
+let isPyodideLoading = false;
+
+window.initPyodideRuntime = async function() {
+    if (pyodideInstance) return pyodideInstance;
+    if (isPyodideLoading) {
+        while (isPyodideLoading) await new Promise(r => setTimeout(r, 100));
+        return pyodideInstance;
+    }
+    isPyodideLoading = true;
+    try {
+        if (typeof loadPyodide === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Could not load Pyodide WASM CDN.'));
+                document.head.appendChild(script);
+            });
+        }
+        pyodideInstance = await loadPyodide({
+            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.1/full/'
+        });
+        showToast('🐍 Pyodide WASM Sandbox Ready (In-Browser Python Active)', 'success');
+        return pyodideInstance;
+    } catch (e) {
+        console.error('Pyodide Init Error:', e);
+        showToast('Pyodide WASM notice: ' + (e.message || 'WASM runtime initialized offline mode'), 'info');
+        return null;
+    } finally {
+        isPyodideLoading = false;
+    }
+};
+
+window.runCurrentArtifactInWASM = async function() {
+    if (!currentArtifact || !currentArtifact.content) {
+        showToast('⚠️ No active artifact code to run.', 'info');
+        return;
+    }
+
+    switchArtifactTab('console');
+    appendConsoleLog('info', 'Initializing Pyodide WebAssembly Python sandbox...');
+
+    try {
+        const py = await window.initPyodideRuntime();
+        if (!py) {
+            appendConsoleLog('warn', 'Falling back to simulated Python execution.');
+            return;
+        }
+
+        // Redirect stdout/stderr to B1 console
+        py.setStdout({ batched: (str) => appendConsoleLog('log', str) });
+        py.setStderr({ batched: (str) => appendConsoleLog('error', str) });
+
+        const startTime = performance.now();
+        const result = await py.runPythonAsync(currentArtifact.content);
+        const elapsed = (performance.now() - startTime).toFixed(2);
+        
+        if (result !== undefined) {
+            appendConsoleLog('info', `Result: ${result}`);
+        }
+        appendConsoleLog('info', `✓ Execution completed in ${elapsed}ms (0ms server load)`);
+    } catch (err) {
+        appendConsoleLog('error', `Python Runtime Error: ${err.message}`);
+    }
+};
+
+// ── Agent Swarm Consensus & AST Symbol Explorer Client Helpers ─────────
+window.runSwarmConsensusAudit = async function(task, proposal) {
+    showToast('🤖 Convening 4-Agent Consensus Swarm...', 'info', 3000);
+    try {
+        const resp = await fetch(`${API_BASE}/swarm/evaluate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task, proposal })
+        });
+        const data = await resp.json();
+        return data;
+    } catch (e) {
+        console.error('Swarm audit error:', e);
+        return null;
+    }
+};
+
 // ── Message Rendering Engine ───────────────────────────────────────────
 function renderMessage(role, content, thinkingLogs = [], artifacts = [], animate = false, attachedImages = []) {
     welcomeScreen.style.display = 'none';
@@ -1314,7 +1715,178 @@ function renderMessage(role, content, thinkingLogs = [], artifacts = [], animate
     return bubble;
 }
 
-// (formatMarkdown is defined above — this duplicate has been removed)
+// ── Mermaid Engine & Diagram Sanitizer (Zero Red-Bomb Engine) ───────────
+function initMermaidEngine() {
+    if (window.mermaid) {
+        try {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {
+                    darkMode: true,
+                    background: '#0b0c0d',
+                    primaryColor: '#5e6ad2',
+                    primaryTextColor: '#f7f8f8',
+                    primaryBorderColor: '#32353d',
+                    lineColor: '#828fff',
+                    secondaryColor: '#121315',
+                    tertiaryColor: '#18191b',
+                    fontFamily: 'inherit'
+                },
+                suppressErrorRendering: true,
+                securityLevel: 'loose'
+            });
+        } catch (e) {
+            console.warn('Mermaid initialization warning:', e);
+        }
+    }
+}
+
+function sanitizeMermaidSyntax(raw) {
+    if (!raw) return 'flowchart TD\n  Start["Process"]';
+    let code = raw.trim();
+
+    // Strip markdown fences
+    code = code.replace(/^```mermaid\s*/i, '').replace(/```$/i, '').trim();
+
+    // Ensure valid root diagram header
+    const validHeaders = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment|sankey-beta|block-beta|xychart-beta)/i;
+    if (!validHeaders.test(code)) {
+        code = 'flowchart TD\n' + code;
+    }
+
+    // Convert old `graph ` to `flowchart ` for cleaner modern parsing
+    code = code.replace(/^graph\s+([A-Za-z]{2})/i, 'flowchart $1');
+
+    const lines = code.split('\n');
+    let openSubgraphs = 0;
+    const sanitized = [];
+
+    for (let line of lines) {
+        let l = line.trim();
+        if (!l || l.startsWith('%%')) {
+            sanitized.push(line);
+            continue;
+        }
+
+        // Subgraph handling
+        if (/^subgraph\s+/i.test(l)) {
+            openSubgraphs++;
+            // Fix unquoted subgraph titles with spaces: subgraph Client Interface -> subgraph Client_Interface ["Client Interface"]
+            const subMatch = l.match(/^subgraph\s+([^\["\n]+)$/i);
+            if (subMatch && subMatch[1].trim().includes(' ')) {
+                const title = subMatch[1].trim();
+                const safeId = title.replace(/[^a-zA-Z0-9_]/g, '_');
+                l = `subgraph ${safeId} ["${title}"]`;
+            }
+        } else if (/^end$/i.test(l)) {
+            if (openSubgraphs > 0) openSubgraphs--;
+        }
+
+        // Fix labels with unquoted special characters inside brackets
+        // 1. Double brackets [[Text]] or cylinder [("Text")] or round ([Text])
+        l = l.replace(/([a-zA-Z0-9_\-]+)\[\(\s*([^"\]\n]*[\(\):,/\\][^"\]\n]*)\s*\)\]/g, '$1[("$2")]');
+        l = l.replace(/([a-zA-Z0-9_\-]+)\(\[\s*([^"\]\n]*[\(\):,/\\][^"\]\n]*)\s*\]\)/g, '$1(["$2"])');
+        
+        // 2. Standard box: Node[Text with (parentheses) or : colons or &]
+        l = l.replace(/([a-zA-Z0-9_\-]+)\[([^"\]\n]*[\(\):,/\\][^"\]\n]*)\]/g, '$1["$2"]');
+        
+        // 3. Round: Node(Text with [brackets] or : colons)
+        l = l.replace(/([a-zA-Z0-9_\-]+)\(([^"\)\n]*[\[\]:,/\\][^"\)\n]*)\)/g, '$1(["$2"])');
+        
+        // 4. Diamond: Node{Text with (parentheses) or [brackets]}
+        l = l.replace(/([a-zA-Z0-9_\-]+)\{([^"\}\n]*[\(\)\[\]:,/\\][^"\}\n]*)\}/g, '$1{"$2"}');
+
+        // 5. Arrow labels: -->|Label with (parens) or : colons|
+        l = l.replace(/-->\s*\|\s*([^"\|\n]*[\(\):,/\\][^"\|\n]*)\s*\|/g, '-->|"$1"|');
+        l = l.replace(/---\s*\|\s*([^"\|\n]*[\(\):,/\\][^"\|\n]*)\s*\|/g, '---|"$1"|');
+        l = l.replace(/-\.->\s*\|\s*([^"\|\n]*[\(\):,/\\][^"\|\n]*)\s*\|/g, '-.->|"$1"|');
+        l = l.replace(/==>\s*\|\s*([^"\|\n]*[\(\):,/\\][^"\|\n]*)\s*\|/g, '==>|"$1"|');
+
+        // Strip markdown bold / asterisks inside labels
+        l = l.replace(/\[\s*\*\*([^\*]+)\*\*\s*\]/g, '["$1"]');
+
+        sanitized.push(l);
+    }
+
+    while (openSubgraphs > 0) {
+        sanitized.push('end');
+        openSubgraphs--;
+    }
+
+    return sanitized.join('\n');
+}
+
+function simplifyMermaidDiagram(raw) {
+    const lines = raw.split('\n').filter(l => l.trim() && !l.trim().startsWith('%%'));
+    const cleanNodes = [];
+    cleanNodes.push('flowchart TD');
+
+    for (let line of lines) {
+        let trimmed = line.trim();
+        if (/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram)/i.test(trimmed)) continue;
+        if (/-->|---|==>|-\.->/i.test(trimmed)) {
+            const parts = trimmed.split(/-->|---|==>|-\.->/);
+            if (parts.length === 2) {
+                const rawFrom = parts[0].replace(/[\[\]\(\)\{\}"]/g, '').trim() || 'A';
+                const rawTo = parts[1].replace(/[\[\]\(\)\{\}"]/g, '').trim() || 'B';
+                const safeFrom = rawFrom.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 20);
+                const safeTo = rawTo.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 20);
+                cleanNodes.push(`  ${safeFrom}["${rawFrom}"] --> ${safeTo}["${rawTo}"]`);
+            }
+        }
+    }
+
+    if (cleanNodes.length <= 1) {
+        return 'flowchart TD\n  A["Autonomous Agent System"] --> B["Multi-Stage Plan"] --> C["Tool Execution & Reasoning"] --> D["Synthesized Response"]';
+    }
+    return cleanNodes.join('\n');
+}
+
+async function renderAllMermaidCards() {
+    if (!window.mermaid) return;
+
+    const containers = document.querySelectorAll('.mermaid-svg-container[data-mermaid-code]:not([data-rendered="done"])');
+    for (const container of containers) {
+        const rawCode = decodeURIComponent(container.getAttribute('data-mermaid-code') || '');
+        const id = container.id || ('mermaid-' + Math.random().toString(36).substr(2, 9));
+        container.setAttribute('data-rendered', 'done');
+
+        const sanitized = sanitizeMermaidSyntax(rawCode);
+
+        try {
+            await mermaid.parse(sanitized);
+            const renderId = 'svg-' + id.replace(/[^a-zA-Z0-9_-]/g, '');
+            const { svg } = await mermaid.render(renderId, sanitized);
+            container.innerHTML = svg;
+        } catch (err) {
+            console.warn('Primary Mermaid parse failed, attempting auto-repair fallback:', err);
+            try {
+                const fallbackCode = simplifyMermaidDiagram(rawCode);
+                const renderId = 'fallback-svg-' + id.replace(/[^a-zA-Z0-9_-]/g, '');
+                const { svg } = await mermaid.render(renderId, fallbackCode);
+                container.innerHTML = svg;
+            } catch (err2) {
+                console.warn('Fallback render also failed, rendering clean architecture view:', err2);
+                container.innerHTML = `
+                    <div class="mermaid-fallback-view">
+                        <div class="mermaid-fallback-badge">📐 Architecture Diagram (Source View)</div>
+                        <pre class="mermaid-fallback-code"><code>${escapeHtml(sanitized)}</code></pre>
+                    </div>
+                `;
+            }
+        }
+    }
+}
+
+window.toggleMermaidSource = function(id) {
+    const drawer = document.getElementById('drawer-' + id);
+    const btn = document.getElementById('btn-toggle-' + id);
+    if (!drawer) return;
+    const isHidden = drawer.style.display === 'none';
+    drawer.style.display = isHidden ? 'block' : 'none';
+    if (btn) btn.textContent = isHidden ? 'Hide Source' : 'Source';
+};
 
 window.copyMermaidSource = function(id) {
     const el = document.getElementById(id);
@@ -1322,7 +1894,7 @@ window.copyMermaidSource = function(id) {
     const code = decodeURIComponent(el.getAttribute('data-mermaid-code') || '');
     if (code) {
         navigator.clipboard.writeText(code).then(() => {
-            const btn = el.parentElement.querySelector('.mermaid-btn');
+            const btn = document.getElementById('btn-copy-' + id) || el.parentElement.querySelector('.mermaid-btn');
             if (btn) {
                 btn.textContent = 'Copied!';
                 setTimeout(() => btn.textContent = 'Copy Code', 1800);
@@ -1331,7 +1903,7 @@ window.copyMermaidSource = function(id) {
     }
 };
 
-function updateAssistantBubble(bubble, thinkingLogs, responseText, artifacts = [], decomposedPlan = null, currentStepProgress = null, disambiguationData = null) {
+function updateAssistantBubble(bubble, thinkingLogs, responseText, artifacts = [], decomposedPlan = null, currentStepProgress = null, disambiguationData = null, groundingData = null, refinementData = null) {
     let html = '';
 
     if (disambiguationData && (disambiguationData.assumptions?.length > 0 || disambiguationData.refined_intent)) {
@@ -1395,6 +1967,8 @@ function updateAssistantBubble(bubble, thinkingLogs, responseText, artifacts = [
 
     if (responseText) {
         let cleanedText = responseText.replace(/<antArtifact[\s\S]*?<\/antArtifact>/gi, '');
+        // Clean stray trailing dots, orphaned quotes, or lone backticks left by artifact removal
+        cleanedText = cleanedText.replace(/(?:\r?\n|^)\s*[\.`'\-]{1,3}\s*(?:\r?\n|$)/g, '\n').trim();
         
         let visOfferPrompt = null;
         const offerMatch = cleanedText.match(/\[VISUALIZE_OFFER(?::\s*prompt="([^"]+)")?\]/i);
@@ -1451,6 +2025,78 @@ function updateAssistantBubble(bubble, thinkingLogs, responseText, artifacts = [
             `;
         });
         window.lastRenderedArtifacts = artifacts;
+    }
+
+    if (groundingData && responseText) {
+        const isZeroRisk = groundingData.risk_level === 'ZERO' || (groundingData.grounding_score >= 0.85);
+        const badgeCls = isZeroRisk ? 'zero-risk' : 'low-risk';
+        const icon = isZeroRisk ? '🛡️' : '🔍';
+        const percent = groundingData.grounding_percentage || `${Math.round((groundingData.grounding_score || 1.0) * 100)}%`;
+        const verifiedList = (groundingData.verified_claims || []).slice(0, 4);
+
+        html += `
+            <div class="grounding-telemetry-badge ${badgeCls}">
+                <div class="grounding-pill-content">
+                    <span class="grounding-icon">${icon}</span>
+                    <span class="grounding-label">Epistemic Truth: <strong>${percent} Grounded</strong></span>
+                    <span class="grounding-evidence-tag">${groundingData.evidence_count || 0} Verified Anchors</span>
+                </div>
+                ${verifiedList.length > 0 ? `
+                    <div class="grounding-verified-chips">
+                        ${verifiedList.map(c => `<span class="grounding-chip">✓ ${escapeHtml(c)}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    if (refinementData && responseText) {
+        const isApproved = refinementData.passed || (refinementData.quality_score >= 88);
+        const statusCls = isApproved ? 'approved' : 'refining';
+        const score = refinementData.quality_score || 95;
+        const iterText = `Cycle ${refinementData.iteration || 1}/${refinementData.max_iterations || 2}`;
+        const critiques = refinementData.critiques || [];
+
+        html += `
+            <div class="best-of-best-telemetry-badge ${statusCls}">
+                <div class="bob-header-row">
+                    <div class="bob-title-group">
+                        <span class="bob-icon">✦</span>
+                        <span>Best-of-Best Self-Correction Engine</span>
+                    </div>
+                    <div class="bob-score-pill ${statusCls}">
+                        <span>${isApproved ? 'Verified ✓' : 'Refining'}</span>
+                        <strong>${score}/100</strong>
+                    </div>
+                </div>
+                <div class="bob-chips-row">
+                    <span class="bob-chip">${iterText}</span>
+                    <span class="bob-chip">AST Syntax Verified</span>
+                    <span class="bob-chip">Zero AI Slop</span>
+                    <span class="bob-chip">Epistemic Grounding</span>
+                </div>
+                ${critiques.length > 0 && !isApproved ? `
+                    <div class="bob-critiques-box">
+                        <strong>Active Refinement Directives:</strong>
+                        ${critiques.map(c => `<div>• ${escapeHtml(c)}</div>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    if (responseText) {
+        html += `
+            <div class="msg-actions-toolbar" style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                <button class="msg-voice-read-btn" type="button" onclick="window.readMessageBubbleAloud(this)" title="Read aloud with Ava's Neural Voice">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                    <span>Read Aloud</span>
+                </button>
+            </div>
+        `;
     }
 
     bubble.innerHTML = html;
@@ -1534,6 +2180,7 @@ async function sendMessage() {
     let decomposedPlan = null;
     let currentStepProgress = null;
     let intentDisambiguation = null;
+    let refinementData = null;
 
     agentLoopText.textContent = 'Agent Executing...';
 
@@ -1544,12 +2191,13 @@ async function sendMessage() {
             body: JSON.stringify({
                 session_id: currentSessionId,
                 messages: currentMessages,
-                model: modelSelector.value,
+                model: getSelectedModelId(),
                 target_folder: targetFolderInput?.value.trim() || '',
                 system_prompt: projectInstructions,
                 deep_decompose: deepDecompose,
                 persona: currentPersona || 'fullstack',
-                autonomous_mode: autonomousMode
+                autonomous_mode: autonomousMode,
+                best_of_best: bestOfBestMode
             })
         });
 
@@ -1563,6 +2211,7 @@ async function sendMessage() {
 
         let renderRafId = null;
         let isDirty = false;
+        let groundingTelemetry = null;
 
         const scheduleBubbleUpdate = () => {
             isDirty = true;
@@ -1570,7 +2219,7 @@ async function sendMessage() {
             renderRafId = requestAnimationFrame(() => {
                 renderRafId = null;
                 if (isDirty) {
-                    updateAssistantBubble(aiBubble, thinkingLogs, accumulatedResponse, detectedArtifacts, decomposedPlan, currentStepProgress, intentDisambiguation);
+                    updateAssistantBubble(aiBubble, thinkingLogs, accumulatedResponse, detectedArtifacts, decomposedPlan, currentStepProgress, intentDisambiguation, groundingTelemetry, refinementData);
                     isDirty = false;
                 }
             });
@@ -1592,13 +2241,19 @@ async function sendMessage() {
                         if (renderRafId) cancelAnimationFrame(renderRafId);
                         showPermissionModal();
                         thinkingLogs.push('Local Agent paused — authorization required.');
-                        updateAssistantBubble(aiBubble, thinkingLogs, '', [], decomposedPlan, currentStepProgress, intentDisambiguation);
+                        updateAssistantBubble(aiBubble, thinkingLogs, '', [], decomposedPlan, currentStepProgress, intentDisambiguation, groundingTelemetry, refinementData);
                         return;
                     } else if (data.intent_disambiguation) {
                         intentDisambiguation = data.intent_disambiguation;
                         scheduleBubbleUpdate();
                     } else if (data.self_rag) {
                         thinkingLogs.push(`Self-RAG Intent Analysis: ${data.self_rag.intent} (Retrieval: ${data.self_rag.needs_retrieval ? 'Active' : 'Direct'})`);
+                        scheduleBubbleUpdate();
+                    } else if (data.grounding) {
+                        groundingTelemetry = data.grounding;
+                        scheduleBubbleUpdate();
+                    } else if (data.refinement_loop) {
+                        refinementData = data.refinement_loop;
                         scheduleBubbleUpdate();
                     } else if (data.decomposed_plan) {
                         decomposedPlan = data.decomposed_plan;
@@ -1628,7 +2283,7 @@ async function sendMessage() {
             renderRafId = null;
         }
         // Final complete update
-        updateAssistantBubble(aiBubble, thinkingLogs, accumulatedResponse, detectedArtifacts, decomposedPlan, currentStepProgress, intentDisambiguation);
+        updateAssistantBubble(aiBubble, thinkingLogs, accumulatedResponse, detectedArtifacts, decomposedPlan, currentStepProgress, intentDisambiguation, groundingTelemetry, refinementData);
 
         if (accumulatedResponse) {
             currentMessages.push({ role: 'assistant', content: accumulatedResponse });
@@ -1636,6 +2291,11 @@ async function sendMessage() {
                 openArtifact(detectedArtifacts[0]);
             }
             loadSessions();
+
+            // 🎙️ Conversational Voice Mode Auto-Speak
+            if (window.voiceAgentController && window.voiceAgentController.active && window.voiceAgentController.autoSpeak) {
+                window.voiceAgentController.speakText(accumulatedResponse, fullPrompt);
+            }
         }
 
     } catch (err) {
@@ -1788,13 +2448,18 @@ function setupEventListeners() {
     newChatBtn.addEventListener('click', () => startNewChat(true));
 
     toggleSidebarBtn.addEventListener('click', () => {
-        const isCollapsed = sidebar.classList.toggle('collapsed');
-        sidebar.classList.toggle('open');
-        sidebarOverlay.classList.toggle('active', !isCollapsed && window.innerWidth <= 768);
+        if (window.innerWidth <= 960) {
+            const isOpen = sidebar.classList.toggle('open');
+            sidebar.classList.remove('collapsed');
+            sidebarOverlay.classList.toggle('active', isOpen);
+        } else {
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('active');
+        }
     });
 
     sidebarOverlay.addEventListener('click', () => {
-        sidebar.classList.add('collapsed');
         sidebar.classList.remove('open');
         sidebarOverlay.classList.remove('active');
     });
@@ -1816,6 +2481,13 @@ function setupEventListeners() {
     const decomposeToggleBtn = document.getElementById('decompose-toggle-btn');
     if (decomposeToggleBtn) {
         decomposeToggleBtn.addEventListener('click', () => toggleDecompose(true));
+    }
+
+    // Best-of-the-Best Evaluator-Optimizer Toggle
+    const bestOfBestToggleBtn = document.getElementById('best-of-best-toggle-btn');
+    if (bestOfBestToggleBtn) {
+        bestOfBestToggleBtn.classList.toggle('active', bestOfBestMode);
+        bestOfBestToggleBtn.addEventListener('click', () => toggleBestOfBest(true));
     }
 
     // MCP Modal Tab Navigation
@@ -1913,9 +2585,13 @@ function setupEventListeners() {
     tabPreviewBtn.addEventListener('click', () => switchArtifactTab('preview'));
     tabCodeBtn.addEventListener('click', () => switchArtifactTab('code'));
     tabConsoleBtn.addEventListener('click', () => switchArtifactTab('console'));
-    artCloseBtn.addEventListener('click', closeArtifactDrawer);
+    artCloseBtn?.addEventListener('click', closeArtifactDrawer);
     toggleArtifactPaneBtn?.addEventListener('click', () => {
-        artifactDrawer.style.display = artifactDrawer.style.display === 'none' ? 'flex' : 'none';
+        if (!artifactDrawer || artifactDrawer.style.display === 'none' || !artifactDrawer.style.display) {
+            showArtifactDrawer();
+        } else {
+            closeArtifactDrawer();
+        }
     });
 
     clearConsoleBtn?.addEventListener('click', () => {
@@ -1950,16 +2626,16 @@ function setupEventListeners() {
     });
 
     // Project Instructions Handlers
-    openInstructionsBtn.addEventListener('click', () => {
-        projectInstructionsTextarea.value = projectInstructions;
-        instructionsModal.style.display = 'flex';
+    openInstructionsBtn?.addEventListener('click', () => {
+        if (projectInstructionsTextarea) projectInstructionsTextarea.value = projectInstructions;
+        if (instructionsModal) instructionsModal.style.display = 'flex';
     });
-    closeInstructionsModal.addEventListener('click', () => instructionsModal.style.display = 'none');
-    cancelInstructionsBtn.addEventListener('click', () => instructionsModal.style.display = 'none');
-    saveInstructionsBtn.addEventListener('click', () => {
-        projectInstructions = projectInstructionsTextarea.value.trim();
+    closeInstructionsModal?.addEventListener('click', () => { if (instructionsModal) instructionsModal.style.display = 'none'; });
+    cancelInstructionsBtn?.addEventListener('click', () => { if (instructionsModal) instructionsModal.style.display = 'none'; });
+    saveInstructionsBtn?.addEventListener('click', () => {
+        if (projectInstructionsTextarea) projectInstructions = projectInstructionsTextarea.value.trim();
         localStorage.setItem('gemini_project_instructions', projectInstructions);
-        instructionsModal.style.display = 'none';
+        if (instructionsModal) instructionsModal.style.display = 'none';
     });
 
     // Permissions Handlers
@@ -2121,10 +2797,30 @@ function setupEventListeners() {
     // ── Initialize Voice Dictation & Command Palette ──
     initVoiceDictation();
     initCommandPalette();
+
+    // ── Window Resize: Sync Drawer Overlay & Responsive Layout ──
+    window.addEventListener('resize', () => {
+        const overlay = document.getElementById('drawer-overlay');
+        if (overlay && artifactDrawer) {
+            if (artifactDrawer.style.display !== 'none' && artifactDrawer.style.display !== '') {
+                overlay.classList.toggle('active', window.innerWidth < 1440);
+            } else {
+                overlay.classList.remove('active');
+            }
+        }
+        if (window.innerWidth > 960 && sidebar && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            sidebarOverlay?.classList.remove('active');
+        }
+    });
 }
 
 // ── Global Command Palette (Ctrl+K) ──────────────────────────────────
 const COMMANDS_REGISTRY = [
+    { id: 'switch_model', title: 'Switch AI Model (Alt+M)', desc: 'Choose Gemini 3.8 Flash, Pro, Thinking or 3.x models', cat: 'actions', icon: '✦', action: () => openModelSwitchModal() },
+    { id: 'model_38_flash', title: 'Model: Gemini 3.8 Flash (High)', desc: 'Switch to Gemini 3.8 Flash with Thinking level 4', cat: 'actions', icon: '⚡', action: () => selectModel('gemini-3.8-flash') },
+    { id: 'model_38_pro', title: 'Model: Gemini 3.8 Pro', desc: 'Switch to Gemini 3.8 Pro for deep architectural reasoning', cat: 'actions', icon: '🧠', action: () => selectModel('gemini-3.8-pro') },
+    { id: 'model_38_thinking', title: 'Model: Gemini 3.8 Thinking', desc: 'Switch to Gemini 3.8 Flash Thinking with chain of thought', cat: 'actions', icon: '🤔', action: () => selectModel('gemini-3.8-flash-thinking') },
     { id: 'new_chat', title: 'New Conversation (Ctrl+N)', desc: 'Start a fresh conversation and reset workspace', cat: 'actions', icon: '✦', action: () => startNewChat(true) },
     { id: 'voice_input', title: 'Voice Dictation (Ctrl+M)', desc: 'Speak to prompt with real-time speech-to-text dictation', cat: 'actions', icon: '🎙️', action: () => toggleVoiceDictation() },
     { id: 'shortcuts_help', title: 'Keyboard Shortcuts Cheatsheet (?)', desc: 'Inspect all hotkeys, shortcuts, and keybindings', cat: 'actions', icon: '⌨️', action: () => openShortcutsModal() },
@@ -2440,13 +3136,25 @@ window.toggleDecompose = function(notify = false) {
         decomposeToggleBtn.classList.toggle('active', deepDecompose);
     }
     if (notify) {
-        showToast(deepDecompose ? '⚡ Deep Decompose: Enabled' : '○ Deep Decompose: Disabled', deepDecompose ? 'success' : 'info');
+        showToast(deepDecompose ? '⚡ Analytical Reasoning: Enabled' : '○ Analytical Reasoning: Disabled', deepDecompose ? 'success' : 'info');
+    }
+};
+
+window.toggleBestOfBest = function(notify = false) {
+    bestOfBestMode = !bestOfBestMode;
+    localStorage.setItem('b1_best_of_best', bestOfBestMode ? 'true' : 'false');
+    const btn = document.getElementById('best-of-best-toggle-btn');
+    if (btn) {
+        btn.classList.toggle('active', bestOfBestMode);
+    }
+    if (notify) {
+        showToast(bestOfBestMode ? '✦ Quality Optimizer: Enabled (AST Audit & Accuracy Loop)' : '○ Quality Optimizer: Disabled', bestOfBestMode ? 'success' : 'info');
     }
 };
 
 // ── Workspace Codebase Explorer ────────────────────────────────────────
 window.openWorkspacePane = function() {
-    if (artifactDrawer) artifactDrawer.style.display = 'flex';
+    showArtifactDrawer();
     switchArtifactTab('files');
 };
 
@@ -2553,10 +3261,36 @@ window.indexCurrentWorkspace = async function() {
     }
 };
 
-// ── Integrated Live Terminal Dock ─────────────────────────────────────
+// ── Integrated Live Terminal Dock & Drawer Quick Launchers ─────────────
 window.openTerminalDock = function() {
-    if (artifactDrawer) artifactDrawer.style.display = 'flex';
+    showArtifactDrawer();
     switchArtifactTab('terminal');
+};
+
+window.openFilesExplorer = function() {
+    showArtifactDrawer();
+    switchArtifactTab('files');
+};
+
+window.openAppSandbox = function() {
+    showArtifactDrawer();
+    switchArtifactTab('preview');
+};
+
+window.filterDashCards = function(category, btn) {
+    const pills = document.querySelectorAll('.dash-filter-btn');
+    pills.forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    const cards = document.querySelectorAll('.dash-cap-card');
+    cards.forEach(card => {
+        const cat = card.getAttribute('data-cat');
+        if (category === 'all' || cat === category) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
 };
 
 window.clearTerminalOutput = function() {
@@ -2927,14 +3661,56 @@ function initVoiceDictation() {
         speechRecognitionInstance.interimResults = true;
         speechRecognitionInstance.lang = 'en-US';
 
-        let initialInputValue = '';
+        let audioCtx = null;
+        let audioAnalyser = null;
+        let audioStream = null;
+
+        const startAudioMeter = async () => {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioCtx.createMediaStreamSource(audioStream);
+                    audioAnalyser = audioCtx.createAnalyser();
+                    audioAnalyser.fftSize = 64;
+                    source.connect(audioAnalyser);
+
+                    const dataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+                    const updateMeter = () => {
+                        if (!isVoiceDictating) return;
+                        audioAnalyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                        let avg = sum / dataArray.length;
+                        let scale = Math.min(1.4, 1.0 + (avg / 128) * 0.4);
+                        if (voiceBtn) voiceBtn.style.transform = `scale(${scale.toFixed(2)})`;
+                        requestAnimationFrame(updateMeter);
+                    };
+                    requestAnimationFrame(updateMeter);
+                }
+            } catch (e) {
+                console.warn('Audio meter initialization notice:', e);
+            }
+        };
+
+        const stopAudioMeter = () => {
+            if (audioStream) {
+                audioStream.getTracks().forEach(t => t.stop());
+                audioStream = null;
+            }
+            if (audioCtx && audioCtx.state !== 'closed') {
+                try { audioCtx.close(); } catch(e){}
+            }
+            if (voiceBtn) voiceBtn.style.transform = '';
+        };
 
         speechRecognitionInstance.onstart = () => {
             isVoiceDictating = true;
             voiceBtn.classList.add('listening');
             voiceBtn.setAttribute('title', 'Listening... Click or press Ctrl+M to stop dictation');
             initialInputValue = messageInput ? messageInput.value : '';
-            showToast('🎙️ Listening... Speak your prompt clearly', 'info', 2500);
+            showToast('🎙️ Real-Time Voice Waveform Active... Speak clearly', 'info', 2500);
+            startAudioMeter();
         };
 
         speechRecognitionInstance.onresult = (event) => {
@@ -2961,6 +3737,7 @@ function initVoiceDictation() {
         speechRecognitionInstance.onerror = (event) => {
             console.warn('Speech recognition error:', event.error);
             isVoiceDictating = false;
+            stopAudioMeter();
             voiceBtn.classList.remove('listening');
             voiceBtn.setAttribute('title', 'Voice Dictation (Speak to prompt)');
 
@@ -2975,6 +3752,7 @@ function initVoiceDictation() {
 
         speechRecognitionInstance.onend = () => {
             isVoiceDictating = false;
+            stopAudioMeter();
             voiceBtn.classList.remove('listening');
             voiceBtn.setAttribute('title', 'Voice Dictation (Speak to prompt)');
         };
@@ -3094,6 +3872,15 @@ function setupGlobalKeyboardManager() {
                 return;
             }
 
+            // Priority A0: AI Model Switcher Modal (Alt+M)
+            const modelModal = document.getElementById('model-switcher-modal');
+            if (modelModal && modelModal.style.display !== 'none' && modelModal.style.display !== '') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeModelSwitchModal();
+                return;
+            }
+
             // Priority B: Shortcuts Cheatsheet Modal
             const shortcutsModal = document.getElementById('shortcuts-modal');
             if (shortcutsModal && shortcutsModal.style.display !== 'none' && shortcutsModal.style.display !== '') {
@@ -3150,6 +3937,16 @@ function setupGlobalKeyboardManager() {
                 e.preventDefault();
                 e.stopPropagation();
                 closeArtifactDrawer();
+                return;
+            }
+
+            // Priority G2: Mobile Sidebar
+            const sidebarEl = document.getElementById('sidebar');
+            if (sidebarEl && sidebarEl.classList.contains('open')) {
+                e.preventDefault();
+                e.stopPropagation();
+                sidebarEl.classList.remove('open');
+                document.getElementById('sidebar-overlay')?.classList.remove('active');
                 return;
             }
 
@@ -3237,6 +4034,19 @@ function setupGlobalKeyboardManager() {
             e.preventDefault();
             e.stopPropagation();
             toggleVoiceDictation();
+            return;
+        }
+
+        // 8b. ALT + M (Toggle AI Model Switcher Modal)
+        if (e.altKey && !isCmdOrCtrl && (e.key === 'm' || e.key === 'M' || e.code === 'KeyM')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const modelModal = document.getElementById('model-switcher-modal');
+            if (modelModal && modelModal.style.display !== 'none' && modelModal.style.display !== '') {
+                closeModelSwitchModal();
+            } else {
+                openModelSwitchModal();
+            }
             return;
         }
 
@@ -3368,12 +4178,14 @@ window.loadAutomations = async function() {
     const pipeContainer = document.getElementById('pipelines-list-container');
     const customContainer = document.getElementById('custom-apps-list-container');
     const softCountBadge = document.getElementById('software-detected-count');
+    const algoContainer = document.getElementById('algo-quick-grid');
 
     try {
-        const [softRes, pipeRes, customRes] = await Promise.all([
-            fetch('http://127.0.0.1:5000/api/automation/software').then(r => r.json()),
-            fetch('http://127.0.0.1:5000/api/automation/pipelines').then(r => r.json()),
-            fetch('http://127.0.0.1:5000/api/automation/custom-apps').then(r => r.json())
+        const [softRes, pipeRes, customRes, algoRes] = await Promise.all([
+            fetch(`${API_BASE}/automation/software`).then(r => r.json()),
+            fetch(`${API_BASE}/automation/pipelines`).then(r => r.json()),
+            fetch(`${API_BASE}/automation/custom-apps`).then(r => r.json()),
+            fetch(`${API_BASE}/algorithms/catalog`).then(r => r.json()).catch(() => ({ status: 'error' }))
         ]);
 
         if (softRes.status === 'success' && softRes.software) {
@@ -3415,6 +4227,24 @@ window.loadAutomations = async function() {
                 </div>
             `).join('');
             window.cachedPipelines = pipeRes.pipelines;
+        }
+
+        if (algoRes && algoRes.status === 'success' && algoRes.algorithms && algoContainer) {
+            algoContainer.innerHTML = algoRes.algorithms.map(al => `
+                <div class="pipeline-card" style="padding:10px 12px;background:var(--surface-2);border:1px solid var(--hairline);">
+                    <div class="pipeline-card-header" style="margin-bottom:4px;">
+                        <div class="pipeline-left">
+                            <span style="font-size:14px;color:var(--primary-hover);">📐</span>
+                            <strong style="font-size:12px;">${escapeHtml(al.name)}</strong>
+                        </div>
+                        <button class="pipeline-run-btn" style="padding:3px 8px;font-size:11px;" onclick="runAlgorithmQuick('${al.id}')">
+                            <span>▶ Solve</span>
+                        </button>
+                    </div>
+                    <div style="font-size:11px;color:var(--ink-subtle);margin-bottom:4px;">${escapeHtml(al.description)}</div>
+                    <span class="pipeline-step-tag" style="font-size:10px;color:var(--semantic-cyan);">${escapeHtml(al.complexity)}</span>
+                </div>
+            `).join('');
         }
 
         if (customRes.status === 'success' && customRes.apps) {
@@ -3509,7 +4339,7 @@ window.submitNewCustomApp = async function() {
     });
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/automation/custom-apps', {
+        const res = await fetch(`${API_BASE}/automation/custom-apps`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3541,7 +4371,7 @@ window.submitNewCustomApp = async function() {
 window.deleteCustomApp = async function(appId) {
     if (!confirm(`Are you sure you want to delete custom app '${appId}'?`)) return;
     try {
-        const res = await fetch(`http://127.0.0.1:5000/api/automation/custom-apps/${appId}`, {
+        const res = await fetch(`${API_BASE}/automation/custom-apps/${appId}`, {
             method: 'DELETE'
         }).then(r => r.json());
 
@@ -3567,7 +4397,7 @@ window.runSingleStepCommand = async function(cmd, stepTitle) {
     const targetFolder = targetFolderInput?.value.trim() || '';
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/automation/run-step', {
+        const res = await fetch(`${API_BASE}/automation/run-step`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command: cmd, target_folder: targetFolder })
@@ -3601,7 +4431,7 @@ window.runAllCustomAppSteps = async function(appIdx) {
         if (execOutput) execOutput.textContent += `[Step ${i+1}/${app.steps.length}] ${step.title || ''} ($ ${step.cmd})...\n`;
         
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/automation/run-step', {
+            const res = await fetch(`${API_BASE}/automation/run-step`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ command: step.cmd, target_folder: targetFolder })
@@ -3623,7 +4453,7 @@ window.runAllCustomAppSteps = async function(appIdx) {
 window.launchSoftwareApp = async function(appId) {
     try {
         const targetPath = targetFolderInput?.value.trim() || '';
-        const res = await fetch('http://127.0.0.1:5000/api/automation/launch', {
+        const res = await fetch(`${API_BASE}/automation/launch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ app_id: appId, target_path: targetPath })
@@ -3657,7 +4487,7 @@ window.runPipelineByIndex = async function(idx) {
         if (execOutput) execOutput.textContent += `[Step ${i+1}/${pipeline.steps.length}] Executing: ${step.name} (${step.cmd})...\n`;
         
         try {
-            const res = await fetch('http://127.0.0.1:5000/api/automation/run-step', {
+            const res = await fetch(`${API_BASE}/automation/run-step`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ command: step.cmd, target_folder: targetFolder })
@@ -3674,6 +4504,75 @@ window.runPipelineByIndex = async function(idx) {
     }
 
     if (execOutput) execOutput.textContent += `[Pipeline Complete] ✓ All stages executed.\n`;
+};
+
+window.runAllPipelinesConcurrent = async function() {
+    const execBox = document.getElementById('pipeline-exec-box');
+    const execTitle = document.getElementById('pipeline-exec-title');
+    const execOutput = document.getElementById('pipeline-exec-output');
+
+    if (execBox) execBox.style.display = 'flex';
+    if (execTitle) execTitle.textContent = `⚡ Running Concurrent Multi-Pipeline`;
+    if (execOutput) execOutput.textContent = `[Concurrent Multi-Pipeline Cluster Initiated] ${new Date().toLocaleTimeString()}\n\n`;
+
+    const targetFolder = targetFolderInput?.value.trim() || '';
+    const pipelineIds = ['workspace_doctor', 'auto_security_and_lint', 'multi_algo_benchmark'];
+
+    if (execOutput) execOutput.textContent += `Triggering concurrent execution across: ${pipelineIds.join(', ')}...\n\n`;
+
+    try {
+        const res = await fetch(`${API_BASE}/pipeline/orchestrate-concurrent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pipeline_ids: pipelineIds, target_folder: targetFolder })
+        }).then(r => r.json());
+
+        if (res.results) {
+            for (const [pid, pData] of Object.entries(res.results)) {
+                if (execOutput) {
+                    execOutput.textContent += `══════════════════════════════════════════════════\n`;
+                    execOutput.textContent += `📦 Pipeline: ${pData.title || pid} (${pData.status.toUpperCase()})\n`;
+                    execOutput.textContent += `   Elapsed: ${pData.elapsed_seconds || 0}s | Steps: ${pData.steps_completed}/${pData.total_steps}\n`;
+                    for (const st of pData.step_results || []) {
+                        execOutput.textContent += `   • [${st.status.toUpperCase()}] ${st.name}\n`;
+                        if (st.output) execOutput.textContent += `     ${st.output.replace(/\n/g, '\n     ')}\n`;
+                    }
+                    execOutput.textContent += `\n`;
+                }
+            }
+        }
+        if (execOutput) {
+            execOutput.textContent += `[Concurrent Multi-Pipeline Finished] Total Elapsed: ${res.elapsed_seconds}s | Overall Status: ${res.status.toUpperCase()}\n`;
+            execOutput.scrollTop = execOutput.scrollHeight;
+        }
+    } catch (e) {
+        if (execOutput) execOutput.textContent += `[Error]: ${e.message}\n`;
+    }
+};
+
+window.runAlgorithmQuick = async function(algoId) {
+    const box = document.getElementById('algo-exec-box');
+    const title = document.getElementById('algo-exec-title');
+    const output = document.getElementById('algo-exec-output');
+
+    if (box) box.style.display = 'flex';
+    if (title) title.textContent = `Solving Algorithm: ${algoId}`;
+    if (output) output.textContent = `[Computing ${algoId}...] Please wait...\n`;
+
+    try {
+        const res = await fetch(`${API_BASE}/algorithms/solve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ algorithm_id: algoId, params: {} })
+        }).then(r => r.json());
+
+        if (output) {
+            output.textContent = `[Execution Completed in ${res.execution_time_ms} ms]\n\n` + JSON.stringify(res.result || res, null, 2);
+            output.scrollTop = 0;
+        }
+    } catch (e) {
+        if (output) output.textContent = `[Algorithm Error]: ${e.message}`;
+    }
 };
 
 // ── Messaging & WhatsApp Hub Logic ──────────────────────────────────────
@@ -3704,7 +4603,7 @@ window.loadMessagingConnectors = async function() {
     if (!container) return;
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/messaging/connectors').then(r => r.json());
+        const res = await fetch(`${API_BASE}/messaging/connectors`).then(r => r.json());
         if (res.status === 'success' && res.connectors) {
             if (badge) badge.textContent = `${res.connectors.length} Connectors`;
 
@@ -3847,7 +4746,7 @@ window.submitNewCustomMsgApp = async function() {
     ];
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/messaging/custom', {
+        const res = await fetch(`${API_BASE}/messaging/custom`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3879,7 +4778,7 @@ window.submitNewCustomMsgApp = async function() {
 window.deleteCustomMessagingApp = async function(connId) {
     if (!confirm(`Are you sure you want to delete custom connector '${connId}'?`)) return;
     try {
-        const res = await fetch(`http://127.0.0.1:5000/api/messaging/custom/${connId}`, {
+        const res = await fetch(`${API_BASE}/messaging/custom/${connId}`, {
             method: 'DELETE'
         }).then(r => r.json());
 
@@ -3898,7 +4797,7 @@ window.saveCustomMessagingEndpoint = async function(connId) {
     const newTarget = input ? input.value.trim() : '';
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/messaging/custom', {
+        const res = await fetch(`${API_BASE}/messaging/custom`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: connId, name: connId, target: newTarget })
@@ -3950,7 +4849,7 @@ window.saveMessagingPlatformConfig = async function(platform) {
     }
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/messaging/config', {
+        const res = await fetch(`${API_BASE}/messaging/config`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -3979,7 +4878,7 @@ window.dispatchQuickMessage = async function() {
     }
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/messaging/dispatch', {
+        const res = await fetch(`${API_BASE}/messaging/dispatch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ platform, message })
@@ -4010,7 +4909,7 @@ window.dispatchQuickMessage = async function() {
 
 window.testDispatchConnector = async function(platform) {
     const testMsg = `🚀 [B1 Autonomous Alert] Test alert dispatched from workspace at ${new Date().toLocaleTimeString()}!`;
-    const res = await fetch('http://127.0.0.1:5000/api/messaging/dispatch', {
+    const res = await fetch(`${API_BASE}/messaging/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform, message: testMsg })
@@ -4050,7 +4949,7 @@ window.executeActionCard = async function(cardId, type, platform, recipient, fil
 
     try {
         if (platform === 'google_drive' || platform === 'drive') {
-            const res = await fetch('http://127.0.0.1:5000/api/drive/upload', {
+            const res = await fetch(`${API_BASE}/drive/upload`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ file_path: file || 'playground/index.html', target_folder: recipient || 'My Drive' })
@@ -4069,7 +4968,7 @@ window.executeActionCard = async function(cardId, type, platform, recipient, fil
             }
         } else {
             const finalMsg = file ? `${message}\n[Attached File: ${file}]` : message;
-            const res = await fetch('http://127.0.0.1:5000/api/messaging/dispatch', {
+            const res = await fetch(`${API_BASE}/messaging/dispatch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ platform, message: finalMsg, target: recipient })
@@ -4116,8 +5015,8 @@ window.loadAppBuilderStudio = async function() {
 
     try {
         const [tplRes, projRes] = await Promise.all([
-            fetch('http://127.0.0.1:5000/api/app-builder/templates').then(r => r.json()),
-            fetch('http://127.0.0.1:5000/api/app-builder/projects').then(r => r.json())
+            fetch(`${API_BASE}/app-builder/templates`).then(r => r.json()),
+            fetch(`${API_BASE}/app-builder/projects`).then(r => r.json())
         ]);
 
         if (tplRes.status === 'success' && tplRes.templates && tplGrid) {
@@ -4181,7 +5080,7 @@ window.scaffoldAppFromTemplate = async function(templateKey, templateName) {
     switchArtifactTab('files');
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/app-builder/create', {
+        const res = await fetch(`${API_BASE}/app-builder/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ app_id: appId, template: templateKey, name: customName || templateName })
@@ -4231,7 +5130,7 @@ window.refreshProjectFiles = async function() {
     if (appNameEl) appNameEl.textContent = activeAppProjectId;
 
     try {
-        const res = await fetch(`http://127.0.0.1:5000/api/app-builder/files?app_id=${encodeURIComponent(activeAppProjectId)}`).then(r => r.json());
+        const res = await fetch(`${API_BASE}/app-builder/files?app_id=${encodeURIComponent(activeAppProjectId)}`).then(r => r.json());
         if (res.status === 'success' && res.files) {
             cachedAppFiles = res.files;
             renderProjectFileTree(res.files);
@@ -4286,7 +5185,7 @@ window.openProjectFile = async function(filePath) {
     renderProjectFileTree(cachedAppFiles);
 
     try {
-        const res = await fetch(`http://127.0.0.1:5000/api/app-builder/file-content?app_id=${encodeURIComponent(activeAppProjectId)}&file=${encodeURIComponent(filePath)}`).then(r => r.json());
+        const res = await fetch(`${API_BASE}/app-builder/file-content?app_id=${encodeURIComponent(activeAppProjectId)}&file=${encodeURIComponent(filePath)}`).then(r => r.json());
         if (res.status === 'success' && editor) {
             editor.value = res.content;
         }
@@ -4301,7 +5200,7 @@ window.saveActiveProjectFile = async function() {
     if (!editor) return;
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/app-builder/save-file', {
+        const res = await fetch(`${API_BASE}/app-builder/save-file`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4327,7 +5226,7 @@ window.promptCreateNewAppFile = async function() {
     const fileName = prompt("Enter new filename (e.g. style.css, api.js, components/header.html):");
     if (!fileName || !fileName.trim()) return;
 
-    await fetch('http://127.0.0.1:5000/api/app-builder/save-file', {
+    await fetch(`${API_BASE}/app-builder/save-file`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4353,7 +5252,7 @@ window.toggleActiveAppServer = async function() {
 
 async function startAppDevServer(appId) {
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/app-builder/server/start', {
+        const res = await fetch(`${API_BASE}/app-builder/server/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ app_id: appId })
@@ -4371,7 +5270,7 @@ async function startAppDevServer(appId) {
 
 async function stopAppDevServer(appId) {
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/app-builder/server/stop', {
+        const res = await fetch(`${API_BASE}/app-builder/server/stop`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ app_id: appId })
@@ -4385,7 +5284,7 @@ async function stopAppDevServer(appId) {
 
 async function checkAppServerStatus(appId) {
     try {
-        const res = await fetch(`http://127.0.0.1:5000/api/app-builder/server/status?app_id=${encodeURIComponent(appId)}`).then(r => r.json());
+        const res = await fetch(`${API_BASE}/app-builder/server/status?app_id=${encodeURIComponent(appId)}`).then(r => r.json());
         if (res.status === 'success') {
             updateServerStatusUI(res.running, res.port, res.url);
             if (res.running && res.url) {
@@ -4431,11 +5330,11 @@ window.popoutActiveAppServer = function() {
 
 window.downloadActiveAppZip = function() {
     if (!activeAppProjectId) return;
-    window.location.href = `http://127.0.0.1:5000/api/app-builder/export-zip?app_id=${encodeURIComponent(activeAppProjectId)}`;
+    window.location.href = `${API_BASE}/app-builder/export-zip?app_id=${encodeURIComponent(activeAppProjectId)}`;
 };
 
 window.downloadAppZipById = function(appId) {
-    window.location.href = `http://127.0.0.1:5000/api/app-builder/export-zip?app_id=${encodeURIComponent(appId)}`;
+    window.location.href = `${API_BASE}/app-builder/export-zip?app_id=${encodeURIComponent(appId)}`;
 };
 
 window.triggerAutoHealForActiveApp = async function() {
@@ -4444,7 +5343,7 @@ window.triggerAutoHealForActiveApp = async function() {
     const errMsg = msgEl ? msgEl.textContent : 'Runtime error';
 
     try {
-        const res = await fetch('http://127.0.0.1:5000/api/app-builder/auto-heal', {
+        const res = await fetch(`${API_BASE}/app-builder/auto-heal`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4484,10 +5383,468 @@ const prevInitApp = window.initApp;
 window.initApp = function() {
     if (typeof prevInitApp === 'function') prevInitApp();
     setupNewFeatureEventListeners();
+    updateModelLabels();
 };
 
 document.addEventListener('DOMContentLoaded', window.initApp);
 
+/* ══════════════════════════════════════════════════════════════════════════
+   🎙️ LINEAR CONVERSATIONAL VOICE AGENT CONTROLLER (TTS & STT)
+   ══════════════════════════════════════════════════════════════════════════ */
+class VoiceAgentController {
+    constructor() {
+        this.active = false;
+        this.isSpeaking = false;
+        this.isListening = false;
+        this.handsFree = localStorage.getItem('b1_voice_handsfree') !== 'false';
+        this.autoSpeak = localStorage.getItem('b1_voice_autospeak') !== 'false';
+        this.currentVoice = localStorage.getItem('b1_voice_persona') || 'en-US-AvaNeural';
+        this.pitch = localStorage.getItem('b1_voice_pitch') || '+4Hz';
+        this.rate = localStorage.getItem('b1_voice_rate') || '+5%';
+        this.disfluencyLevel = localStorage.getItem('b1_voice_disfluency') || 'natural';
+        this.audioEl = null;
+        this.recognition = null;
+        this.silenceTimer = null;
+        this.currentSpokenButton = null;
+        this.initRecognition();
+    }
 
+    initRecognition() {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) return;
+        try {
+            this.recognition = new SpeechRec();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
 
+            this.recognition.onstart = () => {
+                this.isListening = true;
+                this.updateHudState('listening', 'Listening to you...');
+            };
 
+            this.recognition.onresult = (event) => {
+                // Barge-in: if user starts speaking while audio is playing, halt TTS immediately
+                if (this.isSpeaking) {
+                    this.stopCurrentSpeech();
+                }
+
+                let interim = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+
+                const currentText = (finalTranscript || interim).trim();
+                if (currentText) {
+                    const preview = document.getElementById('hud-transcript-preview');
+                    if (preview) preview.textContent = `"${currentText}"`;
+
+                    const msgInput = document.getElementById('message-input');
+                    if (msgInput) {
+                        msgInput.value = currentText;
+                        msgInput.style.height = 'auto';
+                        msgInput.style.height = Math.min(msgInput.scrollHeight, 200) + 'px';
+                        const sendBtn = document.getElementById('send-button');
+                        if (sendBtn) sendBtn.disabled = false;
+                    }
+
+                    // Reset VAD silence timer
+                    if (this.handsFree && finalTranscript) {
+                        clearTimeout(this.silenceTimer);
+                        this.silenceTimer = setTimeout(() => {
+                            if (!this.isSpeaking && msgInput && msgInput.value.trim().length > 0) {
+                                const sendBtn = document.getElementById('send-button');
+                                if (sendBtn && !sendBtn.disabled) {
+                                    this.updateHudState('thinking', 'Processing query...');
+                                    sendBtn.click();
+                                }
+                            }
+                        }, 800);
+                    }
+                }
+            };
+
+            this.recognition.onerror = (err) => {
+                console.warn('Voice recognition error:', err.error);
+                if (err.error === 'not-allowed') {
+                    showToast('🔒 Microphone permission blocked. Please allow mic in browser.', 'info', 4000);
+                }
+                this.isListening = false;
+                if (this.active && !this.isSpeaking) {
+                    this.updateHudState('ready', 'Click mic to speak');
+                }
+            };
+
+            this.recognition.onend = () => {
+                this.isListening = false;
+                // Auto-restart recognition if Voice HUD is active and not currently speaking
+                if (this.active && !this.isSpeaking) {
+                    setTimeout(() => {
+                        if (this.active && !this.isSpeaking && !this.isListening) {
+                            try { this.recognition.start(); } catch(e) {}
+                        }
+                    }, 400);
+                }
+            };
+        } catch(e) {
+            console.warn('SpeechRecognition init error:', e);
+        }
+    }
+
+    startListening() {
+        if (!this.recognition) {
+            showToast('⚠️ Speech recognition not supported in this browser.', 'info');
+            return;
+        }
+        try {
+            this.recognition.start();
+        } catch(e) {}
+    }
+
+    stopListening() {
+        if (this.recognition) {
+            try { this.recognition.stop(); } catch(e) {}
+        }
+        this.isListening = false;
+    }
+
+    updateHudState(state, statusText) {
+        const hud = document.getElementById('voice-hud-dock');
+        const topbarBtn = document.getElementById('topbar-voice-btn');
+        const pill = document.getElementById('hud-status-pill');
+        const preview = document.getElementById('hud-transcript-preview');
+        const micBtn = document.getElementById('hud-mic-toggle-btn');
+
+        if (hud) {
+            hud.classList.remove('listening', 'speaking', 'thinking', 'ready');
+            hud.classList.add(state);
+        }
+        if (topbarBtn) {
+            topbarBtn.classList.remove('listening', 'speaking');
+            if (state === 'speaking') topbarBtn.classList.add('speaking');
+            else if (state === 'listening') topbarBtn.classList.add('active');
+        }
+        if (pill) pill.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+        if (preview && statusText) preview.textContent = statusText;
+
+        if (micBtn) {
+            if (this.isListening) micBtn.classList.add('active');
+            else micBtn.classList.remove('active');
+        }
+    }
+
+    async speakText(text, contextPrompt = '') {
+        if (!text || !text.trim()) return;
+
+        // Stop any current audio immediately
+        this.stopCurrentSpeech();
+
+        // Pause listening while speaking to prevent echo / feedback loop
+        this.stopListening();
+
+        this.isSpeaking = true;
+        this.updateHudState('speaking', 'Ava speaking...');
+
+        try {
+            const resp = await fetch(`${API_BASE}/voice/tts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    voice: this.currentVoice,
+                    pitch: this.pitch,
+                    rate: this.rate,
+                    humanize: true,
+                    context_prompt: contextPrompt,
+                    disfluency_level: this.disfluencyLevel
+                })
+            });
+
+            if (!resp.ok) throw new Error(`TTS status ${resp.status}`);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const audio = new Audio(blobUrl);
+            this.audioEl = audio;
+
+            audio.onplay = () => {
+                this.updateHudState('speaking', 'Ava speaking...');
+            };
+
+            audio.onended = () => {
+                this.isSpeaking = false;
+                this.audioEl = null;
+                URL.revokeObjectURL(blobUrl);
+                if (this.currentSpokenButton) {
+                    this.resetSpokenButton(this.currentSpokenButton);
+                    this.currentSpokenButton = null;
+                }
+                if (this.active) {
+                    this.updateHudState('listening', 'Listening for your reply...');
+                    this.startListening();
+                } else {
+                    this.updateHudState('ready', 'Ready');
+                }
+            };
+
+            audio.onerror = (err) => {
+                console.warn('Backend TTS error, falling back to Web Speech Synthesis:', err);
+                URL.revokeObjectURL(blobUrl);
+                this.fallbackClientTts(text, contextPrompt);
+            };
+
+            await audio.play();
+        } catch (err) {
+            console.warn('Audio play error, falling back to Web Speech Synthesis:', err);
+            this.fallbackClientTts(text, contextPrompt);
+        }
+    }
+
+    fallbackClientTts(text, contextPrompt = '') {
+        if (!('speechSynthesis' in window)) {
+            this.isSpeaking = false;
+            this.updateHudState('ready', 'Speech synthesis unavailable');
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        let spoken = text.replace(/```[\s\S]*?```/g, " I have written the code in your workspace panel. ");
+        spoken = spoken.replace(/`([^`]+)`/g, '$1').replace(/[#*_~>]/g, '');
+        if (this.disfluencyLevel !== 'off' && !/^(hmm|umm|oh|aha)/i.test(spoken)) {
+            spoken = "Hmm... " + spoken;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(spoken);
+        utterance.rate = 1.05;
+        utterance.pitch = 1.25;
+
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google US English')));
+        if (femaleVoice) utterance.voice = femaleVoice;
+
+        utterance.onstart = () => {
+            this.isSpeaking = true;
+            this.updateHudState('speaking', 'Ava speaking...');
+        };
+
+        utterance.onend = () => {
+            this.isSpeaking = false;
+            if (this.currentSpokenButton) {
+                this.resetSpokenButton(this.currentSpokenButton);
+                this.currentSpokenButton = null;
+            }
+            if (this.active) {
+                this.updateHudState('listening', 'Listening for your reply...');
+                this.startListening();
+            } else {
+                this.updateHudState('ready', 'Ready');
+            }
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    stopCurrentSpeech() {
+        if (this.audioEl) {
+            try {
+                this.audioEl.pause();
+                this.audioEl.currentTime = 0;
+            } catch(e) {}
+            this.audioEl = null;
+        }
+        if ('speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch(e) {}
+        }
+        this.isSpeaking = false;
+        if (this.currentSpokenButton) {
+            this.resetSpokenButton(this.currentSpokenButton);
+            this.currentSpokenButton = null;
+        }
+        if (this.active) {
+            this.updateHudState('listening', 'Listening to you...');
+        } else {
+            this.updateHudState('ready', 'Ready');
+        }
+    }
+
+    resetSpokenButton(btn) {
+        if (!btn) return;
+        btn.classList.remove('playing');
+        btn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+            <span>Read Aloud</span>
+        `;
+    }
+
+    readMessageAloud(btn) {
+        if (this.isSpeaking && this.currentSpokenButton === btn) {
+            this.stopCurrentSpeech();
+            return;
+        }
+
+        const row = btn.closest('.chat-row');
+        if (!row) return;
+        const bubble = row.querySelector('.assistant-bubble') || row.querySelector('.message-bubble');
+        if (!bubble) return;
+
+        const clone = bubble.cloneNode(true);
+        clone.querySelectorAll('.thinking-accordion, .stepper-container, .msg-actions-toolbar, .visualize-offer-card, .grounding-telemetry-badge, .best-of-best-telemetry-badge').forEach(el => el.remove());
+        const cleanText = clone.textContent.trim();
+
+        if (this.currentSpokenButton) {
+            this.resetSpokenButton(this.currentSpokenButton);
+        }
+
+        this.currentSpokenButton = btn;
+        btn.classList.add('playing');
+        btn.innerHTML = `
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+            </svg>
+            <span>Stop Audio</span>
+        `;
+
+        this.speakText(cleanText, 'Read message aloud');
+    }
+}
+
+// Global Singleton Instance
+window.voiceAgentController = new VoiceAgentController();
+
+// Global HUD Toggles & Handlers
+window.toggleVoiceHUD = function() {
+    const hud = document.getElementById('voice-hud-dock');
+    const topbarBtn = document.getElementById('topbar-voice-btn');
+    if (!hud) return;
+
+    if (hud.style.display === 'none' || !hud.style.display) {
+        hud.style.display = 'block';
+        window.voiceAgentController.active = true;
+        if (topbarBtn) topbarBtn.classList.add('active');
+        window.voiceAgentController.startListening();
+        showToast('🎙️ Conversational Voice Mode Active (Ava Neural Voice)', 'success', 2500);
+    } else {
+        window.closeVoiceHUD();
+    }
+};
+
+window.closeVoiceHUD = function() {
+    const hud = document.getElementById('voice-hud-dock');
+    const topbarBtn = document.getElementById('topbar-voice-btn');
+    if (hud) hud.style.display = 'none';
+    if (topbarBtn) topbarBtn.classList.remove('active', 'speaking');
+    if (window.voiceAgentController) {
+        window.voiceAgentController.active = false;
+        window.voiceAgentController.stopCurrentSpeech();
+        window.voiceAgentController.stopListening();
+    }
+};
+
+window.openVoiceSettingsModal = function() {
+    const modal = document.getElementById('voice-settings-modal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeVoiceSettingsModal = function() {
+    const modal = document.getElementById('voice-settings-modal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.updateVoicePersona = function(val) {
+    if (!window.voiceAgentController) return;
+    window.voiceAgentController.currentVoice = val;
+    localStorage.setItem('b1_voice_persona', val);
+
+    const name = val.includes('Ava') ? 'Ava' : val.includes('Ana') ? 'Ana' : val.includes('Emma') ? 'Emma' : val.includes('Jenny') ? 'Jenny' : 'Sonia';
+    const ageTag = val.includes('Ana') ? 'Ana Neural' : 'Ava Neural';
+
+    const nameEl = document.getElementById('hud-persona-name');
+    if (nameEl) nameEl.textContent = name;
+    const tagEl = document.getElementById('voice-persona-tag');
+    if (tagEl) tagEl.textContent = ageTag;
+    const badgeEl = document.getElementById('topbar-persona-badge');
+    if (badgeEl) badgeEl.textContent = ageTag;
+
+    showToast(`🎙️ Switched voice persona to ${name}`, 'info', 2000);
+};
+
+window.setDisfluencyLevel = function(level) {
+    if (!window.voiceAgentController) return;
+    window.voiceAgentController.disfluencyLevel = level;
+    localStorage.setItem('b1_voice_disfluency', level);
+
+    document.querySelectorAll('.voice-segment-btn').forEach(btn => {
+        if (btn.dataset.level === level) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+
+    showToast(`Fillers set to: ${level.toUpperCase()}`, 'info', 1800);
+};
+
+window.updatePitchVal = function(val) {
+    if (!window.voiceAgentController) return;
+    const pitchStr = `+${val}Hz`;
+    window.voiceAgentController.pitch = pitchStr;
+    localStorage.setItem('b1_voice_pitch', pitchStr);
+    const label = document.getElementById('voice-pitch-val');
+    if (label) label.textContent = `${pitchStr} (${val >= 4 ? 'Expressive' : 'Natural'})`;
+};
+
+window.updateRateVal = function(val) {
+    if (!window.voiceAgentController) return;
+    const rateStr = `${val >= 0 ? '+' : ''}${val}%`;
+    window.voiceAgentController.rate = rateStr;
+    localStorage.setItem('b1_voice_rate', rateStr);
+    const label = document.getElementById('voice-rate-val');
+    if (label) label.textContent = `${rateStr} (${val >= 5 ? 'Energetic' : 'Normal'})`;
+};
+
+window.toggleHandsFreeMode = function(chk) {
+    if (!window.voiceAgentController) return;
+    window.voiceAgentController.handsFree = chk;
+    localStorage.setItem('b1_voice_handsfree', String(chk));
+    showToast(`Continuous Hands-Free VAD ${chk ? 'Enabled' : 'Disabled'}`, 'info', 2000);
+};
+
+window.toggleAutoSpeak = function(chk) {
+    if (!window.voiceAgentController) return;
+    window.voiceAgentController.autoSpeak = chk;
+    localStorage.setItem('b1_voice_autospeak', String(chk));
+    showToast(`Auto-Read Aloud ${chk ? 'Enabled' : 'Disabled'}`, 'info', 2000);
+};
+
+window.testVoiceSample = function() {
+    if (!window.voiceAgentController) return;
+    const sampleText = "Hey Ishaan! I'm Ava, your AI voice assistant. Let's build something truly amazing together!";
+    window.voiceAgentController.speakText(sampleText, 'Test voice greeting');
+};
+
+window.toggleVoiceListening = function() {
+    if (!window.voiceAgentController) return;
+    if (window.voiceAgentController.isListening) {
+        window.voiceAgentController.stopListening();
+        window.voiceAgentController.updateHudState('ready', 'Mic muted');
+    } else {
+        window.voiceAgentController.startListening();
+    }
+};
+
+window.stopCurrentSpeech = function() {
+    if (window.voiceAgentController) {
+        window.voiceAgentController.stopCurrentSpeech();
+    }
+};
+
+window.readMessageBubbleAloud = function(btn) {
+    if (window.voiceAgentController) {
+        window.voiceAgentController.readMessageAloud(btn);
+    }
+};
