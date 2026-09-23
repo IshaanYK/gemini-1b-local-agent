@@ -6,7 +6,8 @@
   <a href="https://github.com/IshaanYK/gemini-1b-local-agent/stargazers"><img src="https://img.shields.io/github/stars/IshaanYK/gemini-1b-local-agent?style=for-the-badge&logo=github&color=gold" alt="GitHub Stars"></a>
   <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Context-1B%2B%20Tokens-purple?style=for-the-badge&logo=google" alt="Context"></a>
   <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Cost-Zero%20%240-brightgreen?style=for-the-badge" alt="Cost"></a>
-  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Gemini-3.6%20Flash%20%2F%20Thinking-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Gemini-3.8%20Pro%20%2F%20Deep%20Reasoning-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/API%20Keys-None%20Required-success?style=for-the-badge" alt="No API Keys"></a>
   <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Skills-74%20Built--in-orange?style=for-the-badge" alt="Skills"></a>
   <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/License-MIT-red?style=for-the-badge" alt="License"></a>
 </p>
@@ -17,7 +18,7 @@
 
 # 🚀 1B Gemini Local Agent
 
-> **An autonomous, zero-cost AI coding agent powered by Google Gemini (1 Billion+ Token Context), equipped with 6 local system tools, 74 design & engineering skills, Apple HIG UI, live reasoning drawers, and 1-click desktop launching.**
+> **An autonomous, zero-cost AI coding agent powered by Google Gemini 3.8 Pro with Deep Reasoning (1 Billion+ Token Context), equipped with 6 local system tools, 74 design & engineering skills, Apple HIG UI, live reasoning drawers, and 1-click desktop launching — completely unlimited without API keys.**
 
 ---
 
@@ -25,7 +26,9 @@
 
 | Feature | 🚀 1B Gemini Local Agent | Claude Code | Cursor | Cline |
 | :--- | :---: | :---: | :---: | :---: |
+| **Model & Intelligence** | **Gemini 3.8 Pro (Deep Reasoning)** | Claude 3.7 Sonnet | Claude 3.5 / GPT-4o | Model dependent |
 | **Monthly Cost** | **$0 (100% Free)** | $20 – $100+/mo | $20/mo | BYOK API costs |
+| **API Keys Needed** | **None (Unlimited Web Proxy)** | Yes ($$$) | Yes ($$$) | Yes ($$$) |
 | **Context Window** | **1 Billion+ Tokens** | 200k Tokens | 128k – 200k Tokens | Model dependent |
 | **Local Tool Execution** | **Native OS / PowerShell** | Bash / CLI | In-editor only | Extension sandbox |
 | **Design Framework** | **Apple HIG & Glassmorphism** | CLI Terminal | VS Code Native | Webview |
@@ -37,7 +40,9 @@
 
 ## 🌟 Key Features
 
-- **♾️ 1 Billion+ Token Context Window (Zero Cost)**: Powered by Google Gemini via a reverse-engineered Web2API proxy. Unlimited context without per-token charges or credit limits.
+- **🧠 Gemini 3.8 Pro with Unlimited Deep Reasoning**: Full chain-of-thought thinking and reasoning capability with live thought-process drawers in the UI.
+- **🔓 100% Unlimited Without API Keys**: Interfaces with Gemini Web via an OpenAI-compatible Web2API proxy. Zero billing, no credit exhaustion, no per-token charges.
+- **♾️ 1 Billion+ Token Context Window (Zero Cost)**: Ingest entire codebases and massive document sets without hitting context barriers.
 - **⚡ 10-Step Autonomous Agentic Loop**: Automatically chains up to 10 consecutive tool actions per turn (`Create file` ➔ `Write code` ➔ `Run PowerShell command` ➔ `Verify output`).
 - **💻 6 Native Local System Tools**:
   - `run_command`: Executes PowerShell terminal commands (install packages, build code, run scripts).

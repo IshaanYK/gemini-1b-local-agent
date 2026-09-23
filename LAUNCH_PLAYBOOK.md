@@ -12,9 +12,9 @@ Before posting anywhere, do these 3 things in your GitHub repository:
    - Go to `Settings` -> `General` -> Scroll to bottom (`Danger Zone`) -> `Change visibility` -> **Make public**.
 2. **Set the About Description & Website**:
    - In the right sidebar on your GitHub repo page, click the ⚙️ gear icon next to "About":
-   - **Description**: `🚀 Autonomous zero-cost AI coding agent with 1B+ token context, 6 native system tools, 74 design skills & Apple HIG UI.`
+   - **Description**: `🚀 Autonomous coding agent powered by Gemini 3.8 Pro with unlimited deep reasoning (no API keys required), 1B+ token context, 6 system tools & Apple HIG UI.`
    - **Topics** (Copy and paste these exact tags):
-     `gemini`, `ai-agent`, `coding-assistant`, `autonomous-agents`, `local-ai`, `developer-tools`, `python`, `reverse-engineering`, `apple-hig`
+     `gemini-pro`, `gemini-3`, `deep-reasoning`, `ai-agent`, `coding-assistant`, `autonomous-agents`, `local-ai`, `developer-tools`, `python`, `apple-hig`
 3. **Upload Social Preview Image**:
    - Go to `Settings` -> `General` -> `Social preview` -> Upload a 1280x640 screenshot of your Apple HIG UI or banner. (This makes your link preview look gorgeous when shared on Twitter/Reddit/Discord).
 
@@ -25,23 +25,28 @@ Before posting anywhere, do these 3 things in your GitHub repository:
 
 **Post Title:**
 ```
-I built a 100% Free Autonomous Coding Agent with 1B+ Token Context, 6 Local Tools & Apple HIG UI [Open Source]
+I built an Autonomous Coding Agent powered by Gemini 3.8 Pro with Unlimited Deep Reasoning & 1B+ Context — 100% Free Without API Keys [Open Source]
 ```
 
 **Post Body:**
 ```markdown
 Hey everyone! 👋
 
-I was frustrated with $20-$100/month subscriptions for coding assistants that still hit token limits and struggle with large codebases. So I built **1B Gemini Local Agent**—a completely free, open-source local coding agent.
+I was frustrated with $20-$100/month subscriptions for coding assistants that still hit token limits, meter reasoning tokens, and struggle with large codebases. 
 
-### 🌟 What makes it different?
-- **♾️ 1 Billion+ Token Context Window ($0 Cost)**: Uses a reverse-engineered Web2API proxy connected to Gemini Web, giving virtually unlimited context without API bills.
-- **⚡ 10-Step Autonomous Agentic Loop**: The agent can autonomously chain file creation, code writing, terminal command execution, and test verification.
-- **💻 6 Native Local Tools**: Direct system access via PowerShell (`run_command`, `write_file`, `replace_file_content`, `grep_search`, `read_file`, `list_dir`).
+So I built **1B Gemini Local Agent**—a completely free, open-source local coding agent powered by **Gemini 3.8 Pro with Deep Reasoning (Thinking Mode)**, completely **unlimited without any API keys**.
+
+### 🌟 Key Highlights:
+- **🧠 Gemini 3.8 Pro with Deep Reasoning**: Full chain-of-thought thinking and reasoning capability with live thought-process drawers in the UI.
+- **🔓 100% Unlimited Without API Keys**: Interfaces with Gemini Web via an OpenAI-compatible Web2API proxy. Zero billing, no credit exhaustion, no per-token charges.
+- **♾️ 1 Billion+ Token Context Window**: Ingest entire codebases and massive document sets without hitting context barriers.
+- **⚡ 10-Step Autonomous Agentic Loop**: Automatically chains file generation, code inspection, terminal commands, and automated self-correction.
+- **💻 6 Native Local System Tools**: Direct OS access via PowerShell (`run_command`, `write_file`, `replace_file_content`, `grep_search`, `read_file`, `list_dir`).
 - **🎨 Apple HIG Glassmorphism UI**: OLED dark mode, macOS window controls, live reasoning drawers, and 1-click desktop launch script (`.bat`).
-- **📚 74 Included Design & Dev Skills**: Pre-loaded design system guidelines (Apple HIG, Stripe, Linear).
+- **📚 74 Included Design & Dev Skills**: Pre-loaded system tokens (Apple HIG, Stripe, Linear).
 
 ### 🛠️ Tech Stack:
+- Core Model: **Gemini 3.8 Pro (Reasoning / Thinking Model)**
 - Frontend: Vanilla HTML/CSS/JS (Apple HIG glassmorphism design system)
 - Backend: Python (Flask) with SSE streaming
 - Proxy: Reverse-engineered Gemini Web RPC proxy (OpenAI-compatible)
@@ -60,7 +65,7 @@ I'd love feedback, issues, or PRs! If you find it useful, please consider droppi
 
 **Title:**
 ```
-Show HN: 1B-Gemini-Local-Agent – Free local autonomous coding agent with 1B context
+Show HN: 1B-Gemini-Local-Agent – Free autonomous coding agent using Gemini 3.8 Pro with unlimited reasoning (no API keys)
 ```
 
 **URL:**
@@ -70,11 +75,17 @@ https://github.com/IshaanYK/gemini-1b-local-agent
 
 **First Comment (post immediately after submitting):**
 ```markdown
-Author here. I wanted a local coding assistant that didn't throttle context or charge per token. 
+Author here. I wanted a local coding assistant that leverages frontier reasoning models without expensive per-token fees or truncated context.
 
-This project pairs a reverse-engineered Gemini Web proxy with a local Flask backend and an autonomous 10-step execution loop. It can run local PowerShell commands, inspect directories, grep files, and apply in-place diff edits. 
+This project pairs Gemini 3.8 Pro (with deep reasoning/thinking capabilities) with a local Flask backend and an autonomous 10-step execution loop—running completely free without API keys via a local Web2API proxy.
 
-The frontend uses Apple HIG glassmorphism with live SSE reasoning drawers and comes with 74 curated design and engineering skill guidelines.
+Key features:
+- **Powered by Gemini 3.8 Pro**: Full chain-of-thought deep reasoning without metering.
+- **100% Free & Unlimited**: No API keys required, no billing, no per-token charges.
+- **Native OS Execution**: PowerShell tool execution, directory inspection, codebase grepping, and surgical diff editing.
+- **1B+ Token Context**: Unlimited context handling for massive codebases.
+- **Apple HIG UI**: Glassmorphism interface with live thought-process streaming drawers.
+- **74 Bundled Skills**: Pre-packaged design and engineering guidelines.
 
 Feedback on the tool loop architecture and proxy stability is very welcome!
 ```
@@ -86,13 +97,14 @@ Feedback on the tool loop architecture and proxy stability is very welcome!
 
 **Tweet 1 (The Hook):**
 ```
-Stop paying $20/month for coding assistants with small context windows.
+Stop paying $20-$100/mo for coding assistants that meter your reasoning tokens.
 
-I built a 100% FREE, open-source autonomous coding agent powered by Gemini:
+I built a 100% FREE autonomous coding agent powered by Gemini 3.8 Pro:
+• Gemini 3.8 Pro Deep Reasoning (Thinking Mode)
+• 100% Unlimited WITHOUT API keys
 • 1 Billion+ token context ($0 cost)
-• 6 native local system tools (PowerShell, Grep, Edit)
-• 10-step autonomous loops
-• Apple HIG UI
+• 6 native OS system tools (PowerShell, Grep, Edit)
+• Apple HIG Glassmorphism UI
 
 Demo & Repo 👇 (🧵 1/4)
 [ATTACH YOUR HERO_BANNER.GIF OR 20s SCREEN RECORDING HERE]
