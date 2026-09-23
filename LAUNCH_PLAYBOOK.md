@@ -48,7 +48,7 @@ I was frustrated with $20-$100/month subscriptions for coding assistants that st
 
 Everything runs on your local machine with 1-click setup.
 
-👉 **GitHub Repo:** https://github.com/IshaanYK/1B-gemini-Local-Agent-
+👉 **GitHub Repo:** https://github.com/IshaanYK/gemini-1b-local-agent
 
 I'd love feedback, issues, or PRs! If you find it useful, please consider dropping a ⭐ on the repo!
 ```
@@ -65,7 +65,7 @@ Show HN: 1B-Gemini-Local-Agent – Free local autonomous coding agent with 1B co
 
 **URL:**
 ```
-https://github.com/IshaanYK/1B-gemini-Local-Agent-
+https://github.com/IshaanYK/gemini-1b-local-agent
 ```
 
 **First Comment (post immediately after submitting):**
@@ -120,7 +120,7 @@ Why I built this vs Cursor / Claude Code:
 The project is 100% open-source under MIT:
 
 ⭐ Star the repo on GitHub:
-https://github.com/IshaanYK/1B-gemini-Local-Agent-
+https://github.com/IshaanYK/gemini-1b-local-agent
 
 RT and share with fellow devs! 🚀 (🧵 4/4)
 ```

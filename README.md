@@ -3,12 +3,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-/stargazers"><img src="https://img.shields.io/github/stars/IshaanYK/1B-gemini-Local-Agent-?style=for-the-badge&logo=github&color=gold" alt="GitHub Stars"></a>
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Context-1B%2B%20Tokens-purple?style=for-the-badge&logo=google" alt="Context"></a>
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Cost-Zero%20%240-brightgreen?style=for-the-badge" alt="Cost"></a>
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Gemini-3.6%20Flash%20%2F%20Thinking-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Skills-74%20Built--in-orange?style=for-the-badge" alt="Skills"></a>
-  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/License-MIT-red?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent/stargazers"><img src="https://img.shields.io/github/stars/IshaanYK/gemini-1b-local-agent?style=for-the-badge&logo=github&color=gold" alt="GitHub Stars"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Context-1B%2B%20Tokens-purple?style=for-the-badge&logo=google" alt="Context"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Cost-Zero%20%240-brightgreen?style=for-the-badge" alt="Cost"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Gemini-3.6%20Flash%20%2F%20Thinking-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/Skills-74%20Built--in-orange?style=for-the-badge" alt="Skills"></a>
+  <a href="https://github.com/IshaanYK/gemini-1b-local-agent"><img src="https://img.shields.io/badge/License-MIT-red?style=for-the-badge" alt="License"></a>
 </p>
 
 > ⭐ **If you find this project useful or interesting, please give it a Star on GitHub!** It takes 1 second and helps keep development 100% free and open-source.
@@ -166,8 +166,8 @@ Open `gemini-chatbox/index.html` in your browser.
 If you found this project helpful, please consider giving it a star! It lets other developers discover the repository and supports ongoing open-source updates.
 
 <p align="center">
-  <a href="https://star-history.com/#IshaanYK/1B-gemini-Local-Agent-&Date">
-    <img src="https://api.star-history.com/svg?repos=IshaanYK/1B-gemini-Local-Agent-&type=Date" alt="Star History Chart" width="100%">
+  <a href="https://star-history.com/#IshaanYK/gemini-1b-local-agent&Date">
+    <img src="https://api.star-history.com/svg?repos=IshaanYK/gemini-1b-local-agent&type=Date" alt="Star History Chart" width="100%">
   </a>
 </p>
 
