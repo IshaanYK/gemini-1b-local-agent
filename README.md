@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-/stargazers"><img src="https://img.shields.io/github/stars/IshaanYK/1B-gemini-Local-Agent-?style=for-the-badge&logo=github&color=gold" alt="GitHub Stars"></a>
   <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Context-1B%2B%20Tokens-purple?style=for-the-badge&logo=google" alt="Context"></a>
   <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Cost-Zero%20%240-brightgreen?style=for-the-badge" alt="Cost"></a>
   <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/Gemini-3.6%20Flash%20%2F%20Thinking-blue?style=for-the-badge&logo=google-gemini" alt="Model"></a>
@@ -10,11 +11,27 @@
   <a href="https://github.com/IshaanYK/1B-gemini-Local-Agent-"><img src="https://img.shields.io/badge/License-MIT-red?style=for-the-badge" alt="License"></a>
 </p>
 
+> ⭐ **If you find this project useful or interesting, please give it a Star on GitHub!** It takes 1 second and helps keep development 100% free and open-source.
+
 ---
 
 # 🚀 1B Gemini Local Agent
 
 > **An autonomous, zero-cost AI coding agent powered by Google Gemini (1 Billion+ Token Context), equipped with 6 local system tools, 74 design & engineering skills, Apple HIG UI, live reasoning drawers, and 1-click desktop launching.**
+
+---
+
+## 🆚 Why 1B Gemini Agent vs Other Assistants?
+
+| Feature | 🚀 1B Gemini Local Agent | Claude Code | Cursor | Cline |
+| :--- | :---: | :---: | :---: | :---: |
+| **Monthly Cost** | **$0 (100% Free)** | $20 – $100+/mo | $20/mo | BYOK API costs |
+| **Context Window** | **1 Billion+ Tokens** | 200k Tokens | 128k – 200k Tokens | Model dependent |
+| **Local Tool Execution** | **Native OS / PowerShell** | Bash / CLI | In-editor only | Extension sandbox |
+| **Design Framework** | **Apple HIG & Glassmorphism** | CLI Terminal | VS Code Native | Webview |
+| **Agentic Loops** | **Up to 10 Autonomous Steps** | Agent Loop | Composer | Agent loop |
+| **Built-in Skills** | **74 Curated UI/UX & Tech Skills** | None (Prompts only) | Rules files | Rules files |
+| **1-Click Launch** | **Desktop Launcher (.bat)** | Terminal command | App launch | VS Code install |
 
 ---
 
@@ -141,6 +158,29 @@ Open `gemini-chatbox/index.html` in your browser.
                                                       │   (gemini.google.com)    │
                                                       └────────────┬─────────────┘
 ```
+
+---
+
+## ⭐ Star History
+
+If you found this project helpful, please consider giving it a star! It lets other developers discover the repository and supports ongoing open-source updates.
+
+<p align="center">
+  <a href="https://star-history.com/#IshaanYK/1B-gemini-Local-Agent-&Date">
+    <img src="https://api.star-history.com/svg?repos=IshaanYK/1B-gemini-Local-Agent-&type=Date" alt="Star History Chart" width="100%">
+  </a>
+</p>
+
+---
+
+## 🤝 Contributing
+
+Contributions, feature requests, and bug reports are welcome!
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
