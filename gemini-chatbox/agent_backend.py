@@ -256,9 +256,17 @@ def call_openai_with_autofix(create_kwargs, retries=2):
     """Executes completions with automatic proxy detection & self-healing retry."""
     ensure_proxy_running()
     current_m = create_kwargs.get("model", "")
-    if IS_TURBO_API and (current_m.startswith("gemini-3.") or "lite" in current_m):
-        # Official Google API uses gemini-2.0-flash / gemini-1.5-pro IDs
-        create_kwargs["model"] = "gemini-2.0-flash"
+    if IS_TURBO_API:
+        # Route to exact Google AI Studio official frontier model IDs
+        m_low = current_m.lower()
+        if "1.5-pro" in m_low or "1.5" in m_low:
+            create_kwargs["model"] = "gemini-1.5-pro"
+        elif "pro" in m_low:
+            create_kwargs["model"] = "gemini-2.0-pro-exp-02-05"
+        elif "think" in m_low:
+            create_kwargs["model"] = "gemini-2.0-flash-thinking-exp-01-21"
+        elif m_low.startswith("gemini-3.") or "lite" in m_low or not current_m:
+            create_kwargs["model"] = "gemini-2.0-flash"
 
     for attempt in range(retries + 1):
         try:

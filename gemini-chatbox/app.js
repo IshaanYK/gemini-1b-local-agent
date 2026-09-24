@@ -61,8 +61,44 @@ const newChatBtn = document.getElementById('new-chat-btn');
 const activeChatTitle = document.getElementById('active-chat-title');
 const modelSelector = document.getElementById('model-selector');
 
-// ── Models Registry & Switcher (Gemini 3.8 Series) ─────────────────────
+// ── Models Registry & Switcher (Frontier & Virtual Proxy Series) ────────
 const ALL_MODELS = [
+    {
+        id: 'gemini-2.0-pro-exp-02-05',
+        name: 'Gemini 2.0 Pro Exp',
+        group: 'Official Google Frontier',
+        badge: 'Pro',
+        badgeClass: 'pro',
+        desc: 'Google flagship frontier model with maximum reasoning depth, complex software architecture & code generation.',
+        tags: ['Real Pro', 'Deep Reasoning', 'Frontier']
+    },
+    {
+        id: 'gemini-2.0-flash-thinking-exp-01-21',
+        name: 'Gemini 2.0 Flash Thinking',
+        group: 'Official Google Frontier',
+        badge: 'Thinking',
+        badgeClass: 'thinking',
+        desc: 'Google dedicated Chain-of-Thought reasoning engine. Generates transparent step-by-step logic before synthesis.',
+        tags: ['Real CoT', 'Logic Verified', 'Mode 2']
+    },
+    {
+        id: 'gemini-1.5-pro',
+        name: 'Gemini 1.5 Pro',
+        group: 'Official Google Frontier',
+        badge: '2M Ctx',
+        badgeClass: 'pro',
+        desc: 'Industry-leading 2-million-token context window for full-repo analysis and long technical documents.',
+        tags: ['2M Context', 'Full Repo', 'Enterprise']
+    },
+    {
+        id: 'gemini-2.0-flash',
+        name: 'Gemini 2.0 Flash',
+        group: 'Official Google Frontier',
+        badge: 'Fast',
+        badgeClass: 'fast',
+        desc: 'High-speed official next-gen model for sub-second responses, instant tool calls, and high throughput.',
+        tags: ['Sub-second', 'Workhorse', 'Fast']
+    },
     {
         id: 'gemini-3.8-flash',
         name: 'Gemini 3.8 Flash',

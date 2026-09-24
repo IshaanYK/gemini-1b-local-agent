@@ -129,6 +129,35 @@ MODELS = {
         "mode": 6, "think": 4,
         "desc": "Lightweight fast model",
     },
+    # Official Google AI Studio & Frontier Real Models
+    "gemini-2.0-pro-exp-02-05": {
+        "mode": 3, "think": 4,
+        "desc": "Official Google Gemini 2.0 Pro Experimental (Flagship reasoning)",
+    },
+    "gemini-2.0-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Google Gemini 2.0 Pro (Mode 3 Pro)",
+    },
+    "gemini-1.5-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Google Gemini 1.5 Pro (Enterprise 2M Context)",
+    },
+    "gemini-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Gemini Pro (Mode 3)",
+    },
+    "gemini-2.0-flash-thinking-exp-01-21": {
+        "mode": 2, "think": 0,
+        "desc": "Official Google Gemini 2.0 Flash Thinking Experimental (Deep CoT)",
+    },
+    "gemini-2.0-flash-thinking": {
+        "mode": 2, "think": 0,
+        "desc": "Google Gemini 2.0 Flash Thinking (Mode 2 CoT)",
+    },
+    "gemini-2.0-flash": {
+        "mode": 1, "think": 4,
+        "desc": "Official Google Gemini 2.0 Flash (Mode 1 Fast)",
+    },
 }
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
@@ -140,21 +169,49 @@ def log(msg: str):
 
 
 def load_cookie() -> tuple:
-    """Load cookie from file. Returns (cookie_str, sapisid)."""
+    """Load cookie from file, cookie.txt, or .env. Returns (cookie_str, sapisid)."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     cookie_file = CONFIG.get("cookie_file")
-    if not cookie_file:
+    candidates = [
+        cookie_file,
+        os.path.join(script_dir, "cookie.txt"),
+        os.path.join(script_dir, "..", "cookie.txt"),
+        os.path.join(script_dir, "..", ".env"),
+        os.path.join(script_dir, ".env"),
+    ]
+    raw_content = os.environ.get("GEMINI_COOKIES", "").strip()
+    if not raw_content:
+        for c in candidates:
+            if c and os.path.exists(c):
+                try:
+                    if c.endswith(".env"):
+                        with open(c, "r", encoding="utf-8") as f:
+                            for line in f:
+                                if line.strip().startswith("GEMINI_COOKIES="):
+                                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                                    if val:
+                                        raw_content = val
+                                        break
+                    else:
+                        with open(c, "r", encoding="utf-8") as f:
+                            val = f.read().strip()
+                            if val:
+                                raw_content = val
+                    if raw_content:
+                        break
+                except Exception:
+                    pass
+
+    if not raw_content:
         return "", None
-    if not os.path.exists(cookie_file):
-        return "", None
+
     try:
-        with open(cookie_file, "r") as f:
-            content = f.read().strip()
-        if content.startswith("{"):
-            data = json.loads(content)
+        if raw_content.startswith("{"):
+            data = json.loads(raw_content)
             cookie_str = data.get("cookie", "")
             sapisid = data.get("sapisid", "")
         else:
-            cookie_str = content
+            cookie_str = raw_content
             pairs = dict(p.split("=", 1) for p in cookie_str.split("; ") if "=" in p)
             sapisid = pairs.get("SAPISID", "")
         return cookie_str, sapisid if sapisid else None
@@ -671,15 +728,17 @@ class GeminiHandler(BaseHTTPRequestHandler):
         if not cfg:
             normalized = model_name.strip().lower().replace(" ", "-")
             cfg = MODELS.get(normalized)
-            if not cfg and ("3.8" in normalized or "3-8" in normalized):
-                if "pro" in normalized:
-                    cfg = MODELS.get("gemini-3.8-pro")
+            if not cfg:
+                if "1.5-pro" in normalized:
+                    cfg = MODELS.get("gemini-1.5-pro")
+                elif "pro" in normalized:
+                    cfg = MODELS.get("gemini-2.0-pro-exp-02-05") or MODELS.get("gemini-3.8-pro")
                 elif "think" in normalized:
-                    cfg = MODELS.get("gemini-3.8-flash-thinking")
-                else:
-                    cfg = MODELS.get("gemini-3.8-flash")
-            elif not cfg and "flash" in normalized:
-                cfg = MODELS.get("gemini-3.8-flash")
+                    cfg = MODELS.get("gemini-2.0-flash-thinking-exp-01-21") or MODELS.get("gemini-3.8-flash-thinking")
+                elif "lite" in normalized:
+                    cfg = MODELS.get("gemini-flash-lite")
+                elif "flash" in normalized or "2.0" in normalized:
+                    cfg = MODELS.get("gemini-2.0-flash") or MODELS.get("gemini-3.8-flash")
         if not cfg:
             # Fallback to default model rather than failing
             default_mod = CONFIG.get("default_model", "gemini-3.8-flash")
