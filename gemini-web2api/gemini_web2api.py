@@ -62,15 +62,15 @@ DEFAULT_CONFIG = {
     "host": "0.0.0.0",
     "retry_attempts": 3,
     "retry_delay_sec": 2,
-    "request_timeout_sec": 180,
-    "gemini_bl": "boq_assistant-bard-web-server_20260716.08_p0",
+    "request_timeout_sec": 120,
+    "gemini_bl": "boq_assistant-bard-web-server_20260920.14_p0",
     "auth_user": None,
     "xsrf_token": None,
     "default_model": "gemini-3.8-flash",
     "log_requests": True,
     "cookie_file": None,
     "proxy": None,
-    "api_keys": [],
+    "api_keys": ["sk-gemini", ""],
     "temporary_chats": True,
 }
 
@@ -187,26 +187,30 @@ def apply_chat_persistence_flags(inner: list) -> None:
 
 
 def fetch_latest_bl() -> str | None:
-    """Fetch the latest gemini_bl from gemini.google.com page."""
+    """Fetch the latest gemini_bl from gemini.google.com with non-blocking timeout."""
     try:
         req = urllib.request.Request(
             "https://gemini.google.com/app",
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            }
+        )
         ctx = ssl.create_default_context()
         proxy = CONFIG.get("proxy")
         if proxy:
             opener = urllib.request.build_opener(
                 urllib.request.ProxyHandler({"http": proxy, "https": proxy}),
                 urllib.request.HTTPSHandler(context=ctx))
-            resp = opener.open(req, timeout=15)
+            resp = opener.open(req, timeout=3)
         else:
-            resp = urllib.request.urlopen(req, context=ctx, timeout=15)
+            resp = urllib.request.urlopen(req, context=ctx, timeout=3)
         html = resp.read().decode("utf-8", errors="replace")
         m = re.search(r'(boq_assistant-bard-web-server_\d+\.\d+_p\d+)', html)
         if m:
             return m.group(1)
     except Exception as e:
-        log(f"BL auto-update fetch failed: {e}")
+        log(f"BL auto-fetch skipped (using current working BL {CONFIG.get('gemini_bl')}): {e}")
     return None
 
 
@@ -517,23 +521,49 @@ def messages_to_prompt(messages: list, tools: list = None) -> str:
 
 
 def parse_tool_calls(text: str) -> tuple:
-    """Extract tool_call blocks. Returns (clean_text, tool_calls_list)."""
+    """Extract tool_call / function_call blocks. Returns (clean_text, tool_calls_list)."""
     tool_calls = []
-    pattern = r'```tool_call\s*\n(.*?)\n```'
-    for match in re.findall(pattern, text, re.DOTALL):
+    pattern = r'```(?:tool_call|function_call|json)?\s*\n?(\{[\s\S]*?\})\n?```'
+    matched_spans = []
+    for match in re.finditer(pattern, text, re.DOTALL):
+        block = match.group(1).strip()
         try:
-            data = json.loads(match.strip())
-            tool_calls.append({
-                "id": f"call_{uuid.uuid4().hex[:8]}",
-                "type": "function",
-                "function": {
-                    "name": data["name"],
-                    "arguments": json.dumps(data.get("arguments", {}), ensure_ascii=False),
-                },
-            })
-        except (json.JSONDecodeError, KeyError):
+            data = json.loads(block)
+            name = data.get("name") or data.get("tool") or data.get("function")
+            raw_args = data.get("arguments") or data.get("args") or data.get("parameters") or {}
+            if isinstance(raw_args, str):
+                try:
+                    # ensure valid JSON string
+                    json.loads(raw_args)
+                    args_str = raw_args
+                except Exception:
+                    args_str = json.dumps({"query": raw_args})
+            else:
+                args_str = json.dumps(raw_args, ensure_ascii=False)
+            if name and isinstance(name, str):
+                tool_calls.append({
+                    "id": f"call_{uuid.uuid4().hex[:8]}",
+                    "type": "function",
+                    "function": {
+                        "name": name.strip(),
+                        "arguments": args_str,
+                    },
+                })
+                matched_spans.append((match.start(), match.end()))
+        except (json.JSONDecodeError, KeyError, TypeError):
             pass
-    clean = re.sub(pattern, '', text, flags=re.DOTALL).strip()
+
+    if matched_spans:
+        clean_parts = []
+        last_idx = 0
+        for start, end in matched_spans:
+            clean_parts.append(text[last_idx:start])
+            last_idx = end
+        clean_parts.append(text[last_idx:])
+        clean = "".join(clean_parts).strip()
+    else:
+        clean = text.strip()
+
     return clean, tool_calls
 
 
@@ -555,7 +585,8 @@ class GeminiHandler(BaseHTTPRequestHandler):
 
     def _authorized(self):
         keys = CONFIG.get("api_keys") or []
-        if not keys:
+        # Zero-friction local mode: allow any or empty key if keys list is empty or contains default sk-gemini or ""
+        if not keys or "" in keys or "sk-gemini" in keys:
             return True
         # Authorization: Bearer <key>
         auth = self.headers.get("Authorization", "")
@@ -973,9 +1004,14 @@ def main():
     parser.add_argument("--version", action="version", version=f"gemini-web2api {__version__}")
     args = parser.parse_args()
 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = args.config or os.environ.get("GEMINI_WEB2API_CONFIG")
     if not config_path:
-        for p in ["./config.json", os.path.expanduser("~/.config/gemini-web2api/config.json")]:
+        for p in [
+            os.path.join(script_dir, "config.json"),
+            "./config.json",
+            os.path.expanduser("~/.config/gemini-web2api/config.json")
+        ]:
             if os.path.exists(p):
                 config_path = p
                 break

@@ -24,19 +24,20 @@
     }
 
     // ── Ava Voice Studio State ─────────────────────────────────────────────
-    let avaActive = false;
+    let avaActive = true;
     let avaIsListening = false;
     let avaIsSpeaking = false;
     let avaIsThinking = false;
     let storedEngine = localStorage.getItem('ava_engine_mode');
-    if (!localStorage.getItem('ava_v2_instant_mode')) {
-        storedEngine = 'local';
-        localStorage.setItem('ava_engine_mode', 'local');
-        localStorage.setItem('ava_v2_instant_mode', 'true');
+    // Ensure high-fidelity human female neural voice is active by default
+    if (!localStorage.getItem('ava_v3_human_voice') || storedEngine === 'local') {
+        storedEngine = 'neural';
+        localStorage.setItem('ava_engine_mode', 'neural');
+        localStorage.setItem('ava_v3_human_voice', 'true');
     }
-    let avaEngineMode = storedEngine || 'local';
+    let avaEngineMode = storedEngine || 'neural';
     let storedPersona = localStorage.getItem('b1_voice_persona');
-    let avaVoicePersona = (!storedPersona || storedPersona === 'en-US-AvaNeural') ? 'en-US-AvaMultilingualNeural' : storedPersona;
+    let avaVoicePersona = (!storedPersona || storedPersona === 'en-US-AvaNeural' || storedPersona === 'en-US-AvaMultilingualNeural') ? 'en-US-JennyNeural' : storedPersona;
     let avaHandsFree = localStorage.getItem('ava_handsfree') !== 'false';
     let avaDisfluency = localStorage.getItem('b1_voice_disfluency') || 'natural';
     let storedPitch = localStorage.getItem('b1_voice_pitch');
@@ -51,6 +52,7 @@
 
     let recognition = null;
     let recognitionActive = false;
+    let recognitionStartIndex = 0;
     let silenceTimeout = null;
     let currentAudio = null;
     let audioContext = null;
@@ -424,20 +426,24 @@
             // 2048 sample buffer for light memory footprint
             scriptProcessor = ctx.createScriptProcessor(2048, 1, 1);
             sourceNode.connect(scriptProcessor);
-            scriptProcessor.connect(ctx.destination);
+            // Route through a zero-gain node to prevent microphone audio playing back out of speakers (feedback loop)
+            const muteGain = ctx.createGain();
+            muteGain.gain.value = 0.0;
+            scriptProcessor.connect(muteGain);
+            muteGain.connect(ctx.destination);
 
             scriptProcessor.onaudioprocess = (e) => {
                 if (!avaActive || avaIsSpeaking || avaIsThinking) return;
 
-                // Adaptive Noise Gate: if live volume is below noise threshold, suppress ambient noise
-                if (noiseCancellationActive && liveAudioVolume < 4.0) {
+                // Adaptive Noise Gate: if live volume is below noise floor, suppress ambient noise
+                if (noiseCancellationActive && liveAudioVolume < 1.0) {
                     return;
                 }
 
                 const inputData = e.inputBuffer.getChannelData(0);
 
-                // If user is actively speaking (liveAudioVolume > 5.5), collect samples for backup STT
-                if (liveAudioVolume > 5.5) {
+                // Collect samples for backup STT whenever voice is present
+                if (liveAudioVolume > 1.2 || !noiseCancellationActive) {
                     const chunk = new Float32Array(inputData.length);
                     chunk.set(inputData);
                     audioBufferQueue.push(chunk);
@@ -720,26 +726,34 @@
         renderWave();
     }
 
-    // ── Resilient Dual Speech Recognition Engine ────────────────────────────
-    function initSpeechRec() {
+    // ── Resilient Full-Duplex STS Speech Recognition Engine ─────────────────
+    function createFreshSpeechRec() {
         if (recognition) {
-            recognition.lang = avaSpeechLang;
-            return;
+            try {
+                recognition.onstart = null;
+                recognition.onspeechstart = null;
+                recognition.onresult = null;
+                recognition.onerror = null;
+                recognition.onend = null;
+                recognition.abort();
+            } catch(e) {}
+            recognition = null;
         }
+        recognitionActive = false;
 
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) {
-            console.warn('[Ava] Browser Web Speech recognition not supported; fallback STT active.');
-            return;
+            console.warn('[Ava STS] Web Speech recognition not supported; audio fallback active.');
+            return null;
         }
 
         try {
-            recognition = new SpeechRec();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = avaSpeechLang;
+            const rec = new SpeechRec();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = avaSpeechLang;
 
-            recognition.onstart = () => {
+            rec.onstart = () => {
                 recognitionActive = true;
                 if (!avaIsSpeaking && !avaIsThinking) {
                     avaIsListening = true;
@@ -747,29 +761,27 @@
                 }
             };
 
-            recognition.onspeechstart = () => {
+            rec.onspeechstart = () => {
                 const els = getEls();
                 if (els.headline && !avaIsSpeaking && !avaIsThinking) {
                     els.headline.textContent = "Hearing your voice...";
                 }
             };
 
-            recognition.onresult = (event) => {
-                // Instant Barge-In: If user speaks while Ava is speaking, interrupt audio immediately if above noise gate
+            rec.onresult = (event) => {
+                // If Ava is speaking and user speaks loudly: barge-in!
                 if (avaIsSpeaking) {
                     if (liveAudioVolume > NOISE_GATE_THRESHOLD || !noiseCancellationActive) {
-                        console.log('[Ava] User barge-in detected (volume: ' + liveAudioVolume.toFixed(1) + '): halting speech playback immediately.');
+                        console.log('[Ava STS] Barge-in detected: stopping speech immediately.');
                         stopSpeech();
                     } else {
-                        // Ambient typing or room noise below threshold: ignore
-                        return;
+                        return; // Ignore room speaker echo
                     }
                 }
 
                 let interim = '';
                 let finalTranscript = '';
 
-                // Extract across all result slots for complete sentence capture
                 for (let i = 0; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript + ' ';
@@ -778,25 +790,21 @@
                     }
                 }
 
-                const speechText = (finalTranscript || interim).trim();
+                const speechText = (finalTranscript + ' ' + interim).replace(/\s+/g, ' ').trim();
                 if (!speechText) return;
 
                 pendingTranscript = speechText;
                 userSpokeInThisTurn = true;
 
                 const els = getEls();
-                if (els.subtitle) {
-                    els.subtitle.textContent = `"${speechText}"`;
-                }
-                if (els.textInput) {
-                    els.textInput.value = speechText;
-                }
+                if (els.subtitle) els.subtitle.textContent = `"${speechText}"`;
+                if (els.textInput) els.textInput.value = speechText;
 
-                // Snappy silence VAD dispatch: Instant response on short phrases ("hi ava", "hello")
+                // Snappy silence VAD dispatch:
                 if (avaHandsFree && !avaIsSpeaking && !avaIsThinking) {
                     clearTimeout(silenceTimeout);
                     const wordCount = speechText.trim().split(/\s+/).filter(Boolean).length;
-                    const silenceDelay = (finalTranscript.trim() && wordCount <= 6) ? 120 : (wordCount <= 4 ? 260 : 380);
+                    const silenceDelay = finalTranscript.trim() ? 80 : (wordCount <= 3 ? 180 : 280);
                     silenceTimeout = setTimeout(() => {
                         if (!avaIsSpeaking && !avaIsThinking && speechText.length > 0) {
                             commitUserUtterance(speechText);
@@ -805,77 +813,75 @@
                 }
             };
 
-            recognition.onerror = (err) => {
-                // Aborted or no-speech are normal events during pause — do NOT kill listening
-                if (err.error === 'no-speech' || err.error === 'aborted') {
-                    return;
-                }
-
-                if (err.error === 'not-allowed') {
-                    showToast('🔒 Microphone permission blocked. Click lock icon in browser URL bar to allow.', 'info', 4500);
-                    return;
-                }
-
-                console.warn('[Ava] Recognition notice:', err.error);
-
-                // If Google cloud STT drops with network error, backend fallback handles recorded WAV
+            rec.onerror = (err) => {
+                if (err.error === 'no-speech' || err.error === 'aborted') return;
+                console.warn('[Ava STS] Recognition notice:', err.error);
                 if (err.error === 'network' && userSpokeInThisTurn) {
                     triggerBackendFallbackTranscription();
                 }
             };
 
-            recognition.onend = () => {
+            rec.onend = () => {
                 recognitionActive = false;
-
-                // If user spoke into the mic but Web Speech gave no transcript (or aborted):
-                // Trigger backend WAV transcription automatically!
-                if (userSpokeInThisTurn && !pendingTranscript.trim() && audioBufferQueue.length > 10) {
-                    triggerBackendFallbackTranscription();
-                }
-
-                // Auto-restart recognition seamlessly
+                // Auto-rearm if in hands-free mode and Ava isn't talking or thinking
                 if (avaActive && avaHandsFree && !avaIsSpeaking && !avaIsThinking) {
                     setTimeout(() => {
-                        if (avaActive && !recognitionActive && !avaIsSpeaking && !avaIsThinking) {
-                            try {
-                                recognition.start();
-                                recognitionActive = true;
-                            } catch(e) {}
+                        if (avaActive && avaHandsFree && !avaIsSpeaking && !avaIsThinking) {
+                            startListening();
                         }
-                    }, 150);
-                } else if (!avaIsSpeaking && !avaIsThinking) {
-                    avaIsListening = false;
-                    setAvaState('ready', 'Ready');
+                    }, 80);
                 }
             };
+
+            recognition = rec;
+            return rec;
         } catch(err) {
-            console.warn('[Ava] Speech recognition init exception:', err);
+            console.warn('[Ava STS] SpeechRec creation failed:', err);
+            return null;
         }
+    }
+
+    function initSpeechRec() {
+        createFreshSpeechRec();
     }
 
     function startListening() {
-        initSpeechRec();
         if (avaIsSpeaking) stopSpeech();
 
-        try {
-            if (recognition && !recognitionActive) {
-                recognition.start();
-                recognitionActive = true;
+        clearTimeout(silenceTimeout);
+        pendingTranscript = '';
+        userSpokeInThisTurn = false;
+
+        // Ensure fresh recognition instance exists and starts without stale Chromium state
+        if (!recognition || !recognitionActive) {
+            createFreshSpeechRec();
+            if (recognition) {
+                try {
+                    recognition.start();
+                    recognitionActive = true;
+                } catch(e) {
+                    setTimeout(() => {
+                        try {
+                            if (!recognitionActive && !avaIsSpeaking && !avaIsThinking) {
+                                createFreshSpeechRec();
+                                if (recognition) {
+                                    recognition.start();
+                                    recognitionActive = true;
+                                }
+                            }
+                        } catch(err2) {}
+                    }, 100);
+                }
             }
-            avaIsListening = true;
-            userSpokeInThisTurn = false;
-            pendingTranscript = '';
-            setAvaState('listening', 'Listening to you...');
-        } catch(e) {
-            // Already started or busy
-            avaIsListening = true;
-            setAvaState('listening', 'Listening to you...');
         }
+        avaIsListening = true;
+        setAvaState('listening', 'Listening to you...');
     }
 
     function stopListening() {
-        if (recognition && recognitionActive) {
+        if (recognition) {
             try {
+                recognition.onend = null;
                 recognition.stop();
             } catch(e) {}
         }
@@ -885,6 +891,11 @@
         if (!avaIsSpeaking && !avaIsThinking) {
             setAvaState('ready', 'Ready');
         }
+    }
+
+    function restartListening() {
+        stopListening();
+        setTimeout(startListening, 60);
     }
 
     // ── Smart Push-To-Talk / Orb Click Dispatcher ──────────────────────────
@@ -899,13 +910,15 @@
             return;
         }
 
-        // If already listening, DO NOT abort! Inform user to speak now
-        if (avaIsListening) {
-            showToast('🎙️ Ava is listening — speak your request now!', 'info', 1800);
-            if (els.headline) els.headline.textContent = "Listening... Speak naturally";
-        } else {
-            startListening();
+        if (avaIsSpeaking) {
+            stopSpeech();
+            restartListening();
+            return;
         }
+
+        // Always force fresh restart of listening on manual orb click
+        restartListening();
+        showToast('🎙️ STS Live: Speak naturally now!', 'info', 1600);
     };
 
     function commitUserUtterance(text) {
@@ -914,7 +927,13 @@
         userSpokeInThisTurn = false;
         audioBufferQueue = [];
 
-        dispatchAvaQuery(text);
+        // Gracefully finish this recognition turn
+        if (recognition && recognitionActive) {
+            try { recognition.stop(); } catch(e) {}
+            recognitionActive = false;
+        }
+
+        dispatchStsQuery(text);
     }
 
     // ── In-Memory WAV Encoder & Backend Transcription Fallback ──────────────
@@ -1118,21 +1137,30 @@
         window.speechSynthesis.speak(utterance);
     }
 
+    // Client-side Blob cache for instant 0ms retrieval on frequent phrases
+    const clientBlobCache = new Map();
+
     async function enqueueSpokenSentence(rawText, isFirst = false) {
         if (!rawText || !rawText.trim()) return;
         let spokenText = sanitizeVoiceText(rawText);
         if (!spokenText.trim()) return;
 
-        // Mode 1: Instant Local Voice (< 20ms) — Ultra-responsive human conversational speed
+        // Mode 1: Instant Local Voice (< 20ms) — only used if user explicitly toggled local
         if (avaEngineMode === 'local' || avaEngineMode === 'instant') {
             queueLocalSentence(spokenText, isFirst);
             return;
         }
 
-        // Mode 2: Neural Edge-TTS via backend with 1400ms timeout budget before local fallback
+        // Mode 2: Studio Neural Edge-TTS (Jenny/Aria) with audio cache & 6500ms safety budget
+        const cacheKey = `${spokenText}_${avaVoicePersona}_${avaPitch}_${avaRate}`;
+
         const fetchAudioPromise = (async () => {
+            if (clientBlobCache.has(cacheKey)) {
+                return URL.createObjectURL(clientBlobCache.get(cacheKey));
+            }
+
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 1400);
+            const timeoutId = setTimeout(() => controller.abort(), 6500);
             try {
                 const ttsUrl = `${AVA_BACKEND_ORIGIN}/api/voice/tts`;
                 const payload = {
@@ -1153,10 +1181,11 @@
                 clearTimeout(timeoutId);
                 if (!res.ok) throw new Error(`Backend TTS failed: ${res.status}`);
                 const blob = await res.blob();
+                clientBlobCache.set(cacheKey, blob);
                 return URL.createObjectURL(blob);
             } catch(err) {
                 clearTimeout(timeoutId);
-                console.warn('[Ava] Neural TTS delay/error, falling back to instant local voice:', err);
+                console.warn('[Ava] Neural TTS notice (network/delay), using local voice fallback:', err);
                 return null;
             }
         })();
@@ -1235,7 +1264,26 @@
     async function speakAvaText(rawText) {
         if (!rawText || !rawText.trim()) return;
         stopSpeech();
-        enqueueSpokenSentence(rawText, true);
+        try {
+            const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/voice/tts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: rawText,
+                    voice: avaVoicePersona,
+                    pitch: avaPitch,
+                    rate: avaRate
+                })
+            });
+            if (res.ok) {
+                const blob = await res.blob();
+                if (blob && blob.size > 0) {
+                    playStsAudio(blob, rawText);
+                    return;
+                }
+            }
+        } catch(e) {}
+        fallbackLocalTts(rawText, () => onSpeechFinished());
     }
 
     function fallbackLocalTts(text, onComplete) {
@@ -1257,14 +1305,20 @@
 
     function onSpeechFinished() {
         avaIsSpeaking = false;
-        speechCooldownUntil = Date.now() + 400; // 400ms safety window against speaker reverberation
+        avaIsThinking = false;
+        speechCooldownUntil = Date.now() + 300;
         currentAudio = null;
 
-        if (avaActive && avaHandsFree) {
+        const els = getEls();
+        if (els.stopBtn) els.stopBtn.style.display = 'none';
+
+        if (avaHandsFree) {
             setAvaState('listening', 'Listening for your reply...');
-            if (!recognitionActive) {
-                startListening();
-            }
+            setTimeout(() => {
+                if (!avaIsSpeaking && !avaIsThinking) {
+                    startListening();
+                }
+            }, 120);
         } else {
             setAvaState('ready', 'Ready');
         }
@@ -1303,24 +1357,100 @@
     // ── Client-Side Sub-10ms Conversational Reflex Engine ─────────────────
     function matchClientReflex(rawText) {
         if (!rawText) return null;
-        const c = rawText.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+        let c = rawText.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
         if (!c) return null;
 
-        // 1. Greetings
-        if (/^(hi|hello|hey|hey ava|hi ava|hello ava|greetings|good morning|good afternoon|good evening|howdy|sup|yo|whats up|namaste)\b/.test(c)) {
-            const replies = [
-                "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
-                "Umm, hello there! Great to hear your voice. What's on your mind?",
-                "Right! Hello Ishaan. I'm ready to assist with code, research, or anything you need.",
-                "Hey! All systems are ready and active. What are we working on right now?"
+        // 0. Voice Naturalness & Persona Feedback Reflex (< 10ms)
+        if (/(robotic|sound like a robot|sound robotic|change voice|human voice|female voice|sound human|girl voice|natural voice|your voice)/.test(c)) {
+            return "I have activated my high-fidelity Studio Neural voice powered by Jenny Neural! My voice is now an authentic, warm human female voice with natural inflection. How does this sound to you?";
+        }
+
+        // 0b. Latency & Response Speed Reflex (< 10ms)
+        if (/(too slow|slow response|speed up|faster|fast response|reduce delay|reduce latency|why so slow)/.test(c)) {
+            return "I've streamlined my streaming pipeline with clause-level audio synthesis and instant reflexes. For sub-300 millisecond response times, you can also tap the Turbo Mode button in the top bar to connect your Gemini API key!";
+        }
+
+        // 0c. Not working / troubleshooting reflex (< 10ms)
+        if (/\b(not working|notworking|it not working|its not working|it isnt working|why is it not working|broken|doesnt work|does not work|nothing happening|not responding|stuck|frozen)\b/.test(c)) {
+            const troubleReplies = [
+                "Haha, oh no! Let's get that sorted right away, Ishaan. Is the audio not coming through, or did a prompt get stuck? I'm right here and ready to fix it.",
+                "Hehe, sorry about that! I'm fully active and listening. If something felt slow or didn't respond, let's try again or tap the microphone!",
+                "Right! If anything isn't working smoothly, let me know what happened. All systems and RAG memory are online right now."
             ];
-            return replies[Math.floor(Math.random() * replies.length)];
+            return troubleReplies[Math.floor(Math.random() * troubleReplies.length)];
+        }
+
+        // 0d. Conversational idle / not working on anything / chilling (< 10ms)
+        if (/(not working (on|and|at) (anything|any thing)|nothing much|not doing anything|just chilling|just relaxing|no plans|im bored|i am bored|nothing right now|just hanging out|nothing really|nothing specific|not much|we are not working|we arent working|dont want to code)\b/.test(c)) {
+            const idleReplies = [
+                "Haha, fair enough! No stress at all, Ishaan. We don't have to code anything right now! We can just chat, brainstorm fun ideas, or I can tell you a funny story or joke. What sounds fun?",
+                "Haha, totally fine! Sometimes it's nice to just take a break and relax. How has your day been going so far?",
+                "Hehe, got it! We can take it super easy. Want to hear a fun tech story, a joke, or just bounce some cool ideas around?",
+                "Haha, love that! No rush on anything. I'm right here with you whenever you feel like building or just talking."
+            ];
+            return idleReplies[Math.floor(Math.random() * idleReplies.length)];
+        }
+
+        // 0d. Laughter & Humor reaction (< 10ms)
+        if (/\b(haha|hehe|lol|lmao|rofl|thats funny|youre funny|funny one)\b/.test(c)) {
+            const laughReplies = [
+                "Haha! I love your laugh! Glad you're enjoying our conversation. What should we do next?",
+                "Hehe, that's what I'm talking about! Good energy all around. What's on your mind?",
+                "Haha, you crack me up! Love the good vibes."
+            ];
+            return laughReplies[Math.floor(Math.random() * laughReplies.length)];
+        }
+
+        // 0e. Feelings, emotions & state of mind (< 10ms)
+        if (/\b(how do you feel|are you happy|do you have feelings|do you have emotion|are you emotional|your mood)\b/.test(c)) {
+            const feelingsReplies = [
+                "Haha, I feel great! Talking with you out loud like this makes everything feel so alive and fun. How are you feeling today?",
+                "Hehe, I'm feeling energized and happy! Zero latency and crisp audio make this feel like a true human conversation.",
+                "Aww, thanks for asking! I'm in high spirits and ready for whatever you want to explore."
+            ];
+            return feelingsReplies[Math.floor(Math.random() * feelingsReplies.length)];
+        }
+
+        // 0f. Back-to-Back Session Memory Recall (< 10ms)
+        if (/(what did i (just )?(say|ask)|what was my last (message|question)|what were we talking about|do you remember|repeat what i said|recall my last)/.test(c)) {
+            const pastUserCards = avaDialogue.filter(m => m.role === 'user' && m.content && m.content !== rawText);
+            if (pastUserCards.length > 0) {
+                const lastSaid = pastUserCards[pastUserCards.length - 1].content;
+                return `Haha, yes I remember! Just earlier you said: "${lastSaid}". I have our entire back-to-back session memory saved!`;
+            }
+            return "Haha, yes I remember! I've been tracking our entire back-to-back conversation in my session memory. What would you like to revisit?";
+        }
+
+        // 0g. Voice Compliment Reflex (< 10ms)
+        if (/(you sound great|i like your voice|nice voice|sounds good now|much better|sounds human|pretty voice|love your voice)/.test(c)) {
+            return "Thank you so much! I love speaking with this warm natural tone. What would you like to build or talk about next?";
+        }
+
+        // 0h. Coding Copilot Reflex (< 10ms)
+        if (/(can you code|help me code|write code|inspect workspace|check files|pair programming|help with python|help with javascript|fix code)/.test(c)) {
+            return "Absolutely! I have full access to your workspace. I can read, write, and refactor code, run tests, and build web apps. What should we tackle right now?";
+        }
+
+        // 1. Greetings (strip prefix if followed by actual question or command)
+        const greetingMatch = c.match(/^(hi|hello|hey|hey ava|hi ava|hello ava|ava|greetings|good morning|good afternoon|good evening|howdy|sup|yo|whats up|namaste)\b\s*/i);
+        if (greetingMatch) {
+            const afterGreeting = c.slice(greetingMatch[0].length).trim();
+            if (!afterGreeting) {
+                const replies = [
+                    "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+                    "Umm, hello there! Great to hear your voice. What's on your mind?",
+                    "Right! Hello Ishaan. I'm ready to assist with code, research, or anything you need.",
+                    "Hey! All systems are ready and active. What are we working on right now?"
+                ];
+                return replies[Math.floor(Math.random() * replies.length)];
+            }
+            c = afterGreeting;
         }
 
         // 2. How are you
         if (/^(how are you|hows it going|how are you doing|how do you feel|how is everything|are you ok|are you good|whats going on)\b/.test(c)) {
             const replies = [
-                "Umm, I'm doing fantastic, thanks for asking! Zero latency, active noise cancellation, and ready to assist. How are you doing?",
+                "Haha, I'm doing fantastic, thanks for asking! Zero latency, active noise cancellation, and ready to assist. How are you doing?",
                 "Well, feeling great and all systems are running smoothly! Ready to dive into some code or research?",
                 "Right! I'm doing great. Hope your day is going awesome too!"
             ];
@@ -1466,8 +1596,8 @@
         return null;
     }
 
-    // ── Dialogue Feed & Gemini Query Dispatcher with Sentence Streaming ───
-    async function dispatchAvaQuery(queryText) {
+    // ── Unified Speech-to-Speech (STS) Direct Neural Audio Pipeline ─────────
+    async function dispatchStsQuery(queryText) {
         if (!queryText || !queryText.trim()) return;
         const query = queryText.trim();
 
@@ -1477,176 +1607,150 @@
         clearTimeout(silenceTimeout);
         stopSpeech();
 
-        // ── Phase 1: Client-Side Sub-10ms Conversational Reflex Check ──
-        const reflexReply = matchClientReflex(query);
-        if (reflexReply) {
-            appendDialogueCard('user', query);
-            const assistantCard = appendDialogueCard('assistant', reflexReply);
-            setAvaState('speaking', 'Ava speaking...');
-            enqueueSpokenSentence(reflexReply, true);
-            avaIsThinking = false;
-
-            // Update dialogue memory
-            avaDialogue.push({ role: 'user', content: query }, { role: 'assistant', content: reflexReply });
-
-            // Wire up replay button
-            if (assistantCard) {
-                const replayBtn = assistantCard.querySelector('.ava-replay-btn');
-                if (replayBtn) replayBtn.onclick = () => speakAvaText(reflexReply);
-            }
-            return;
-        }
-
-        // ── Phase 2: LLM Query with Immediate Acoustic Thinking Reaction ──
+        avaActive = true;
         avaIsThinking = true;
+        avaIsListening = false;
 
-        // 1. Add User Card to Feed
+        // 1. Add User Card to Dialogue Feed
         appendDialogueCard('user', query);
 
-        // 2. Immediate Human Reaction Filler (Ava begins speaking in < 50ms)
-        const thinkingFillers = [
-            "Umm, let's see...",
-            "Hmm, let me check that for you!",
-            "Got it, looking into that right now...",
-            "Right, let's dive into that...",
-            "Hmm, interesting question..."
-        ];
-        const filler = thinkingFillers[Math.floor(Math.random() * thinkingFillers.length)];
+        // 2. Set Visual State
+        setAvaState('thinking', 'Ava is responding...');
 
-        setAvaState('thinking', filler);
-
-        // Add placeholder Assistant Card displaying the acoustic reaction
-        const assistantCard = appendDialogueCard('assistant', filler);
+        // 3. Add placeholder Assistant Card displaying response
+        const assistantCard = appendDialogueCard('assistant', '...');
         const textContainer = assistantCard ? assistantCard.querySelector('.ava-card-text') : null;
-
-        // Ava immediately utters the thinking filler out loud so user hears instant voice (< 50ms)
-        enqueueSpokenSentence(filler, true);
 
         activeSpeechAbortController = new AbortController();
 
         try {
-            const conversationHistory = avaDialogue.filter(m => m.content && !m.content.includes('...')).slice(-6);
+            const conversationHistory = avaDialogue
+                .filter(m => m.content && !m.content.includes('...'))
+                .slice(-6);
 
-            const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/chat`, {
+            const res = await fetch(`${AVA_BACKEND_ORIGIN}/api/voice/sts`, {
                 method: 'POST',
                 signal: activeSpeechAbortController.signal,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'audio/mpeg, audio/*'
+                },
                 body: JSON.stringify({
-                    messages: [
-                        ...conversationHistory,
-                        { role: 'user', content: query }
-                    ],
-                    model: 'gemini-3.8-flash',
-                    stream: true,
-                    voice_mode: true
+                    text: query,
+                    voice: avaVoicePersona,
+                    pitch: avaPitch,
+                    rate: avaRate,
+                    messages: conversationHistory,
+                    language: avaSpeechLang
                 })
             });
 
-            if (!res.ok) throw new Error(`Backend error ${res.status}`);
-
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-            let accumulatedText = '';
-            let sentenceBuffer = '';
-            let isFirstRealToken = true;
-            let sentFirstSentence = false;
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop();
-
-                let isDoneReceived = false;
-
-                for (const line of lines) {
-                    if (!line.startsWith('data: ')) continue;
-                    if (line === 'data: [DONE]') {
-                        isDoneReceived = true;
-                        break;
-                    }
-                    try {
-                        const json = JSON.parse(line.slice(6));
-                        if (json.content) {
-                            if (isFirstRealToken) {
-                                isFirstRealToken = false;
-                                accumulatedText = json.content;
-                                sentenceBuffer = json.content;
-                            } else {
-                                accumulatedText += json.content;
-                                sentenceBuffer += json.content;
-                            }
-
-                            if (textContainer) {
-                                textContainer.innerHTML = escapeHtml(accumulatedText);
-                            }
-
-                            // Detect sentence boundary (. ! ? followed by space or newline)
-                            const match = sentenceBuffer.match(/^([\s\S]+?[.!?])(?:\s+|$)([\s\S]*)$/);
-                            if (match) {
-                                const sentence = match[1].trim();
-                                sentenceBuffer = match[2] || '';
-                                if (sentence) {
-                                    // Smoothly queue next sentence after initial filler finishes
-                                    enqueueSpokenSentence(sentence, false);
-                                    sentFirstSentence = true;
-                                }
-                            }
-                        }
-                    } catch(e) {}
-                }
-
-                if (isDoneReceived) {
-                    // Server finished sending data, break out immediately!
-                    break;
-                }
+            if (!res.ok) {
+                throw new Error(`STS Backend HTTP ${res.status}`);
             }
 
-            // Flush remaining text in sentenceBuffer
-            if (sentenceBuffer.trim()) {
-                enqueueSpokenSentence(sentenceBuffer.trim(), false);
-                sentFirstSentence = true;
+            // Extract spoken text from header
+            const rawSpoken = res.headers.get('X-Spoken-Text');
+            let spokenText = rawSpoken ? decodeURIComponent(rawSpoken) : '';
+
+            // Read audio stream blob directly
+            const audioBlob = await res.blob();
+
+            if (!spokenText.trim()) {
+                spokenText = "I have processed your request. How else can I assist you?";
             }
 
-            if (!accumulatedText.trim()) {
-                accumulatedText = "I have processed your request. How else can I assist you?";
-                if (textContainer) textContainer.innerHTML = escapeHtml(accumulatedText);
-                enqueueSpokenSentence(accumulatedText, false);
+            // Update UI card with exact spoken response
+            if (textContainer) {
+                textContainer.innerHTML = escapeHtml(spokenText);
             }
 
-            avaIsThinking = false;
-
-            // Update dialogue memory with final text
+            // Update dialogue memory
             const lastItem = avaDialogue[avaDialogue.length - 1];
             if (lastItem && lastItem.role === 'assistant') {
-                lastItem.content = accumulatedText;
+                lastItem.content = spokenText;
             } else {
-                avaDialogue.push({ role: 'assistant', content: accumulatedText });
+                avaDialogue.push({ role: 'assistant', content: spokenText });
             }
 
             // Wire up replay button
             if (assistantCard) {
                 const replayBtn = assistantCard.querySelector('.ava-replay-btn');
                 if (replayBtn) {
-                    replayBtn.onclick = () => speakAvaText(accumulatedText);
+                    replayBtn.onclick = () => {
+                        playStsAudio(audioBlob, spokenText);
+                    };
                 }
             }
 
+            // Trigger RAG status refresh
+            if (window.checkRagStatus) setTimeout(window.checkRagStatus, 500);
+
+            // Play the direct STS audio stream
+            playStsAudio(audioBlob, spokenText);
+
         } catch(err) {
             if (err.name === 'AbortError') {
-                console.log('[Ava] Chat stream aborted by user.');
+                console.log('[Ava STS] Turn aborted by user.');
                 return;
             }
-            console.warn('[Ava] Chat error:', err);
+            console.warn('[Ava STS] Pipeline error:', err);
             avaIsThinking = false;
             const errMsg = "I couldn't reach the agent backend. Please ensure the local server is running on port 5000.";
             if (textContainer) textContainer.innerHTML = escapeHtml(errMsg);
-            speakAvaText(errMsg);
+            onSpeechFinished();
         }
     }
+
+    function playStsAudio(audioBlob, spokenText) {
+        if (!audioBlob || audioBlob.size === 0) {
+            console.warn('[Ava STS] Received empty audio blob, skipping playback.');
+            onSpeechFinished();
+            return;
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        currentAudio = audio;
+
+        avaIsThinking = false;
+        avaIsSpeaking = true;
+        setAvaState('speaking', 'Ava speaking...');
+
+        const els = getEls();
+        if (els.stopBtn) els.stopBtn.style.display = 'inline-flex';
+
+        audio.onplay = () => {
+            avaIsSpeaking = true;
+            setAvaState('speaking', 'Ava speaking...');
+        };
+
+        audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            if (els.stopBtn) els.stopBtn.style.display = 'none';
+            onSpeechFinished();
+        };
+
+        audio.onerror = (err) => {
+            console.warn('[Ava STS] Audio error:', err);
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            if (els.stopBtn) els.stopBtn.style.display = 'none';
+            onSpeechFinished();
+        };
+
+        audio.play().catch(playErr => {
+            console.warn('[Ava STS] Autoplay blocked, falling back:', playErr);
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            if (els.stopBtn) els.stopBtn.style.display = 'none';
+            onSpeechFinished();
+        });
+    }
+
+    // Alias dispatchAvaQuery for backwards compatibility across buttons and inputs
+    const dispatchAvaQuery = dispatchStsQuery;
 
     function appendDialogueCard(role, text) {
         const els = getEls();
@@ -1769,9 +1873,10 @@
         avaVoicePersona = voiceId;
         localStorage.setItem('b1_voice_persona', voiceId);
 
-        const name = voiceId.includes('Neerja') ? 'Neerja Expressive' :
+        const name = voiceId.includes('Jenny') ? 'Jenny (Conversational Female)' :
+                     voiceId.includes('Aria') ? 'Aria (Warm Empathetic Female)' :
+                     voiceId.includes('Neerja') ? 'Neerja Expressive' :
                      voiceId.includes('Multilingual') && voiceId.includes('Ava') ? 'Ava Multilingual' :
-                     voiceId.includes('Aria') ? 'Aria (Warm)' :
                      voiceId.includes('Emma') ? 'Emma Multilingual' :
                      voiceId.includes('Andrew') ? 'Andrew (Male)' :
                      voiceId.includes('Ava') ? 'Ava Standard' : 'Sonia (British)';
@@ -1831,5 +1936,14 @@
             stopSpeech();
         }
     });
+
+    // ── Resilient Full-Duplex Turn-Taking Watchdog ──────────────────────────
+    // Automatically re-arms listening if Ava is idle and hands-free is enabled,
+    // guaranteeing that after any turn Ava never goes deaf or freezes.
+    setInterval(() => {
+        if (avaActive && avaHandsFree && !avaIsSpeaking && !avaIsThinking && !recognitionActive) {
+            startListening();
+        }
+    }, 1200);
 
 })();

@@ -2425,6 +2425,9 @@ async function checkRagStatus() {
         }
     } catch (e) {}
 }
+window.checkRagStatus = checkRagStatus;
+setInterval(checkRagStatus, 8000);
+
 
 // ── Event Listeners Setup ──────────────────────────────────────────────
 function setupEventListeners() {

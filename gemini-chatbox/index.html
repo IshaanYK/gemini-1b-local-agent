@@ -27,11 +27,11 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 
     <!-- App Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=2.5">
+    <link rel="stylesheet" href="style.css?v=2.6">
     <!-- B1 Research Council Stylesheet -->
-    <link rel="stylesheet" href="research_council.css?v=rc4">
+    <link rel="stylesheet" href="research_council.css?v=rc5">
     <!-- B1 Ava AI Voice Workspace Stylesheet -->
-    <link rel="stylesheet" href="ava_voice.css?v=ava3">
+    <link rel="stylesheet" href="ava_voice.css?v=ava5">
 </head>
 <body class="dark-theme">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -793,9 +793,9 @@
                     </select>
 
                     <!-- Fast Engine Switcher -->
-                    <div class="ava-engine-switch" title="Toggle between Ultra-Fast Local Voice and High-Fidelity Studio Neural Voice">
-                        <button type="button" class="ava-engine-btn active" id="ava-engine-local" onclick="setAvaEngineMode('local')">⚡ Instant (0ms)</button>
-                        <button type="button" class="ava-engine-btn" id="ava-engine-neural" onclick="setAvaEngineMode('neural')">✨ Studio Neural</button>
+                    <div class="ava-engine-switch" title="Toggle between High-Fidelity Studio Neural Voice and Ultra-Fast Local Voice">
+                        <button type="button" class="ava-engine-btn active" id="ava-engine-neural" onclick="setAvaEngineMode('neural')">✨ Studio Neural</button>
+                        <button type="button" class="ava-engine-btn" id="ava-engine-local" onclick="setAvaEngineMode('local')">⚡ Instant (0ms)</button>
                     </div>
 
                     <!-- Studio Noise Cancellation Filter Toggle -->
@@ -812,13 +812,13 @@
 
                     <!-- Persona Selection -->
                     <select id="ava-persona-select" class="ava-persona-select" onchange="setAvaPersona(this.value)" title="Choose Voice Persona">
-                        <option value="en-US-AvaMultilingualNeural" selected>Ava Multilingual (Expressive Neural AI) ⭐</option>
-                        <option value="en-IN-NeerjaExpressiveNeural">Neerja Expressive (Indian English Human Emotion) ⭐</option>
-                        <option value="en-US-AriaNeural">Aria (Warm & Empathetic Voice)</option>
-                        <option value="en-US-EmmaMultilingualNeural">Emma Multilingual (Bright & Cheerful)</option>
+                        <option value="en-US-JennyNeural" selected>Jenny Neural (Natural Conversational Human Female) ⭐</option>
+                        <option value="en-US-AriaNeural">Aria Neural (Warm &amp; Empathetic Human Female) ⭐</option>
+                        <option value="en-IN-NeerjaExpressiveNeural">Neerja Expressive (Indian English Human Emotion)</option>
+                        <option value="en-US-AvaMultilingualNeural">Ava Multilingual (Expressive Neural AI)</option>
+                        <option value="en-US-EmmaMultilingualNeural">Emma Multilingual (Bright &amp; Cheerful)</option>
+                        <option value="en-GB-SoniaNeural">Sonia (British Conversational Female)</option>
                         <option value="en-US-AndrewMultilingualNeural">Andrew Multilingual (Expressive Male Companion)</option>
-                        <option value="en-US-AvaNeural">Ava Standard (Classic Neutral Voice)</option>
-                        <option value="en-GB-SoniaNeural">Sonia (British Conversational Voice)</option>
                     </select>
 
                     <!-- Clear Conversation -->
@@ -936,6 +936,44 @@
                             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                         </svg>
                     </button>
+                </div>
+            </div>
+
+            <!-- Turbo Mode Modal for Direct Ultra-Fast Gemini API -->
+            <div class="ava-turbo-modal-overlay" id="ava-turbo-modal" style="display:none;" onclick="if(event.target===this)closeTurboModeModal()">
+                <div class="ava-turbo-modal-card">
+                    <div class="ava-turbo-modal-header">
+                        <div class="ava-turbo-modal-title-row">
+                            <div class="ava-turbo-icon-glow">⚡</div>
+                            <div>
+                                <h3 class="ava-turbo-title">Gemini Turbo Mode</h3>
+                                <p class="ava-turbo-sub">Direct Google Gemini API Key for Sub-300ms Voice Latency</p>
+                            </div>
+                        </div>
+                        <button type="button" class="ava-modal-close-btn" onclick="closeTurboModeModal()" title="Close">✕</button>
+                    </div>
+                    <div class="ava-turbo-body">
+                        <div class="ava-turbo-banner">
+                            <div class="ava-turbo-banner-title">⚡ Why Enable Turbo Mode?</div>
+                            <div class="ava-turbo-banner-desc">
+                                Anonymous web scraping of Gemini web chat takes 30+ seconds due to Google's anti-bot rate limits. With a free Google Gemini API key, Ava streams voice responses in <strong>under 300ms</strong> directly into your studio!
+                            </div>
+                        </div>
+                        <div class="ava-turbo-form-group">
+                            <div class="ava-turbo-label">
+                                <span>Google AI Studio API Key</span>
+                                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="ava-key-link">Get Free Key ↗</a>
+                            </div>
+                            <input type="password" class="ava-turbo-input" id="ava-turbo-key-input" placeholder="AIzaSy..." autocomplete="off">
+                            <div class="ava-turbo-help-text">
+                                Saved locally in your <code>.env</code> file. Never sent anywhere other than official Google Gemini API endpoints.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ava-turbo-footer">
+                        <button type="button" class="ava-btn-secondary" onclick="closeTurboModeModal()">Cancel</button>
+                        <button type="button" class="ava-btn-primary" onclick="saveTurboKeyFromModal()">Save &amp; Activate Turbo</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2336,10 +2374,10 @@
     <div class="b1-toast-container" id="b1-toast-container"></div>
 
     <!-- App JavaScript Logic -->
-    <script src="app.js?v=rc2"></script>
+    <script src="app.js?v=rc5"></script>
     <!-- B1 Research Council Client Controller -->
-    <script src="research_council.js?v=rc3"></script>
+    <script src="research_council.js?v=rc5"></script>
     <!-- B1 Ava AI Voice Studio Client Controller -->
-    <script src="ava_voice.js?v=ava8"></script>
+    <script src="ava_voice.js?v=ava14"></script>
 </body>
 </html>

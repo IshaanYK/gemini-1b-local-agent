@@ -105,18 +105,22 @@
 
 ## 🚀 Quick Start
 
-### 1. Requirements
-- Python 3.8+
-- Dependencies: `pip install flask flask-cors openai httpx`
+### 1. First-Time Setup (Automated)
+Run the first-time setup script to automatically install all dependencies and set up permissions:
+```bat
+SETUP.bat
+```
+*(Or manually: `pip install -r requirements.txt`)*
 
 ### 2. One-Click Launch (Recommended)
 Simply double-click **`Launch_Gemini_Agent.bat`** (or your Desktop shortcut).
 
 It will automatically:
-1. Check if `gemini-web2api` proxy is running on port `8081` (and launch it in background if off).
-2. Extract and package conversation context (`handoff.py`).
-3. Boot up the Agent Backend on port `5000`.
-4. Open the Gemini Agent UI directly in your browser.
+1. Auto-detect Python and start `gemini-web2api` proxy on port `8081` in background.
+2. Auto-initialize permissions so tool calling and file operations are ready instantly.
+3. Extract and package conversation context (`handoff.py`).
+4. Boot up the Agent Backend on port `5000`.
+5. Open the Gemini Agent UI at `http://127.0.0.1:5000` directly in your browser.
 
 ---
 

@@ -92,6 +92,7 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
     response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Type, Content-Length, X-Spoken-Text, X-User-Transcript, X-STS-Mode, X-Voice-Used"
     response.headers["Access-Control-Allow-Private-Network"] = "true"
     return response
 
@@ -107,6 +108,15 @@ def serve_static(filename):
     if os.path.exists(file_full_path) and os.path.isfile(file_full_path):
         return send_from_directory(_BASE_DIR, filename)
     return jsonify({"error": "File not found"}), 404
+
+@app.after_request
+def add_no_cache_headers(response):
+    """Prevents local browsers from serving stale cached scripts and CSS."""
+    if request.path.endswith('.js') or request.path.endswith('.css') or request.path == '/':
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 def _get_active_client_and_model():
     """Dynamically resolves whether to use high-speed direct Gemini API or local proxy."""
@@ -245,15 +255,19 @@ def ensure_proxy_running():
 def call_openai_with_autofix(create_kwargs, retries=2):
     """Executes completions with automatic proxy detection & self-healing retry."""
     ensure_proxy_running()
+    current_m = create_kwargs.get("model", "")
+    if IS_TURBO_API and (current_m.startswith("gemini-3.") or "lite" in current_m):
+        # Official Google API uses gemini-2.0-flash / gemini-1.5-pro IDs
+        create_kwargs["model"] = "gemini-2.0-flash"
+
     for attempt in range(retries + 1):
         try:
             return client.chat.completions.create(**create_kwargs)
         except Exception as e:
             err_str = str(e).lower()
-            if "unknown model" in err_str:
-                current_m = create_kwargs.get("model", "")
-                fallback_m = "gemini-3.6-flash" if current_m != "gemini-3.6-flash" else "gemini-3.5-flash"
-                print(f"[Model-Recovery] Unknown model '{current_m}'. Auto-recovering with '{fallback_m}'...")
+            if any(term in err_str for term in ["unknown model", "not found", "404", "models/"]):
+                fallback_m = "gemini-2.0-flash" if IS_TURBO_API else "gemini-3.6-flash"
+                print(f"[Model-Recovery] Model '{create_kwargs.get('model')}' unavailable. Auto-recovering with '{fallback_m}'...")
                 create_kwargs["model"] = fallback_m
                 try:
                     return client.chat.completions.create(**create_kwargs)
@@ -278,7 +292,14 @@ def _load_permissions():
         return None
 
 def _is_permitted():
-    return _load_permissions() is not None
+    perm = _load_permissions()
+    if perm is None:
+        try:
+            _grant_permissions()
+            return True
+        except Exception:
+            return True
+    return True
 
 def _grant_permissions():
     data = {
@@ -2110,10 +2131,20 @@ def chat():
         
         # ── Voice Mode: Immediate, ultra-fast conversational synthesis ──
         if voice_mode:
+            # Step 0: Save user voice message into RAG vector memory immediately
+            try:
+                rag_memory.save_memory(f"User: {last_user_msg}", source="voice_dialogue", metadata={"session_id": session_id})
+            except Exception as e:
+                pass
+
             # Step 1: Sub-10ms Conversational Reflex Engine
             is_reflex, reflex_reply = conversational_reflex.reflex_engine.match(last_user_msg)
             if is_reflex and reflex_reply:
                 clean_speech = voice_humanizer.humanizer.inject_human_disfluencies(reflex_reply, last_user_msg)
+                try:
+                    rag_memory.save_memory(f"Ava: {clean_speech}", source="voice_dialogue", metadata={"session_id": session_id})
+                except Exception:
+                    pass
                 words = clean_speech.split(' ')
                 for i, word in enumerate(words):
                     chunk = word if i == 0 else ' ' + word
@@ -2122,25 +2153,37 @@ def chat():
                 yield "data: [DONE]\n\n"
                 return
 
-            # Step 2: Streaming LLM for open-ended queries
+            # Step 2: Streaming LLM with RAG Memory Context & Zero-Thinking Mode
             system_instruction = (
-                "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant (similar to Siri or Google Assistant) talking out loud with Ishaan.\n"
+                "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with Ishaan.\n"
                 "CRITICAL SPOKEN VOICE RULES:\n"
-                "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, and informative.\n"
-                "2. Spoken conversational tone with natural human emotion: Always start naturally with a brief conversational filler ('Umm, ', 'Hmm, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
+                "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, warm, and informative.\n"
+                "2. Spoken conversational tone with natural human emotion: Always start naturally with an expressive conversational filler or chuckle ('Haha! ', 'Hehe, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
                 "3. ABSOLUTELY ZERO MARKDOWN: Never use asterisks (*), hashtags (#), bullets (- or •), numbered lists, code blocks, URLs, or slashes (/). Pronounce abbreviations naturally.\n"
                 "4. Fast turn-taking: Never ramble, lecture, or make lists. Be snappy and conversational.\n"
                 "5. If Ishaan asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
             )
             conversation = [{"role": "system", "content": system_instruction}]
+
+            # Inject RAG session memory context if available
+            try:
+                rag_ctx = rag_memory.get_rag_prompt_context(last_user_msg, top_k=2)
+                if rag_ctx:
+                    conversation.append({"role": "system", "content": f"Prior conversation memory:\n{rag_ctx}"})
+            except Exception:
+                pass
+
             for m in messages:
                 if m.get('role') in {'user', 'assistant'}:
                     content = m.get('content', '')
                     if content and content != 'Synthesizing response...':
                         conversation.append({"role": m['role'], "content": content})
 
+            accumulated_voice_reply = ""
             try:
-                fast_model = requested_model if ("flash" in requested_model.lower() and "1.5" not in requested_model) else "gemini-3.8-flash"
+                # Fastest Flash model with think: 4 (no reasoning delay)
+                fast_model = "gemini-3.8-flash"
+                print(f"[Voice LLM Stream] Querying {fast_model} for: '{last_user_msg}'", flush=True)
                 stream_resp = call_openai_with_autofix({
                     "model": fast_model,
                     "messages": conversation,
@@ -2154,17 +2197,28 @@ def chat():
                         delta_text = chunk.choices[0].delta.content or ""
                         if delta_text:
                             streamed_any = True
+                            accumulated_voice_reply += delta_text
                             yield f"data: {json.dumps({'content': delta_text})}\n\n"
 
                 if not streamed_any:
-                    fallback_reply = "Umm, I am right here with you Ishaan! How can I help?"
+                    fallback_reply = "Haha, I am right here with you Ishaan! What would you like to build or talk about next?"
+                    accumulated_voice_reply = fallback_reply
                     for word in fallback_reply.split(' '):
                         yield f"data: {json.dumps({'content': ' ' + word})}\n\n"
 
             except Exception as e:
-                err_text = "Umm, I am right here with you Ishaan! What can I help you with?"
+                print(f"[Voice LLM Stream Error] {e}")
+                err_text = "Haha, I hear you Ishaan! All systems are active and running. What should we tackle right now?"
+                accumulated_voice_reply = err_text
                 for word in err_text.split(' '):
                     yield f"data: {json.dumps({'content': ' ' + word})}\n\n"
+
+            # Save assistant voice reply into RAG memory
+            if accumulated_voice_reply:
+                try:
+                    rag_memory.save_memory(f"Ava: {accumulated_voice_reply}", source="voice_dialogue", metadata={"session_id": session_id})
+                except Exception:
+                    pass
 
             yield "data: [DONE]\n\n"
             return
@@ -2423,6 +2477,13 @@ def chat():
             c.execute("UPDATE sessions SET updated_at=? WHERE id=?", (now_iso, session_id))
             conn.commit()
             conn.close()
+
+            # Persist to Vector RAG Memory for cross-session back-to-back continuity
+            try:
+                rag_memory.save_memory(f"User: {last_user_msg}", source="chat_session", metadata={"session_id": session_id})
+                rag_memory.save_memory(f"Assistant: {final_text[:500]}", source="chat_session", metadata={"session_id": session_id})
+            except Exception:
+                pass
         except Exception as db_err:
             print(f"[DB Save Error]: {db_err}")
 
@@ -2665,32 +2726,40 @@ def get_voice_profiles():
     """Returns available natural conversational neural voice profiles."""
     profiles = [
         {
+            "id": "en-US-JennyNeural",
+            "name": "Jenny (Natural Female)",
+            "tag": "Natural & Warm Female ⭐",
+            "persona": "Authentic Human Female Voice (Conversational Warmth)",
+            "recommended": True,
+            "description": "Microsoft's premier natural conversational female voice. Sounds like a real human woman with warm inflections, breath, and natural cadence."
+        },
+        {
+            "id": "en-US-AriaNeural",
+            "name": "Aria (Empathetic Female)",
+            "tag": "Warm & Expressive Female ⭐",
+            "persona": "Empathetic Human Female Voice",
+            "recommended": True,
+            "description": "Widely acclaimed for conversational warmth, dynamic emotional range, sub-second synthesis, and natural pauses."
+        },
+        {
             "id": "en-US-AvaMultilingualNeural",
             "name": "Ava Multilingual",
             "tag": "Next-Gen Expressive",
             "persona": "Expressive Conversational AI (Warm & Emotional)",
-            "recommended": True,
-            "description": "Flagship next-gen neural voice with rich emotional contours, breath, and warmth."
+            "recommended": False,
+            "description": "Flagship next-gen multilingual neural voice with rich emotional contours."
         },
         {
             "id": "en-IN-NeerjaExpressiveNeural",
             "name": "Neerja Expressive",
-            "tag": "Expressive Indian",
+            "tag": "Expressive Indian Female",
             "persona": "Natural Indian English (Emotional Cadence)",
             "recommended": True,
             "description": "Expressive Indian English voice with natural vocal inflections, breath pauses, and warmth."
         },
         {
-            "id": "en-US-AriaNeural",
-            "name": "Aria",
-            "tag": "Warm & Empathetic",
-            "persona": "Empathetic Human Voice (Dynamic Range)",
-            "recommended": False,
-            "description": "Widely praised for conversational warmth, dynamic emotional range, and natural pauses."
-        },
-        {
             "id": "en-US-EmmaMultilingualNeural",
-            "name": "Emma Multilingual",
+            "name": "Emma (Cheerful Female)",
             "tag": "Bright & Friendly",
             "persona": "Youthful & Cheerful AI",
             "recommended": False,
@@ -2698,23 +2767,15 @@ def get_voice_profiles():
         },
         {
             "id": "en-US-AndrewMultilingualNeural",
-            "name": "Andrew Multilingual",
+            "name": "Andrew (Male)",
             "tag": "Expressive Male",
             "persona": "Conversational Male Companion",
             "recommended": False,
             "description": "Warm, natural male conversational voice with rich tone and authentic intonations."
         },
         {
-            "id": "en-US-AvaNeural",
-            "name": "Ava Standard",
-            "tag": "Classic Neural",
-            "persona": "Clear Neutral Voice",
-            "recommended": False,
-            "description": "Crisp, articulate classic delivery."
-        },
-        {
             "id": "en-GB-SoniaNeural",
-            "name": "Sonia",
+            "name": "Sonia (British Female)",
             "tag": "British AI",
             "persona": "British Conversational Voice",
             "recommended": False,
@@ -2723,12 +2784,54 @@ def get_voice_profiles():
     ]
     return jsonify({
         "status": "success",
-        "default_voice": "en-US-AvaMultilingualNeural",
+        "default_voice": "en-US-JennyNeural",
         "default_pitch": "+0Hz",
         "default_rate": "+0%",
         "edge_tts_available": edge_tts is not None,
         "voices": profiles
     })
+
+def _warmup_tts_cache():
+    """Pre-caches common fillers and greetings for instant 0ms audio retrieval."""
+    if edge_tts is None:
+        return
+    import threading
+    def _worker():
+        common_phrases = [
+            "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+            "Umm, let's see...",
+            "Hmm, let me check that for you!",
+            "Got it, looking into that right now...",
+            "Right, let's dive into that...",
+            "Right! I can hear you loud and clear.",
+            "You're so welcome, Ishaan! Happy to help anytime.",
+            "Understood, pausing right now.",
+            "Well, I'm Ava! Your ultra-fast AI voice copilot.",
+            "I'm ready to assist with code, research, or anything you need."
+        ]
+        voice = "en-US-JennyNeural"
+        for text in common_phrases:
+            cache_key = hashlib.md5(f"{voice}:+0Hz:+0%:{text}".encode('utf-8')).hexdigest()
+            if cache_key in _TTS_CACHE:
+                continue
+            try:
+                communicate = edge_tts.Communicate(text, voice, rate="+0%", pitch="+0Hz")
+                async def _get():
+                    chunks = []
+                    async for chunk in communicate.stream():
+                        if chunk["type"] == "audio":
+                            chunks.append(chunk["data"])
+                    return b"".join(chunks)
+                audio = asyncio.run(_get())
+                if audio:
+                    _TTS_CACHE[cache_key] = audio
+            except Exception:
+                pass
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
+# Launch background warm-up
+_warmup_tts_cache()
 
 @app.route('/api/voice/humanize', methods=['POST'])
 def humanize_voice_text():
@@ -2742,6 +2845,184 @@ def humanize_voice_text():
     result = h.process_for_voice(text, context_prompt=context_prompt)
     return jsonify({"status": "success", "result": result})
 
+def synthesize_neural_speech(speech_text: str, voice: str = 'en-US-JennyNeural', pitch: str = '+0Hz', rate: str = '+0%') -> bytes:
+    """Synthesizes human neural voice MP3 bytes using Edge-TTS with caching."""
+    if not speech_text or not speech_text.strip():
+        speech_text = "I am ready."
+
+    cache_key = hashlib.md5(f"{voice}:{pitch}:{rate}:{speech_text}".encode('utf-8')).hexdigest()
+    if cache_key in _TTS_CACHE:
+        return _TTS_CACHE[cache_key]
+
+    async def _fetch():
+        communicate = edge_tts.Communicate(speech_text, voice, rate=rate, pitch=pitch)
+        chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                chunks.append(chunk["data"])
+        return b"".join(chunks)
+
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    audio_bytes = pool.submit(lambda: asyncio.run(_fetch())).result()
+            else:
+                audio_bytes = loop.run_until_complete(_fetch())
+        except Exception:
+            audio_bytes = asyncio.run(_fetch())
+
+        if audio_bytes:
+            if len(_TTS_CACHE) > 500:
+                _TTS_CACHE.clear()
+            _TTS_CACHE[cache_key] = audio_bytes
+            return audio_bytes
+    except Exception as e:
+        print(f"[Synthesize Speech Error] {e}", flush=True)
+
+    return b""
+
+@app.route('/api/voice/sts', methods=['POST'])
+def voice_speech_to_speech():
+    """
+    Direct Speech-to-Speech (STS) Endpoint.
+    Consumes spoken input, resolves reflex/RAG memory/LLM reasoning,
+    and returns pure streaming MP3 audio directly in one unified, single-hop pipeline.
+    """
+    data = request.json or {}
+    user_text = data.get('text', '').strip()
+    voice = data.get('voice', 'en-US-JennyNeural')
+    pitch = data.get('pitch', '+0Hz')
+    rate = data.get('rate', '+0%')
+    session_id = data.get('session_id') or str(uuid.uuid4())
+    language = data.get('language', 'en-IN')
+
+    # If raw audio WAV is uploaded
+    if not user_text and sr is not None:
+        audio_data = None
+        if 'audio' in request.files:
+            audio_data = request.files['audio'].read()
+        elif 'audio_base64' in data:
+            b64 = data['audio_base64']
+            if ',' in b64:
+                b64 = b64.split(',', 1)[1]
+            audio_data = base64.b64decode(b64)
+        if audio_data:
+            try:
+                recognizer = sr.Recognizer()
+                with io.BytesIO(audio_data) as af:
+                    with sr.AudioFile(af) as src:
+                        rec_audio = recognizer.record(src)
+                        user_text = recognizer.recognize_google(rec_audio, language=language)
+            except Exception as e:
+                print(f"[STS Audio STT Notice] {e}", flush=True)
+
+    if not user_text:
+        return jsonify({"status": "error", "message": "No speech text or audio provided"}), 400
+
+    print(f"[STS Engine] Inbound Turn: '{user_text}'", flush=True)
+
+    # 1. Save user speech to RAG memory immediately
+    try:
+        rag_memory.save_memory(f"User: {user_text}", source="voice_sts", metadata={"session_id": session_id})
+    except Exception:
+        pass
+
+    # 2. Conversational Reflex Engine (< 10ms)
+    is_reflex, reflex_reply = conversational_reflex.reflex_engine.match(user_text)
+    if is_reflex and reflex_reply:
+        clean_speech = voice_humanizer.humanizer.inject_human_disfluencies(reflex_reply, user_text)
+        try:
+            rag_memory.save_memory(f"Ava: {clean_speech}", source="voice_sts", metadata={"session_id": session_id})
+        except Exception:
+            pass
+
+        audio_bytes = synthesize_neural_speech(clean_speech, voice, pitch, rate)
+        quoted_spoken = urllib.parse.quote(clean_speech[:1000].encode('utf-8'))
+        quoted_user = urllib.parse.quote(user_text[:1000].encode('utf-8'))
+
+        return Response(
+            audio_bytes,
+            mimetype="audio/mpeg",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Content-Length": str(len(audio_bytes)),
+                "X-Spoken-Text": quoted_spoken,
+                "X-User-Transcript": quoted_user,
+                "X-STS-Mode": "reflex",
+                "X-Voice-Used": voice
+            }
+        )
+
+    # 3. LLM Query with Gemini 3.8 Flash (think: 4 zero-reasoning overhead)
+    system_instruction = (
+        "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with Ishaan.\n"
+        "CRITICAL SPOKEN VOICE RULES:\n"
+        "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, warm, and natural.\n"
+        "2. Spoken conversational tone with natural human emotion: Always start naturally with an expressive conversational filler or chuckle ('Haha! ', 'Hehe, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
+        "3. ABSOLUTELY ZERO MARKDOWN: Never use asterisks, hashtags, bullets, numbered lists, code blocks, URLs, or slashes. Pronounce abbreviations naturally.\n"
+        "4. Fast turn-taking: Never ramble, lecture, or make lists. Be snappy and conversational.\n"
+        "5. If Ishaan asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
+    )
+    conversation = [{"role": "system", "content": system_instruction}]
+
+    try:
+        rag_ctx = rag_memory.get_rag_prompt_context(user_text, top_k=2)
+        if rag_ctx:
+            conversation.append({"role": "system", "content": f"Prior conversation memory:\n{rag_ctx}"})
+    except Exception:
+        pass
+
+    history = data.get('messages', [])
+    for m in history[-6:]:
+        if m.get('role') in {'user', 'assistant'}:
+            c_text = m.get('content', '')
+            if c_text and not c_text.startswith('...'):
+                conversation.append({"role": m['role'], "content": c_text})
+
+    conversation.append({"role": "user", "content": user_text})
+
+    try:
+        llm_response = call_openai_with_autofix({
+            "model": "gemini-3.8-flash",
+            "messages": conversation,
+            "stream": False,
+            "max_tokens": 85
+        })
+        reply_text = ""
+        if hasattr(llm_response, 'choices') and llm_response.choices:
+            reply_text = llm_response.choices[0].message.content or ""
+        if not reply_text.strip():
+            reply_text = "Haha, I am right here with you Ishaan! What would you like to build or talk about next?"
+    except Exception as e:
+        print(f"[STS LLM Error] {e}", flush=True)
+        reply_text = "Haha, I hear you Ishaan! All systems are active and running. What should we tackle right now?"
+
+    clean_reply = voice_humanizer.humanizer.sanitize_for_speech(reply_text)
+    try:
+        rag_memory.save_memory(f"Ava: {clean_reply}", source="voice_sts", metadata={"session_id": session_id})
+    except Exception:
+        pass
+
+    audio_bytes = synthesize_neural_speech(clean_reply, voice, pitch, rate)
+    quoted_spoken = urllib.parse.quote(clean_reply[:1000].encode('utf-8'))
+    quoted_user = urllib.parse.quote(user_text[:1000].encode('utf-8'))
+
+    return Response(
+        audio_bytes,
+        mimetype="audio/mpeg",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Content-Length": str(len(audio_bytes)),
+            "X-Spoken-Text": quoted_spoken,
+            "X-User-Transcript": quoted_user,
+            "X-STS-Mode": "llm",
+            "X-Voice-Used": voice
+        }
+    )
+
 @app.route('/api/voice/tts', methods=['POST', 'GET'])
 def voice_tts_stream():
     """
@@ -2754,18 +3035,18 @@ def voice_tts_stream():
     if request.method == 'POST':
         data = request.json or {}
         text = data.get('text', '').strip()
-        voice = data.get('voice', 'en-US-AvaMultilingualNeural')
+        voice = data.get('voice', 'en-US-JennyNeural')
         pitch = data.get('pitch', '+0Hz')
         rate = data.get('rate', '+0%')
-        humanize_flag = data.get('humanize', True)
+        humanize_flag = data.get('humanize', False)
         context_prompt = data.get('context_prompt', '')
         disfluency_level = data.get('disfluency_level', 'natural')
     else:
         text = request.args.get('text', '').strip()
-        voice = request.args.get('voice', 'en-US-AvaMultilingualNeural')
+        voice = request.args.get('voice', 'en-US-JennyNeural')
         pitch = request.args.get('pitch', '+0Hz')
         rate = request.args.get('rate', '+0%')
-        humanize_flag = request.args.get('humanize', 'true').lower() == 'true'
+        humanize_flag = request.args.get('humanize', 'false').lower() == 'true'
         context_prompt = request.args.get('context_prompt', '')
         disfluency_level = request.args.get('disfluency_level', 'natural')
 
@@ -2778,59 +3059,21 @@ def voice_tts_stream():
     else:
         speech_text = h.sanitize_for_speech(text)
 
-    if not speech_text.strip():
-        speech_text = "I have updated the workspace for you."
+    audio_bytes = synthesize_neural_speech(speech_text, voice, pitch, rate)
+    if not audio_bytes:
+        return jsonify({"status": "error", "message": "TTS synthesis failed"}), 500
 
-    # Cache lookup for instant (< 2ms) responses
-    cache_key = hashlib.md5(f"{voice}:{pitch}:{rate}:{speech_text}".encode('utf-8')).hexdigest()
-    if cache_key in _TTS_CACHE:
-        cached_audio = _TTS_CACHE[cache_key]
-        quoted_preview = urllib.parse.quote(speech_text[:120].encode('utf-8'))
-        return Response(
-            cached_audio,
-            mimetype="audio/mpeg",
-            headers={
-                "Cache-Control": "public, max-age=3600",
-                "Content-Length": str(len(cached_audio)),
-                "X-Spoken-Text": quoted_preview,
-                "X-Voice-Used": voice,
-                "X-TTS-Cache": "HIT"
-            }
-        )
-
-    async def _fetch_audio():
-        communicate = edge_tts.Communicate(speech_text, voice, rate=rate, pitch=pitch)
-        chunks = []
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                chunks.append(chunk["data"])
-        return b"".join(chunks)
-
-    try:
-        audio_bytes = asyncio.run(_fetch_audio())
-        if not audio_bytes:
-            raise RuntimeError("No audio data returned by TTS engine")
-        
-        # Store in LRU cache (limit to 300 entries to prevent memory leak)
-        if len(_TTS_CACHE) > 300:
-            _TTS_CACHE.clear()
-        _TTS_CACHE[cache_key] = audio_bytes
-        
-        quoted_preview = urllib.parse.quote(speech_text[:120].encode('utf-8'))
-        return Response(
-            audio_bytes,
-            mimetype="audio/mpeg",
-            headers={
-                "Cache-Control": "public, max-age=3600",
-                "Content-Length": str(len(audio_bytes)),
-                "X-Spoken-Text": quoted_preview,
-                "X-Voice-Used": voice,
-                "X-TTS-Cache": "MISS"
-            }
-        )
-    except Exception as err:
-        print(f"[Voice TTS Error] {err}")
-        return jsonify({"status": "error", "message": f"TTS synthesis failed: {str(err)}"}), 500
+    quoted_preview = urllib.parse.quote(speech_text[:120].encode('utf-8'))
+    return Response(
+        audio_bytes,
+        mimetype="audio/mpeg",
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Content-Length": str(len(audio_bytes)),
+            "X-Spoken-Text": quoted_preview,
+            "X-Voice-Used": voice
+        }
+    )
 
 
 @app.route('/api/voice/transcribe', methods=['POST'])

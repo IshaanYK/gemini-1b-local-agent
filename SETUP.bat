@@ -10,13 +10,18 @@ echo  ============================================================
 echo.
 
 :: ── Step 1: Install Python dependencies ──────────────────────────────────
-echo  [1/3] Installing Python dependencies (Flask, OpenAI, HTTPX, Sentence-Transformers, Edge-TTS)...
-pip install flask flask-cors openai httpx sentence-transformers edge-tts 2>nul
+echo  [1/3] Installing Python dependencies from requirements.txt...
+pip install -r "%~dp0requirements.txt"
 if %errorlevel% neq 0 (
     echo.
-    echo  ERROR: pip install failed. Make sure Python is installed and in PATH.
-    pause
-    exit /b 1
+    echo  Retrying with individual critical packages...
+    pip install flask flask-cors openai httpx requests beautifulsoup4 sentence-transformers edge-tts pypdf
+    if %errorlevel% neq 0 (
+        echo.
+        echo  ERROR: pip install failed. Make sure Python 3.9+ is installed and added to PATH.
+        pause
+        exit /b 1
+    )
 )
 echo         Done.
 echo.
@@ -30,24 +35,48 @@ if exist "%ENV_FILE%" (
     copy "%~dp0.env.example" "%ENV_FILE%" >nul
     echo.
     echo  ================================================================
-    echo   Optional: Open .env and add your Gemini cookies for better
-    echo   performance. Leave blank to use the free anonymous proxy.
+    echo   Ready! Zero API keys required - uses free Gemini Web2API proxy.
+    echo   Optional: You can add GEMINI_API_KEY in .env for turbo speed.
     echo  ================================================================
     echo.
 )
 
+if not exist "%~dp0gemini-web2api\config.json" (
+    if exist "%~dp0gemini-web2api\config.example.json" (
+        copy "%~dp0gemini-web2api\config.example.json" "%~dp0gemini-web2api\config.json" >nul 2>&1
+    )
+)
+
 :: ── Step 3: Create permissions.json (first-time consent) ─────────────────
 set "PERM_FILE=%~dp0gemini-chatbox\permissions.json"
+set "STORAGE_PERM=%~dp0gemini-chatbox\storage\permissions.json"
 if exist "%PERM_FILE%" (
-    echo  [3/3] Permissions already configured.
+    echo  [3/3] Local tool permissions already configured.
 ) else (
-    echo  [3/3] Setting up user permissions...
-    echo  You will be asked to grant permissions the first time you run the agent.
+    echo  [3/3] Enabling local agent tool permissions (run commands, file read/write)...
+    if not exist "%~dp0gemini-chatbox\storage" mkdir "%~dp0gemini-chatbox\storage" >nul 2>&1
+    (
+        echo {
+        echo   "granted": true,
+        echo   "permissions": {
+        echo     "read_files": true,
+        echo     "write_files": true,
+        echo     "run_commands": true,
+        echo     "list_directories": true,
+        echo     "search_files": true
+        echo   },
+        echo   "version": "2.0"
+        echo }
+    ) > "%PERM_FILE%"
+    copy "%PERM_FILE%" "%STORAGE_PERM%" >nul 2>&1
+    echo         Done.
 )
 
 echo.
 echo  ============================================================
-echo   Setup complete! Double-click START_AGENT.vbs to launch.
+echo   Setup complete! Launch the agent using:
+echo     - Double-click Launch_Gemini_Agent.bat (Recommended)
+echo     - Or gemini-chatbox\START_AGENT.bat
 echo  ============================================================
 echo.
 pause

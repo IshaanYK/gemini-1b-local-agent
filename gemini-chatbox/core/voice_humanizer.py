@@ -15,17 +15,35 @@ import re
 import random
 from typing import List, Dict, Any
 
-# Persona: Expressive Conversational AI (warm, articulate, emotionally authentic)
+# Persona: Expressive Conversational AI (warm, articulate, emotionally authentic with laughs and feelings)
+OPENING_FILLERS_LAUGH_JOY = [
+    "Haha, oh absolutely! ",
+    "Hehe, I love that! ",
+    "Haha, totally! ",
+    "Oh haha, wow! ",
+    "Hehe, that's so cool! ",
+    "Haha, fair enough! ",
+    "Hehe, you know it! ",
+]
+
+OPENING_FILLERS_EMPATHY = [
+    "Aww, I completely get that! ",
+    "Oh, I hear you, Ishaan. ",
+    "Aww, take your time! ",
+    "No worries at all! ",
+    "Aww, don't worry about it! ",
+]
+
 OPENING_FILLERS_CASUAL = [
+    "Oh hey! ",
+    "Haha, let's see... ",
     "Umm, let's see... ",
     "Hmm... you know, ",
     "Oh, gotcha! ",
     "Umm, so basically, ",
     "Well, you know, ",
-    "Hmm, let me think... ",
     "Oh, wow! Okay, so, ",
     "Aha, alright! ",
-    "Umm, yeah! ",
     "Oh, totally! ",
 ]
 
@@ -137,14 +155,20 @@ class VoiceHumanizer:
         if not cleaned:
             return ""
 
-        # Check if text already starts with a filler
-        has_filler = any(cleaned.lower().startswith(f.strip().lower()) for f in ["hmm", "umm", "uh", "oh", "aha", "yeah"])
+        # Check if text already starts with an authentic conversational filler or emotional vocalization
+        has_filler = any(cleaned.lower().startswith(f.strip().lower()) for f in ["hmm", "umm", "uh", "oh", "aha", "yeah", "haha", "hehe", "aww", "yay", "well", "right", "sure", "got it"])
 
         if not has_filler:
+            is_laugh_humor = bool(re.search(r'\b(haha|hehe|lol|lmao|funny|joke|laugh|chill|relax|bored|fun)\b', context_prompt.lower()))
+            is_empathy = bool(re.search(r'\b(tired|sad|down|stress|anxious|confused|sorry|upset|exhausted)\b', context_prompt.lower()))
             is_code_related = bool(re.search(r'\b(code|function|script|python|javascript|class|bug|error|fix)\b', context_prompt.lower()))
             is_question = bool(re.search(r'\b(why|how|what|explain|can you|tell me|who|where)\b', context_prompt.lower()))
 
-            if is_code_related and "code in the code window" in cleaned:
+            if is_laugh_humor:
+                prefix = random.choice(OPENING_FILLERS_LAUGH_JOY)
+            elif is_empathy:
+                prefix = random.choice(OPENING_FILLERS_EMPATHY)
+            elif is_code_related and "code in the code window" in cleaned:
                 prefix = random.choice(OPENING_FILLERS_CODING)
             elif is_question:
                 prefix = random.choice(OPENING_FILLERS_THINKING)
@@ -152,7 +176,7 @@ class VoiceHumanizer:
                 prefix = random.choice(OPENING_FILLERS_CASUAL)
 
             if self.disfluency_level == "subtle":
-                prefix = random.choice(["Hmm... ", "Oh, okay! ", "Umm, so, "])
+                prefix = random.choice(["Haha, ", "Hmm... ", "Oh, okay! ", "Umm, so, "])
 
             cleaned = prefix + cleaned
 

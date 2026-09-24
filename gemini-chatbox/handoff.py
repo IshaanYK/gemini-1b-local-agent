@@ -10,7 +10,7 @@ CONTEXT_FILE = "handoff_context.json"
 UI_FILE = "index.html"
 
 def get_latest_transcript_path():
-    brain_dir = r"C:\Users\ISHAAN SEN\.gemini\antigravity-ide\brain"
+    brain_dir = os.path.expanduser(r"~/.gemini/antigravity-ide/brain")
     pattern = os.path.join(brain_dir, "*", ".system_generated", "logs", "transcript.jsonl")
     files = glob.glob(pattern)
     if not files:

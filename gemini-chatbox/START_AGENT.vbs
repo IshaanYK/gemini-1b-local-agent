@@ -58,7 +58,7 @@ If Not PortInUse(5000) Then
 End If
 
 ' --- 3. Open UI in default browser ---
-WshShell.Run "explorer """ & INDEX_HTML & """", 1, False
+WshShell.Run "cmd /c start http://127.0.0.1:5000", 0, False
 
 Set WshShell = Nothing
 Set FSO      = Nothing
