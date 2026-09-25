@@ -25,7 +25,7 @@ Before posting anywhere, do these 3 things in your GitHub repository:
 
 **Post Title:**
 ```
-I built an Autonomous Coding Agent powered by Gemini 3.8 Pro with Unlimited Deep Reasoning & 1B+ Context — 100% Free Without API Keys [Open Source]
+I built an Autonomous Coding Agent powered by Gemini 2.0 Flash & Pro with Unlimited Deep Reasoning & 1B+ Context — 100% Free Without API Keys [Open Source]
 ```
 
 **Post Body:**
@@ -34,10 +34,10 @@ Hey everyone! 👋
 
 I was frustrated with $20-$100/month subscriptions for coding assistants that still hit token limits, meter reasoning tokens, and struggle with large codebases. 
 
-So I built **1B Gemini Local Agent**—a completely free, open-source local coding agent powered by **Gemini 3.8 Pro with Deep Reasoning (Thinking Mode)**, completely **unlimited without any API keys**.
+So I built **1B Gemini Local Agent**—a completely free, open-source local coding agent powered by **Google Gemini 2.0 Flash & Pro Exp with Deep Reasoning (Thinking Mode)**, completely **unlimited without any API keys**.
 
 ### 🌟 Key Highlights:
-- **🧠 Gemini 3.8 Pro with Deep Reasoning**: Full chain-of-thought thinking and reasoning capability with live thought-process drawers in the UI.
+- **🧠 Gemini 2.0 Flash / Pro Exp with Deep Reasoning**: Full chain-of-thought thinking and reasoning capability with live thought-process drawers in the UI.
 - **🔓 100% Unlimited Without API Keys**: Interfaces with Gemini Web via an OpenAI-compatible Web2API proxy. Zero billing, no credit exhaustion, no per-token charges.
 - **♾️ 1 Billion+ Token Context Window**: Ingest entire codebases and massive document sets without hitting context barriers.
 - **⚡ 10-Step Autonomous Agentic Loop**: Automatically chains file generation, code inspection, terminal commands, and automated self-correction.
@@ -46,7 +46,7 @@ So I built **1B Gemini Local Agent**—a completely free, open-source local codi
 - **📚 74 Included Design & Dev Skills**: Pre-loaded system tokens (Apple HIG, Stripe, Linear).
 
 ### 🛠️ Tech Stack:
-- Core Model: **Gemini 3.8 Pro (Reasoning / Thinking Model)**
+- Core Model: **Gemini 2.0 Flash / Pro Exp (Reasoning / Thinking Model)**
 - Frontend: Vanilla HTML/CSS/JS (Apple HIG glassmorphism design system)
 - Backend: Python (Flask) with SSE streaming
 - Proxy: Reverse-engineered Gemini Web RPC proxy (OpenAI-compatible)
@@ -65,7 +65,7 @@ I'd love feedback, issues, or PRs! If you find it useful, please consider droppi
 
 **Title:**
 ```
-Show HN: 1B-Gemini-Local-Agent – Free autonomous coding agent using Gemini 3.8 Pro with unlimited reasoning (no API keys)
+Show HN: 1B-Gemini-Local-Agent – Free autonomous coding agent using Gemini 2.0 Flash / Pro with unlimited reasoning (no API keys)
 ```
 
 **URL:**
@@ -77,10 +77,10 @@ https://github.com/IshaanYK/gemini-1b-local-agent
 ```markdown
 Author here. I wanted a local coding assistant that leverages frontier reasoning models without expensive per-token fees or truncated context.
 
-This project pairs Gemini 3.8 Pro (with deep reasoning/thinking capabilities) with a local Flask backend and an autonomous 10-step execution loop—running completely free without API keys via a local Web2API proxy.
+This project pairs Gemini 2.0 Flash & Pro Exp (with deep reasoning/thinking capabilities) with a local Flask backend and an autonomous 10-step execution loop—running completely free without API keys via a local Web2API proxy.
 
 Key features:
-- **Powered by Gemini 3.8 Pro**: Full chain-of-thought deep reasoning without metering.
+- **Powered by Gemini 2.0 Flash & Pro Exp**: Full chain-of-thought deep reasoning without metering.
 - **100% Free & Unlimited**: No API keys required, no billing, no per-token charges.
 - **Native OS Execution**: PowerShell tool execution, directory inspection, codebase grepping, and surgical diff editing.
 - **1B+ Token Context**: Unlimited context handling for massive codebases.

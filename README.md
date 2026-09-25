@@ -113,7 +113,7 @@ SETUP.bat
 *(Or manually: `pip install -r requirements.txt`)*
 
 ### 2. One-Click Launch (Recommended)
-Simply double-click **`Launch_Gemini_Agent.bat`** (or your Desktop shortcut).
+Simply double-click **`Launch_Gemini_Agent.bat`** (or `START_AGENT.bat` / Desktop shortcut).
 
 It will automatically:
 1. Auto-detect Python and start `gemini-web2api` proxy on port `8081` in background.
@@ -121,6 +121,14 @@ It will automatically:
 3. Extract and package conversation context (`handoff.py`).
 4. Boot up the Agent Backend on port `5000`.
 5. Open the Gemini Agent UI at `http://127.0.0.1:5000` directly in your browser.
+
+### 3. Autonomous Health Check & Self-Test
+Run the built-in diagnostic test to verify dependencies, port states, and model connectivity:
+```bash
+python check_health.py
+```
+
+> 📋 **Agent Startup SOP & Clone Troubleshooting**: For detailed architectural phases, common clone pitfalls, and autonomous resolution protocols, see [**`AGENT_STARTUP_PLAN.md`**](AGENT_STARTUP_PLAN.md).
 
 ---
 
