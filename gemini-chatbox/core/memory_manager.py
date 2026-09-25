@@ -260,3 +260,9 @@ MCP_KNOWLEDGE_CATALOG = {
 }
 
 memory = MemoryManager()
+profile = memory.profile
+
+def __getattr__(name):
+    if name == "profile":
+        return memory.profile
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

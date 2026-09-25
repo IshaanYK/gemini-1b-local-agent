@@ -2164,7 +2164,7 @@ def chat():
                 return
 
             # Step 2: Streaming LLM with RAG Memory Context & Zero-Thinking Mode
-            user_disp = memory_manager.profile.get("user_name") or "the developer"
+            user_disp = (memory_manager.memory.profile.get("user_name") if hasattr(memory_manager, "memory") else memory_manager.profile.get("user_name")) or "the developer"
             system_instruction = (
                 f"You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with {user_disp}.\n"
                 "CRITICAL SPOKEN VOICE RULES:\n"
@@ -2254,7 +2254,7 @@ def chat():
             subtasks = prompt_decomposer.decomposer.deconstruct(effective_query)
             yield f"data: {json.dumps({'decomposed_plan': subtasks})}\n\n"
 
-        user_disp = memory_manager.profile.get("user_name") or "the developer"
+        user_disp = (memory_manager.memory.profile.get("user_name") if hasattr(memory_manager, "memory") else memory_manager.profile.get("user_name")) or "the developer"
         b1_prompt = f"""You are B1, a world-class AI pair programmer, senior systems architect, and proactive technical research partner built for {user_disp}.
 
 # COMMUNICATION & INTELLIGENCE PRINCIPLES:
@@ -2969,7 +2969,7 @@ def voice_speech_to_speech():
         )
 
     # 3. LLM Query with Gemini 2.0 Flash (think: 4 zero-reasoning overhead)
-    user_disp = memory_manager.profile.get("user_name") or "the developer"
+    user_disp = (memory_manager.memory.profile.get("user_name") if hasattr(memory_manager, "memory") else memory_manager.profile.get("user_name")) or "the developer"
     system_instruction = (
         f"You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with {user_disp}.\n"
         "CRITICAL SPOKEN VOICE RULES:\n"
