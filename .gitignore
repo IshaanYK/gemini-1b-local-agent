@@ -8,6 +8,9 @@ gemini-chatbox/storage/permissions.json
 *.db
 *.sqlite
 *.log
+user_profile.json
+gemini-chatbox/user_profile.json
+gemini-chatbox/storage/user_profile.json
 
 # ── Temporary Uploads & Screenshot Artifacts ──
 gemini-chatbox/uploads/

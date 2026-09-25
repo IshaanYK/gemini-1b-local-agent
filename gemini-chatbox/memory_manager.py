@@ -54,9 +54,11 @@ class MemoryManager:
             "user_name": "",
             "assistant_name": "B1 (Gemini Studio)",
             "role": "",
+            "experience_level": "Senior / Staff Engineer",
+            "autonomy_level": "Autonomous Pilot (Direct Execution)",
             "communication_style": "Clear, concise, highly proactive, senior-level engineering advice",
             "preferred_design_aesthetic": "Linear dark mode (sleek surfaces, subtle hairline borders, lavender accents)",
-            "primary_tech_stack": [],
+            "primary_tech_stack": ["Python", "TypeScript", "React", "Next.js", "Docker"],
             "mcp_preferences": {
                 "auto_connect_enabled": True,
                 "preferred_servers": ["mcp-web-search", "chrome-devtools-mcp", "mcp-code-architect", "mcp-visualization"]
@@ -68,7 +70,7 @@ class MemoryManager:
             ],
             "theme": "linear-obsidian",
             "archetype": "Senior Architect",
-            "stack": []
+            "stack": ["Python", "TypeScript", "React", "Next.js", "Docker"]
         }
         if os.path.exists(PROFILE_FILE):
             try:
@@ -166,11 +168,13 @@ class MemoryManager:
         lines = [
             "# PERSONALIZATION & USER PROFILE:",
             f"- **User**: {p.get('user_name', 'Ishaan')} ({p.get('role', 'Developer')})",
+            f"- **Experience Level**: {p.get('experience_level', 'Senior / Staff Engineer')}",
             f"- **Assistant Persona**: {p.get('assistant_name', 'B1')} (Proactive, ultra-competent, paired coding architect)",
             f"- **Collaboration Archetype**: {p.get('archetype', 'Senior Architect')}",
             f"- **Preferred Style**: {p.get('communication_style', 'Clear, concise, highly proactive')}",
+            f"- **Autonomy Preference**: {p.get('autonomy_level', 'Autonomous Pilot (Direct Execution)')}",
             f"- **Active Theme**: {p.get('theme', 'linear-obsidian')}",
-            f"- **Primary Tech Stack**: {', '.join(p.get('primary_tech_stack', ['Python', 'JavaScript', 'React']))}"
+            f"- **Primary Tech Stack**: {', '.join(p.get('primary_tech_stack', ['Python', 'TypeScript', 'React', 'Docker']))}"
         ]
 
         if p.get('b1_perception'):
@@ -199,6 +203,13 @@ class MemoryManager:
             self.remember_fact("identity", "user_name", new_data["user_name"], "User Profile")
         if "role" in new_data:
             self.remember_fact("identity", "role", new_data["role"], "User Profile")
+        if "experience_level" in new_data:
+            self.remember_fact("identity", "experience_level", new_data["experience_level"], "User Profile")
+        if "primary_tech_stack" in new_data:
+            val = ", ".join(new_data["primary_tech_stack"]) if isinstance(new_data["primary_tech_stack"], list) else str(new_data["primary_tech_stack"])
+            self.remember_fact("stack", "primary_technologies", val, "Tech Stack")
+        if "autonomy_level" in new_data:
+            self.remember_fact("preference", "autonomy_level", new_data["autonomy_level"], "Agent Permissions")
         if "communication_style" in new_data:
             self.remember_fact("preference", "communication_style", new_data["communication_style"], "Onboarding")
         if "theme" in new_data:

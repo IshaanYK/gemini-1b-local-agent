@@ -392,6 +392,9 @@ function applyTheme(themeName) {
     document.documentElement.setAttribute('data-theme', themeName);
     localStorage.setItem('b1_studio_theme', themeName);
     userProfile.theme = themeName;
+    if (typeof window.updateThemeCardSelection === 'function') {
+        window.updateThemeCardSelection(themeName);
+    }
 }
 
 async function loadUserProfile() {
@@ -559,7 +562,15 @@ window.requestAllPermissions = function() {
 function openOnboardingModal(step = 1) {
     currentOnboardStep = step;
     onboardDraft = { ...userProfile };
+    if (!onboardDraft.user_name) onboardDraft.user_name = '';
+    if (!onboardDraft.role) onboardDraft.role = 'Lead Developer & AI Architect';
+    if (!onboardDraft.experience_level) onboardDraft.experience_level = 'Senior / Staff Engineer';
+    if (!onboardDraft.autonomy_level) onboardDraft.autonomy_level = 'Autonomous Pilot (Direct Execution)';
     if (!onboardDraft.archetype) onboardDraft.archetype = 'Senior Architect';
+    if (!onboardDraft.communication_style) onboardDraft.communication_style = 'Clear, concise, highly proactive, senior-level engineering advice';
+    if (!onboardDraft.primary_tech_stack || !Array.isArray(onboardDraft.primary_tech_stack) || onboardDraft.primary_tech_stack.length === 0) {
+        onboardDraft.primary_tech_stack = ['Python', 'TypeScript', 'React', 'Next.js', 'Docker'];
+    }
     if (!onboardDraft.theme) onboardDraft.theme = localStorage.getItem('b1_studio_theme') || 'linear-obsidian';
     
     // Close user dropdown if open
@@ -594,80 +605,203 @@ function renderOnboardStep(step) {
     if (onboardBackBtn) onboardBackBtn.style.visibility = step > 1 ? 'visible' : 'hidden';
 
     if (step === 1) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Let's Personalize →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Begin Calibration →";
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
                 <div class="onboard-speech-bubble">
-                    <p>Hello! I am <strong>B1</strong>, your personal autonomous coding partner and systems architect.</p>
-                    <p style="margin-top:8px;">I can create interactive web apps, refactor code, search your repos with MCP tools, run terminal scripts, and remember your technical preferences with zero hallucinations.</p>
-                    <p style="margin-top:8px; color:var(--ink-muted);">Let's tailor your workspace in 5 quick interactive steps so I communicate, code, and authorize tools exactly how you like.</p>
+                    <p>Hello! I am <strong>B1</strong>, your personal local autonomous pair-programmer and systems engineer.</p>
+                    <p style="margin-top:8px;">I run directly in your workspace to write production code, refactor repositories, execute terminal commands, test web apps live, and query MCP tools.</p>
+                    <p style="margin-top:8px; color:var(--ink-muted);">Before we begin building, I want to understand <strong>who you are</strong>, your <strong>tech stack</strong>, and your <strong>autonomy preferences</strong> so I can collaborate with you with maximum precision.</p>
+                </div>
+            </div>
+
+            <div class="onboard-quick-grid">
+                <div class="onboard-quick-card">
+                    <div class="onboard-quick-icon">⚡</div>
+                    <div class="onboard-quick-title">Local Autonomous Engine</div>
+                    <div class="onboard-quick-desc">Executes PowerShell, shell scripts, filesystem operations, and background jobs.</div>
+                </div>
+                <div class="onboard-quick-card">
+                    <div class="onboard-quick-icon">🧠</div>
+                    <div class="onboard-quick-title">Persistent SQLite Memory</div>
+                    <div class="onboard-quick-desc">Retains your project rules, guidelines, facts, and decisions across sessions.</div>
+                </div>
+                <div class="onboard-quick-card">
+                    <div class="onboard-quick-icon">🚀</div>
+                    <div class="onboard-quick-title">Live Interactive Previews</div>
+                    <div class="onboard-quick-desc">Instantly runs and displays reactive HTML apps, charts, and mathematical simulations.</div>
                 </div>
             </div>
         `;
     } else if (step === 2) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Thinking →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Configure Tech Stack →";
+        const currentName = onboardDraft.user_name || '';
+        const currentExp = onboardDraft.experience_level || 'Senior / Staff Engineer';
+        const currentRole = onboardDraft.role || 'Lead Developer & AI Architect';
+
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
                 <div class="onboard-speech-bubble">
-                    <p>What is your name and what domain do you primarily build in?</p>
+                    <p>Who is sitting in the pilot seat? Tell me your name, your engineering background, and your primary focus domain.</p>
                 </div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+
+            <div style="display:flex; flex-direction:column; gap:14px; margin-top:4px;">
                 <div>
-                    <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Your Name / Handle</label>
-                    <input type="text" id="onboard-name-input" class="folder-input" value="${escapeHtml(onboardDraft.user_name || 'Ishaan Sen')}" style="width:100%; padding:10px 12px; font-size:14px; background:var(--surface-2); border:1px solid var(--hairline-strong); border-radius:var(--r-md); color:var(--ink);">
+                    <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Developer Name / Handle</label>
+                    <input type="text" id="onboard-name-input" class="folder-input" value="${escapeHtml(currentName)}" placeholder="e.g. Ishaan Sen or @developer" style="width:100%; padding:10px 14px; font-size:14px; background:var(--surface-2); border:1px solid var(--hairline-strong); border-radius:var(--r-md); color:var(--ink);" oninput="onboardDraft.user_name = this.value.trim()">
                 </div>
+
+                <div>
+                    <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:4px;">Engineering Experience Level</label>
+                    <div class="onboard-segmented-bar">
+                        <button type="button" class="onboard-seg-item ${currentExp.includes('Junior') ? 'active' : ''}" onclick="selectOnboardExperience(this, 'Junior / Apprentice')">🐣 Junior / Apprentice</button>
+                        <button type="button" class="onboard-seg-item ${currentExp.includes('Mid-Level') ? 'active' : ''}" onclick="selectOnboardExperience(this, 'Mid-Level Engineer')">💻 Mid-Level Engineer</button>
+                        <button type="button" class="onboard-seg-item ${currentExp.includes('Senior') || currentExp.includes('Staff') ? 'active' : ''}" onclick="selectOnboardExperience(this, 'Senior / Staff Engineer')">🚀 Senior / Staff Engineer</button>
+                        <button type="button" class="onboard-seg-item ${currentExp.includes('Lead') || currentExp.includes('Founder') ? 'active' : ''}" onclick="selectOnboardExperience(this, 'Tech Lead / Founder')">👑 Tech Lead / Founder</button>
+                    </div>
+                </div>
+
                 <div>
                     <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Primary Focus & Role</label>
                     <div class="onboard-choices-grid">
-                        <div class="choice-chip-card ${(onboardDraft.role || '').includes('Architect') || (onboardDraft.role || '').includes('Lead') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Lead Developer & AI Architect')">
+                        <div class="choice-chip-card ${currentRole.includes('Architect') || currentRole.includes('Lead') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Lead Developer & AI Architect')">
                             <span class="choice-chip-title">🚀 Systems & AI Architect</span>
-                            <span class="choice-chip-desc">Autonomous agents, microcontrollers, frontier AI tools</span>
+                            <span class="choice-chip-desc">Autonomous agents, microcontrollers, distributed backends</span>
                         </div>
-                        <div class="choice-chip-card ${(onboardDraft.role || '').includes('Full-Stack') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Full-Stack Web Engineer')">
+                        <div class="choice-chip-card ${currentRole.includes('Full-Stack') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Full-Stack Web Engineer')">
                             <span class="choice-chip-title">💻 Full-Stack Engineer</span>
-                            <span class="choice-chip-desc">React, Node, Python backends, and modern web apps</span>
+                            <span class="choice-chip-desc">React, Next.js, Node, Python backends, and modern web apps</span>
                         </div>
-                        <div class="choice-chip-card ${(onboardDraft.role || '').includes('Autonomous') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Autonomous Agent Builder')">
+                        <div class="choice-chip-card ${currentRole.includes('Agentic') || currentRole.includes('Autonomous') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Agentic AI Builder')">
                             <span class="choice-chip-title">⚡ Agentic AI Builder</span>
-                            <span class="choice-chip-desc">MCP servers, LangChain, crew AI, multi-agent flows</span>
+                            <span class="choice-chip-desc">MCP servers, LangChain, tool calling, multi-agent flows</span>
                         </div>
-                        <div class="choice-chip-card ${(onboardDraft.role || '').includes('Research') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Algorithmic Researcher')">
-                            <span class="choice-chip-title">🔬 Deep Researcher</span>
-                            <span class="choice-chip-desc">PyTorch, data science, algorithms, mathematical models</span>
+                        <div class="choice-chip-card ${currentRole.includes('Research') || currentRole.includes('Data') ? 'selected' : ''}" onclick="selectOnboardRole(this, 'Algorithmic Researcher')">
+                            <span class="choice-chip-title">🔬 Algorithmic & Data Scientist</span>
+                            <span class="choice-chip-desc">PyTorch, numerical models, mathematical simulations, pipelines</span>
                         </div>
                     </div>
                 </div>
             </div>
         `;
     } else if (step === 3) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Permissions →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Choose Collaboration Archetype →";
+        const selectedStack = new Set(onboardDraft.primary_tech_stack || ['Python', 'TypeScript', 'React', 'Next.js', 'Docker']);
+
+        const languages = ['Python', 'TypeScript', 'JavaScript', 'Rust', 'Go', 'C++', 'SQL', 'Bash / Shell'];
+        const frontend = ['React', 'Next.js', 'Tailwind CSS', 'Vue.js', 'Svelte', 'Vanilla HTML/CSS'];
+        const backend = ['FastAPI', 'Node.js', 'Express', 'Flask', 'Django', 'REST APIs', 'GraphQL'];
+        const infra = ['Docker', 'Git / GitHub', 'SQLite', 'PostgreSQL', 'Redis', 'MCP Protocol', 'Linux / WSL'];
+
+        const renderPill = (tech) => `
+            <div class="onboard-tech-pill ${selectedStack.has(tech) ? 'selected' : ''}" onclick="toggleOnboardStack(this, '${tech}')">
+                <span class="pill-check">${selectedStack.has(tech) ? '✓' : '+'}</span>
+                <span>${tech}</span>
+            </div>
+        `;
+
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
                 <div class="onboard-speech-bubble">
-                    <p>How would you like me to think and communicate with you during coding sessions?</p>
+                    <p>What technologies and languages are in your weapon arsenal? Select all that you use or plan to build with.</p>
+                    <p style="margin-top:6px; color:var(--ink-subtle); font-size:12px;">I will automatically prioritize these languages, syntax standards, and dependencies in code generation and refactoring.</p>
                 </div>
             </div>
-            <div class="onboard-choices-grid" style="grid-template-columns:1fr; margin-top:8px;">
-                <div class="choice-chip-card ${onboardDraft.archetype === 'Senior Architect' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Senior Architect', 'Clear, concise, highly proactive, senior-level engineering advice')">
-                    <span class="choice-chip-title">🚀 Senior Architect (Recommended)</span>
-                    <span class="choice-chip-desc">Proactive, concise, zero unneeded boilerplate. Solves problems directly with clean code and high velocity.</span>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:2px;">
+                <span style="font-size:12px; color:var(--ink-muted);" id="onboard-stack-summary">
+                    Selected: <strong style="color:var(--primary-hover); font-size:13px;" id="onboard-stack-count">${selectedStack.size}</strong> technologies
+                </span>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="action-link-btn" onclick="selectAllDefaultStack()" style="font-size:11.5px; color:var(--primary-hover); background:none; border:none; cursor:pointer; text-decoration:underline;">Defaults</button>
+                    <span style="color:var(--hairline-strong);">|</span>
+                    <button type="button" class="action-link-btn" onclick="clearAllStack()" style="font-size:11.5px; color:var(--ink-subtle); background:none; border:none; cursor:pointer; text-decoration:underline;">Clear</button>
                 </div>
-                <div class="choice-chip-card ${onboardDraft.archetype === 'Deep Mentor' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Deep Mentor', 'In-depth explanations of trade-offs, architecture patterns, and detailed guidance')">
-                    <span class="choice-chip-title">🧠 Deep Mentor</span>
-                    <span class="choice-chip-desc">Explains architectural trade-offs, step-by-step reasoning, and best practice design choices.</span>
+            </div>
+
+            <div class="onboard-stack-section">
+                <div class="onboard-stack-group-title">Core Languages</div>
+                <div class="onboard-stack-pills">
+                    ${languages.map(renderPill).join('')}
                 </div>
-                <div class="choice-chip-card ${onboardDraft.archetype === 'Rapid Hacker' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Rapid Hacker', 'Ultra-concise, code-first solutions with minimal commentary')">
-                    <span class="choice-chip-title">⚡ Rapid Hacker</span>
-                    <span class="choice-chip-desc">Code-first, minimal chatter. Delivers copy-paste ready scripts and instant diffs.</span>
+
+                <div class="onboard-stack-group-title">Frontend & Web</div>
+                <div class="onboard-stack-pills">
+                    ${frontend.map(renderPill).join('')}
+                </div>
+
+                <div class="onboard-stack-group-title">Backend & APIs</div>
+                <div class="onboard-stack-pills">
+                    ${backend.map(renderPill).join('')}
+                </div>
+
+                <div class="onboard-stack-group-title">Databases & Infrastructure</div>
+                <div class="onboard-stack-pills">
+                    ${infra.map(renderPill).join('')}
                 </div>
             </div>
         `;
     } else if (step === 4) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Continue to Themes →";
+        if (onboardNextLabel) onboardNextLabel.textContent = "Authorize Permissions →";
+        const currentArch = onboardDraft.archetype || 'Senior Architect';
+        const currentAutonomy = onboardDraft.autonomy_level || 'Autonomous Pilot (Direct Execution)';
+
+        onboardBody.innerHTML = `
+            <div class="onboard-b1-chat">
+                <div class="onboard-b1-avatar">B1</div>
+                <div class="onboard-speech-bubble">
+                    <p>How would you like B1 to communicate and how autonomous should B1 be during coding sessions?</p>
+                </div>
+            </div>
+
+            <div>
+                <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Collaboration Archetype</label>
+                <div class="onboard-choices-grid" style="grid-template-columns:1fr 1fr;">
+                    <div class="choice-chip-card ${currentArch === 'Senior Architect' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Senior Architect', 'Clear, concise, highly proactive, senior-level engineering advice')">
+                        <span class="choice-chip-title">🚀 Senior Architect</span>
+                        <span class="choice-chip-desc">Proactive, concise, zero unneeded fluff. Solves problems directly with clean code and high velocity.</span>
+                    </div>
+                    <div class="choice-chip-card ${currentArch === 'Rapid Hacker' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Rapid Hacker', 'Ultra-concise, code-first solutions with minimal commentary')">
+                        <span class="choice-chip-title">⚡ Rapid Hacker / 10x Builder</span>
+                        <span class="choice-chip-desc">Code-first, minimal commentary. Delivers copy-paste ready scripts and instant diffs.</span>
+                    </div>
+                    <div class="choice-chip-card ${currentArch === 'Deep Mentor' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Deep Mentor', 'In-depth explanations of trade-offs, architecture patterns, and detailed guidance')">
+                        <span class="choice-chip-title">🧠 Deep Architectural Mentor</span>
+                        <span class="choice-chip-desc">Explains architectural trade-offs, design patterns, and step-by-step reasoning for deep mastery.</span>
+                    </div>
+                    <div class="choice-chip-card ${currentArch === 'Defensive Engineer' ? 'selected' : ''}" onclick="selectOnboardArchetype(this, 'Defensive Engineer', 'Test-driven development, strict typing, and defensive edge-case safety')">
+                        <span class="choice-chip-title">🛡️ Defensive & Rigorous</span>
+                        <span class="choice-chip-desc">TDD tests first, strict typing, comprehensive edge case handling, zero breaking changes.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:4px;">
+                <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Execution Autonomy Boundary</label>
+                <div class="onboard-autonomy-grid">
+                    <div class="autonomy-card ${currentAutonomy.includes('Autonomous Pilot') ? 'selected' : ''}" onclick="selectOnboardAutonomy(this, 'Autonomous Pilot (Direct Execution)')">
+                        <div class="autonomy-card-header">
+                            <span>🤖 Autonomous Pilot</span>
+                            <span class="autonomy-badge">Recommended</span>
+                        </div>
+                        <div class="autonomy-card-desc">Direct execution of terminal scripts, file edits, and MCP tools with zero repetitive prompts.</div>
+                    </div>
+                    <div class="autonomy-card ${currentAutonomy.includes('Collaborative Co-Pilot') ? 'selected' : ''}" onclick="selectOnboardAutonomy(this, 'Collaborative Co-Pilot (Verification First)')">
+                        <div class="autonomy-card-header">
+                            <span>🛡️ Collaborative Co-Pilot</span>
+                            <span class="autonomy-badge">Cautious</span>
+                        </div>
+                        <div class="autonomy-card-desc">Previews terminal commands and asks confirmation before high-impact file modifications.</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (step === 5) {
+        if (onboardNextLabel) onboardNextLabel.textContent = "Select Atmosphere & Launch →";
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
@@ -802,90 +936,103 @@ function renderOnboardStep(step) {
                 </div>
             </div>
         `;
-    } else if (step === 5) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "View Alignment Report →";
-        onboardBody.innerHTML = `
-            <div class="onboard-b1-chat">
-                <div class="onboard-b1-avatar">B1</div>
-                <div class="onboard-speech-bubble">
-                    <p>Choose your workspace visual atmosphere. All themes feature custom dark scrollbars and high contrast surfaces.</p>
-                </div>
-            </div>
-            <div class="theme-picker-grid">
-                <div class="theme-card ${onboardDraft.theme === 'linear-obsidian' ? 'selected' : ''}" onclick="selectOnboardTheme(this, 'linear-obsidian')">
-                    <div class="theme-preview-swatch" style="background:#010102; border:1px solid #23252a;">
-                        <span style="width:12px; height:12px; border-radius:50%; background:#5e6ad2;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#828fff;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#f7f8f8;"></span>
-                    </div>
-                    <div class="theme-card-title">Linear Obsidian (Default)</div>
-                    <div style="font-size:11px; color:var(--ink-subtle); margin-top:2px;">Signature #010102 dark canvas with lavender-blue accent</div>
-                </div>
-
-                <div class="theme-card ${onboardDraft.theme === 'midnight-lavender' ? 'selected' : ''}" onclick="selectOnboardTheme(this, 'midnight-lavender')">
-                    <div class="theme-preview-swatch" style="background:#08060f; border:1px solid #2a2545;">
-                        <span style="width:12px; height:12px; border-radius:50%; background:#8b5cf6;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#a78bfa;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#f8f6ff;"></span>
-                    </div>
-                    <div class="theme-card-title">Midnight Lavender</div>
-                    <div style="font-size:11px; color:var(--ink-subtle); margin-top:2px;">Deep purple-night aesthetic with vivid violet accents</div>
-                </div>
-
-                <div class="theme-card ${onboardDraft.theme === 'cyber-matrix' ? 'selected' : ''}" onclick="selectOnboardTheme(this, 'cyber-matrix')">
-                    <div class="theme-preview-swatch" style="background:#030806; border:1px solid #1b3d2e;">
-                        <span style="width:12px; height:12px; border-radius:50%; background:#10b981;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#34d399;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#f0fdf4;"></span>
-                    </div>
-                    <div class="theme-card-title">Cyber Matrix</div>
-                    <div style="font-size:11px; color:var(--ink-subtle); margin-top:2px;">Deep emerald hacker glow with vibrant green accents</div>
-                </div>
-
-                <div class="theme-card ${onboardDraft.theme === 'monochrome-slate' ? 'selected' : ''}" onclick="selectOnboardTheme(this, 'monochrome-slate')">
-                    <div class="theme-preview-swatch" style="background:#0a0a0c; border:1px solid #2e2e38;">
-                        <span style="width:12px; height:12px; border-radius:50%; background:#ffffff;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#94a3b8;"></span>
-                        <span style="width:12px; height:12px; border-radius:50%; background:#222229;"></span>
-                    </div>
-                    <div class="theme-card-title">Monochrome Slate</div>
-                    <div style="font-size:11px; color:var(--ink-subtle); margin-top:2px;">Minimalist carbon and pure white high-contrast styling</div>
-                </div>
-            </div>
-        `;
     } else if (step === 6) {
-        if (onboardNextLabel) onboardNextLabel.textContent = "Save & Launch B1 Studio 🚀";
-        
-        const nameVal = document.getElementById('onboard-name-input')?.value.trim();
-        if (nameVal) onboardDraft.user_name = nameVal;
+        if (onboardNextLabel) onboardNextLabel.textContent = "🚀 Launch B1 Studio & Enter Workspace";
 
+        const name = (onboardDraft.user_name || '').trim() || 'Explorer';
         const role = onboardDraft.role || 'Lead Developer & AI Architect';
+        const exp = onboardDraft.experience_level || 'Senior / Staff Engineer';
         const arch = onboardDraft.archetype || 'Senior Architect';
+        const autonomy = onboardDraft.autonomy_level || 'Autonomous Pilot (Direct Execution)';
         const theme = onboardDraft.theme || 'linear-obsidian';
-        const name = onboardDraft.user_name || 'Ishaan Sen';
+        const stackList = onboardDraft.primary_tech_stack && onboardDraft.primary_tech_stack.length > 0 
+            ? onboardDraft.primary_tech_stack 
+            : ['Python', 'TypeScript', 'React', 'Docker'];
+
+        const initials = name.split(' ').map(n => n[0]).filter(Boolean).join('').substring(0, 2).toUpperCase() || 'B1';
 
         onboardBody.innerHTML = `
             <div class="onboard-b1-chat">
                 <div class="onboard-b1-avatar">B1</div>
                 <div class="onboard-speech-bubble">
-                    <p>I have aligned our workspace persona and configured long-term memory & tool authorization for you, <strong>${escapeHtml(name)}</strong>!</p>
+                    <p>Select your workspace visual atmosphere and review your personalized <strong>B1 Engineering Passport</strong>.</p>
                 </div>
             </div>
 
-            <div class="perception-report-card">
-                <div class="perception-header">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                    <span>B1's Perception & Alignment Report</span>
+            <div>
+                <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Workspace Visual Aesthetic</label>
+                <div class="theme-picker-grid">
+                    <div class="theme-card ${theme === 'linear-obsidian' ? 'active' : ''}" onclick="selectOnboardTheme(this, 'linear-obsidian')">
+                        <div class="theme-preview" style="background:#010102; border:1px solid #23252a;">
+                            <span style="width:14px; height:14px; border-radius:50%; background:#5e6ad2;"></span>
+                        </div>
+                        <div class="theme-info">
+                            <strong>Linear Obsidian (Default)</strong>
+                            <span>Deep #010102 canvas with lavender-blue accent</span>
+                        </div>
+                    </div>
+
+                    <div class="theme-card ${theme === 'midnight-lavender' ? 'active' : ''}" onclick="selectOnboardTheme(this, 'midnight-lavender')">
+                        <div class="theme-preview" style="background:#08060f; border:1px solid #2a2545;">
+                            <span style="width:14px; height:14px; border-radius:50%; background:#8b5cf6;"></span>
+                        </div>
+                        <div class="theme-info">
+                            <strong>Midnight Lavender</strong>
+                            <span>Deep purple-night aesthetic with vivid violet accents</span>
+                        </div>
+                    </div>
+
+                    <div class="theme-card ${theme === 'cyber-matrix' ? 'active' : ''}" onclick="selectOnboardTheme(this, 'cyber-matrix')">
+                        <div class="theme-preview" style="background:#030806; border:1px solid #1b3d2e;">
+                            <span style="width:14px; height:14px; border-radius:50%; background:#10b981;"></span>
+                        </div>
+                        <div class="theme-info">
+                            <strong>Cyber Matrix</strong>
+                            <span>Obsidian with emerald green phosphor terminal glow</span>
+                        </div>
+                    </div>
+
+                    <div class="theme-card ${theme === 'monochrome-slate' ? 'active' : ''}" onclick="selectOnboardTheme(this, 'monochrome-slate')">
+                        <div class="theme-preview" style="background:#0a0a0c; border:1px solid #2e2e38;">
+                            <span style="width:14px; height:14px; border-radius:50%; background:#ffffff;"></span>
+                        </div>
+                        <div class="theme-info">
+                            <strong>Monochrome Slate</strong>
+                            <span>Clean carbon and pure white high-contrast styling</span>
+                        </div>
+                    </div>
                 </div>
-                <ul class="perception-list">
-                    <li>⚡ <strong>Engineering Identity:</strong> ${escapeHtml(role)} with high curiosity and proactive tooling habits.</li>
-                    <li>🎯 <strong>Communication Standard:</strong> ${escapeHtml(arch)} — concise reasoning, zero hallucination, direct execution.</li>
-                    <li>🔒 <strong>System & Device Authorization:</strong> Complete authorization for Microphone, Camera, Terminal, Notifications & Filesystem.</li>
-                    <li>🎨 <strong>Visual Atmosphere:</strong> ${escapeHtml(theme.replace('-', ' ').toUpperCase())} with dark custom scrollbars.</li>
-                    <li>💾 <strong>Memory Preservation:</strong> All previous chat sessions, MCP tools, and SQLite facts remain 100% intact and linked.</li>
-                </ul>
+            </div>
+
+            <div class="alignment-passport-card">
+                <div class="alignment-passport-header">
+                    <div class="alignment-user-identity">
+                        <div class="alignment-avatar-badge">${escapeHtml(initials)}</div>
+                        <div class="alignment-user-details">
+                            <strong>${escapeHtml(name)}</strong>
+                            <span>${escapeHtml(role)} • ${escapeHtml(exp)}</span>
+                        </div>
+                    </div>
+                    <span style="font-size:11px; padding:3px 9px; border-radius:var(--r-pill); background:var(--primary-subtle); color:var(--primary-hover); font-weight:600; border:1px solid var(--primary);">Ready ✓</span>
+                </div>
+
+                <div class="alignment-stats-grid">
+                    <div class="alignment-stat-box">
+                        <span class="stat-label">Collaboration Mode</span>
+                        <span class="stat-val">${escapeHtml(arch)}</span>
+                    </div>
+                    <div class="alignment-stat-box">
+                        <span class="stat-label">Autonomy Level</span>
+                        <span class="stat-val">${escapeHtml(autonomy.split('(')[0].trim())}</span>
+                    </div>
+                </div>
+
+                <div>
+                    <span style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--ink-subtle); display:block; margin-bottom:6px;">Calibrated Tech Stack</span>
+                    <div class="alignment-stack-strip">
+                        ${stackList.map(s => `<span class="alignment-stack-chip">${escapeHtml(s)}</span>`).join('')}
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -897,6 +1044,46 @@ window.selectOnboardRole = function(el, roleTitle) {
     onboardDraft.role = roleTitle;
 };
 
+window.selectOnboardExperience = function(el, expTitle) {
+    document.querySelectorAll('.onboard-segmented-bar .onboard-seg-item').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    onboardDraft.experience_level = expTitle;
+};
+
+window.toggleOnboardStack = function(el, techName) {
+    if (!Array.isArray(onboardDraft.primary_tech_stack)) {
+        onboardDraft.primary_tech_stack = [];
+    }
+    const idx = onboardDraft.primary_tech_stack.indexOf(techName);
+    if (idx > -1) {
+        onboardDraft.primary_tech_stack.splice(idx, 1);
+        el.classList.remove('selected');
+        const checkEl = el.querySelector('.pill-check');
+        if (checkEl) checkEl.textContent = '+';
+    } else {
+        onboardDraft.primary_tech_stack.push(techName);
+        el.classList.add('selected');
+        const checkEl = el.querySelector('.pill-check');
+        if (checkEl) checkEl.textContent = '✓';
+    }
+    onboardDraft.stack = [...onboardDraft.primary_tech_stack];
+
+    const countEl = document.getElementById('onboard-stack-count');
+    if (countEl) countEl.textContent = onboardDraft.primary_tech_stack.length;
+};
+
+window.selectAllDefaultStack = function() {
+    onboardDraft.primary_tech_stack = ['Python', 'TypeScript', 'JavaScript', 'React', 'Next.js', 'FastAPI', 'Docker', 'SQLite'];
+    onboardDraft.stack = [...onboardDraft.primary_tech_stack];
+    renderOnboardStep(3);
+};
+
+window.clearAllStack = function() {
+    onboardDraft.primary_tech_stack = [];
+    onboardDraft.stack = [];
+    renderOnboardStep(3);
+};
+
 window.selectOnboardArchetype = function(el, archTitle, styleDesc) {
     document.querySelectorAll('.onboard-choices-grid .choice-chip-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
@@ -904,9 +1091,15 @@ window.selectOnboardArchetype = function(el, archTitle, styleDesc) {
     onboardDraft.communication_style = styleDesc;
 };
 
-window.selectOnboardTheme = function(el, themeName) {
-    document.querySelectorAll('.theme-picker-grid .theme-card').forEach(c => c.classList.remove('selected'));
+window.selectOnboardAutonomy = function(el, autonomyTitle) {
+    document.querySelectorAll('.onboard-autonomy-grid .autonomy-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
+    onboardDraft.autonomy_level = autonomyTitle;
+};
+
+window.selectOnboardTheme = function(el, themeName) {
+    document.querySelectorAll('.theme-picker-grid .theme-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
     onboardDraft.theme = themeName;
     applyTheme(themeName);
 };
@@ -2715,10 +2908,10 @@ function setupEventListeners() {
         menuStartOnboardBtn.addEventListener('click', () => openOnboardingModal(1));
     }
     if (menuThemePickerBtn) {
-        menuThemePickerBtn.addEventListener('click', () => openOnboardingModal(4));
+        menuThemePickerBtn.addEventListener('click', () => openOnboardingModal(6));
     }
     if (menuViewMemoriesBtn) {
-        menuViewMemoriesBtn.addEventListener('click', () => openOnboardingModal(5));
+        menuViewMemoriesBtn.addEventListener('click', () => openMasterSettingsTab('profile'));
     }
     if (menuSwitchUserBtn) {
         menuSwitchUserBtn.addEventListener('click', () => openOnboardingModal(2));
@@ -2749,12 +2942,14 @@ function setupEventListeners() {
                 renderOnboardStep(currentOnboardStep);
             } else {
                 // Step 6: Save & Activate
-                onboardNextBtn.textContent = 'Launching Studio...';
+                onboardNextBtn.innerHTML = '<span>Launching Studio...</span>';
+                onboardDraft.stack = onboardDraft.primary_tech_stack || [];
                 await saveUserProfile(onboardDraft);
                 localStorage.setItem('b1_onboarding_completed', 'true');
                 applyTheme(onboardDraft.theme || 'linear-obsidian');
                 closeOnboardingModal();
-                showToast('🚀 Workspace Ready with Full Permissions!', 'success', 3000);
+                const firstName = onboardDraft.user_name ? onboardDraft.user_name.split(' ')[0] : 'Developer';
+                showToast(`🚀 B1 Studio Initialized! Welcome, ${firstName}!`, 'success', 3500);
             }
         });
     }
