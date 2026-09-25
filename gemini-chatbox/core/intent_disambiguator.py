@@ -11,6 +11,18 @@ import re
 from typing import Dict, List, Any, Optional
 
 COMMON_CORRECTIONS = {
+    r'\bmakea\b': 'make a',
+    r'\bbuilda\b': 'build a',
+    r'\bcreatea\b': 'create a',
+    r'\bcodea\b': 'code a',
+    r'\bvizualize\b': 'visualize',
+    r'\bvizualise\b': 'visualize',
+    r'\bvisualise\b': 'visualize',
+    r'\bvisulize\b': 'visualize',
+    r'\bvisulaize\b': 'visualize',
+    r'\bvisualize me\b': 'visualize',
+    r'\bshow me\b': 'visualize',
+    r'\bsimulat\b': 'simulate',
     r'\bvishualize\b': 'visualize',
     r'\bvishualization\b': 'visualization',
     r'\bsomethings\b': 'something',
@@ -103,18 +115,27 @@ class PromptDisambiguator:
         
         # Analyze specific intent vectors
         is_cv_ml = bool(re.search(r'\b(camera|webcam|hand gesture|gesture|track hand|color track|computer vision|opencv|mediapipe|optical flow|color tracking|motion detect)\b', cleaned, re.IGNORECASE))
-        is_visualization = bool(re.search(r'\b(visualize|simulation|canvas|plot|curve|slider|interactive)\b', cleaned, re.IGNORECASE))
+        is_visualization = bool(re.search(r'\b(visualize|simulation|simulate|canvas|plot|curve|slider|interactive|black hole|astronomy|physics|gravity|orbit|lensing|pendulum|wave|fourier|sorting|algorithm|particles|particles simulation|solar system)\b', cleaned, re.IGNORECASE))
+        is_app_build = bool(re.search(r'\b(make a|build a|create a|develop a|code a|write a|app|application|game|tool|calculator|timer|stopwatch|clock|dashboard|mixer|dj|player|synth|editor|widget|ui|frontend|component)\b', cleaned, re.IGNORECASE))
         is_security = bool(re.search(r'\b(security|audit|vulnerability|loophole|idor|sqli|token|jwt|owasp|secret)\b', cleaned, re.IGNORECASE))
         is_refactor_fix = bool(re.search(r'\b(fix|bug|broken|error|not working|overlapping|button|clean)\b', cleaned, re.IGNORECASE))
         is_architecture = bool(re.search(r'\b(architecture|blueprint|schema|database|system design|microservice)\b', cleaned, re.IGNORECASE))
 
         refined_intent = "General Software Engineering"
+        technical_prompt = cleaned
+
         if is_cv_ml:
             refined_intent = "Computer Vision & Interactive Webcam ML"
             assumptions.append("User seeks in-browser real-time camera processing, motion tracking, or gesture interaction using native Canvas/MediaDevices.")
+            technical_prompt = f"Build a complete in-browser interactive Computer Vision / Webcam application for: {cleaned} inside <antArtifact> tags."
         elif is_visualization:
             refined_intent = "STEM & Dynamic Canvas Simulation"
-            assumptions.append("User seeks dynamic visual modeling with interactive parameters & formula derivations.")
+            assumptions.append("User requests an interactive, runnable HTML5 Canvas visual simulation with dynamic animation, interactive parameter sliders, and real-time controls.")
+            technical_prompt = f"Build a complete, standalone, interactive HTML5 Canvas simulation of: {cleaned} with dynamic animation and UI controls inside <antArtifact> tags (do not generate static images, write full code)."
+        elif is_app_build:
+            refined_intent = "Interactive Web Application & Tool Builder"
+            assumptions.append("User requests an immediate, fully working, standalone browser application with interactive UI inside an artifact.")
+            technical_prompt = f"Build a complete, standalone, interactive HTML5/CSS/JavaScript application for: {cleaned} inside <antArtifact> tags with Linear-grade dark UI."
         elif is_security:
             refined_intent = "Security Auditing & Defensive Hardening"
             assumptions.append("User is conducting educational security analysis and defensive vulnerability remediation.")
@@ -126,7 +147,6 @@ class PromptDisambiguator:
             assumptions.append("User needs end-to-end multi-tier architecture with concrete diagrams and schemas.")
 
         # If prompt was very short or vague, generate an explicit structured prompt
-        technical_prompt = cleaned
         if ref_data["is_vague"] and ref_data["inferred_subject"]:
             technical_prompt = f"{cleaned} regarding {ref_data['inferred_subject']}"
 
@@ -139,6 +159,7 @@ class PromptDisambiguator:
             "assumptions": assumptions,
             "persona_aligned": active_persona
         }
+
 
 disambiguator = PromptDisambiguator()
 disambiguate_intent = PromptDisambiguator.disambiguate

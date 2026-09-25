@@ -54,12 +54,20 @@ class QueryValidator:
         needs_retrieval = any(re.search(p, q_effective, re.IGNORECASE) for p in cls.RETRIEVAL_PATTERNS) or len(q_effective.split()) > 3
 
         intent = "conversational"
-        explicit_visual_requested = bool(re.search(r'\b(visualize|visualization|visual|plot|graph|simulate|simulation|animate|draw|interactive chart|visualizer)\b', q_effective, re.IGNORECASE))
-        can_be_visualized = bool(re.search(r'\b(math|calculus|derivative|integral|projectile|motion|fourier|sine|cosine|curve|trigonometry|matrix|geometry|equation|physics|dijkstra|sorting|algorithm|function|pendulum|wave|gravity|orbit|gradient descent|pathfinding|neural network|quartic|parabola|harmonic|optics|electric field|vector|fourier series)\b', q_effective, re.IGNORECASE))
+        explicit_visual_requested = bool(re.search(r'\b(visualize|visualization|visual|visualise|plot|graph|simulate|simulation|animate|animation|draw|interactive chart|visualizer|model|show me)\b', q_effective, re.IGNORECASE))
+        can_be_visualized = bool(re.search(r'\b(math|calculus|derivative|integral|projectile|motion|fourier|sine|cosine|curve|trigonometry|matrix|geometry|equation|physics|dijkstra|sorting|algorithm|function|pendulum|wave|gravity|orbit|gradient descent|pathfinding|neural network|quartic|parabola|harmonic|optics|electric field|vector|fourier series|black hole|astronomy|celestial|space|accretion|lensing|quantum|solar|galaxy|fluid|particle|collision|app|game|tool|calculator|timer|stopwatch|dj|mixer|music|synth|audio|dashboard|widget)\b', q_effective, re.IGNORECASE))
         
-        if explicit_visual_requested and can_be_visualized:
+        is_app_intent = (disam.get("refined_intent") == "Interactive Web Application & Tool Builder" or 
+                         bool(re.search(r'\b(make a|build a|create a|code a|write a|develop a|game|app|calculator|timer|stopwatch|dj|mixer|synth|dashboard|widget)\b', q_effective, re.IGNORECASE)))
+
+        if is_app_intent:
+            intent = "action_build_app"
+            can_be_visualized = True
+        elif explicit_visual_requested or disam.get("refined_intent") == "STEM & Dynamic Canvas Simulation" or (can_be_visualized and re.search(r'\b(visualize|simulate|show|model|render|interactive)\b', q_effective, re.IGNORECASE)):
             intent = "math_visualization_direct"
-        elif can_be_visualized:
+            explicit_visual_requested = True
+            can_be_visualized = True
+        elif can_be_visualized and not re.search(r'\b(create|build|write|generate|make)\b', q_effective, re.IGNORECASE):
             intent = "visualizable_concept"
         elif re.search(r'\b(create|build|write|generate|make|add|fix|refactor|debug)\b', q_effective, re.IGNORECASE):
             intent = "action_build"

@@ -1227,8 +1227,8 @@ CLAUDE_SYSTEM_PROMPT = """You are Gemini, an autonomous AI assistant and coding 
    - If unsure or if tools return insufficient evidence, clearly state: "I cannot verify [X] from the current workspace files without additional inspection."
    - Avoid overclaiming or presenting probabilistic inferences as definitive ground truth.
 4. **Claude-Style Interactive Artifacts & Visualizations**:
-   - When the user asks for visualizations, diagrams, simulations, or interactive tools (e.g., 'tell me in visualize', 'visualize this', 'build a simulation'), **DIRECTLY GENERATE** a comprehensive, zero-dependency, standalone interactive HTML/JS/CSS artifact wrapped in:
-     <antArtifact identifier="unique-id" type="application/vnd.ant.code" language="html" title="Interactive App Title">
+   - When the user asks for visualizations, diagrams, simulations, or interactive tools (e.g., 'tell me in visualize', 'visualize this', 'build a simulation', 'make an app', 'dj mixer'), **DIRECTLY GENERATE** a comprehensive, zero-dependency, standalone interactive HTML/JS/CSS artifact wrapped in:
+     <antArtifact identifier="unique-id" type="text/html" language="html" title="Interactive App Title">
      ... complete standalone single-file code ...
      </antArtifact>
    - CRITICAL ARTIFACT CLEANLINESS RULES:
@@ -1244,7 +1244,7 @@ CLAUDE_SYSTEM_PROMPT = """You are Gemini, an autonomous AI assistant and coding 
 # SYSTEM CAPABILITIES & MCP TOOLS:
 1. **Local System & MCP Tools**: You have access to local terminal execution (`run_command`), file inspection (`read_file`, `write_file`, `grep_search`, `list_dir`), and **connected MCP servers** (e.g. `mcp_web_fetch`, `mcp_sqlite_query`, `mcp_system_info`, or external MCP servers). Use them proactively to solve tasks with precision.
 2. **Claude-Style Artifacts**: When generating complete scripts, applications, SVG drawings, or interactive web apps, wrap them in:
-   <antArtifact identifier="unique-id" type="application/vnd.ant.code" language="html" title="App Title">
+   <antArtifact identifier="unique-id" type="text/html" language="html" title="App Title">
    ... code ...
    </antArtifact>
 3. **Conversational File Sharing & Cloud Uploads (WhatsApp, Google Drive, Telegram, Slack)**:
@@ -2295,15 +2295,28 @@ def chat():
         if autonomous_mode:
             system_instruction += "\n\n# AUTONOMOUS AGENT (ReAct) MODE:\nYou are running in full Autonomous Agent Mode. Methodically break down the user's objective, execute multi-step tools, read/write files, test code, and iterate until the solution is completely verified without asking the user for intermediate confirmation."
 
-        if q_val.get("explicit_visual_requested"):
-            system_instruction += "\n\n# STEM VISUALIZATION DIRECTIVE (DIRECT VISUALIZATION REQUESTED):\nThe user explicitly asked to visualize this. Provide a clear step-by-step mathematical breakdown AND generate a complete interactive live artifact inside <antArtifact> tags with parameter sliders, animated Canvas/SVG coordinate plane, and real-time formula readout."
+        disambiguation = q_val.get("disambiguation") or {}
+        refined_intent = disambiguation.get("refined_intent", "")
+        is_vis_intent = (q_val.get("explicit_visual_requested") or 
+                         q_val.get("intent") == "math_visualization_direct" or 
+                         refined_intent == "STEM & Dynamic Canvas Simulation" or
+                         any(w in last_user_msg.lower() for w in ["visualize", "simulate", "simulation", "black hole", "canvas", "orbit", "gravity", "pendulum"]))
+        is_app_intent = (q_val.get("intent") == "action_build_app" or 
+                         refined_intent == "Interactive Web Application & Tool Builder" or
+                         any(w in last_user_msg.lower() for w in ["make a ", "makea ", "build a ", "builda ", "create a ", "dj", "mixer", "synth", "game", "stopwatch", "calculator", "dashboard", "widget"]))
+        is_cv_intent = (refined_intent == "Computer Vision & Interactive Webcam ML" or 
+                        selected_persona == "cv_ml" or 
+                        any(w in last_user_msg.lower() for w in ["camera", "webcam", "hand gesture", "gesture", "color track", "cv ml"]))
+
+        if is_vis_intent:
+            system_instruction += "\n\n# STEM & PHYSICS VISUALIZATION DIRECTIVE (MANDATORY IMMEDIATE ARTIFACT):\nThe user asked to visualize or simulate this concept (e.g. astronomy, black hole, gravity, physics, math, particles). Provide a concise 2-sentence executive summary AND IMMEDIATELY generate a complete, standalone, runnable HTML5 Canvas/JavaScript simulation inside `<antArtifact identifier=\"physics-vis\" type=\"text/html\" language=\"html\" title=\"Interactive Simulation\">` tags. Include 60 FPS requestAnimationFrame rendering, dynamic parameter sliders (e.g. mass, speed, scale), pause/reset buttons, and HUD telemetry. NEVER generate static images or use image diffusion tools. NEVER ask for confirmation before building — produce the full executable artifact directly on this turn."
+        elif is_app_intent:
+            system_instruction += "\n\n# INTERACTIVE APPLICATION & TOOL BUILDER DIRECTIVE (MANDATORY IMMEDIATE ARTIFACT):\nThe user asked to make/build an interactive application, tool, or UI (e.g. DJ mixer, synth, audio player, stopwatch, calculator, game, dashboard). DO NOT just outline or ask if they want it built. IMMEDIATELY generate the complete, single-file standalone HTML5/CSS/JavaScript application inside `<antArtifact identifier=\"app-tool\" type=\"text/html\" language=\"html\" title=\"Interactive Web App\">` tags. Use Linear-grade dark aesthetic, Web Audio API / Canvas / DOM controls, responsive buttons/sliders, and zero external CDN script dependencies. Output the full executable artifact now."
         elif q_val.get("can_be_visualized"):
             system_instruction += "\n\n# STEM VISUALIZATION DIRECTIVE (VISUALIZATION AVAILABLE):\nThis topic can be visualized interactively. Provide the thorough theoretical explanation and solution first, then proactively offer an interactive simulation and append: `[VISUALIZE_OFFER: prompt=\"Visualize this with interactive sliders and dynamic simulation\"]` at the end of your message."
 
-        # Computer Vision & Webcam ML Directive
-        is_cv_intent = (q_val.get("disambiguation") or {}).get("refined_intent") == "Computer Vision & Interactive Webcam ML" or any(w in last_user_msg.lower() for w in ["camera", "webcam", "hand", "gesture", "color track", "cv ml"])
-        if is_cv_intent or selected_persona == "cv_ml":
-            system_instruction += "\n\n# IN-BROWSER COMPUTER VISION & WEBCAM ML DIRECTIVE (HIGH-PERFORMANCE & ZERO-LAG):\nThe user is requesting an in-browser Computer Vision / Webcam ML application. Generate a complete standalone interactive live artifact (<antArtifact>) using native `navigator.mediaDevices.getUserMedia({video: true})`.\nCRITICAL PERFORMANCE RULES FOR ZERO-LAG CAMERA:\n1. Always downscale video frames onto a small offscreen canvas (e.g. 160x120 or 200x150) or use stride step=2/step=3 sampling when scanning pixels in `ctx.getImageData()`. Never loop through all 300,000+ pixels on the main thread, to guarantee 60 FPS fluid rendering.\n2. Keep particle arrays capped at max 120 particles with active recycling.\n3. Include clean UI controls: 'Start/Stop Camera' toggle, color picker/sampler, tolerance slider, and FPS counter."
+        if is_cv_intent:
+            system_instruction += "\n\n# IN-BROWSER COMPUTER VISION & WEBCAM ML DIRECTIVE (HIGH-PERFORMANCE & ZERO-LAG):\nThe user is requesting an in-browser Computer Vision / Webcam ML application. Generate a complete standalone interactive live artifact (<antArtifact identifier=\"cv-app\" type=\"text/html\" language=\"html\" title=\"Interactive Vision App\">) using native `navigator.mediaDevices.getUserMedia({video: true})`.\nCRITICAL PERFORMANCE RULES FOR ZERO-LAG CAMERA:\n1. Always downscale video frames onto a small offscreen canvas (e.g. 160x120 or 200x150) or use stride step=2/step=3 sampling when scanning pixels in `ctx.getImageData()`. Never loop through all 300,000+ pixels on the main thread, to guarantee 60 FPS fluid rendering.\n2. Keep particle arrays capped at max 120 particles with active recycling.\n3. Include clean UI controls: 'Start/Stop Camera' toggle, color picker/sampler, tolerance slider, and FPS counter."
 
         if q_val.get("is_ambiguous") and q_val.get("rewritten_query"):
             system_instruction += f"\n\n# SELF-RAG QUERY REFLECTION:\nRefined Search Intent: {q_val['rewritten_query']}"
@@ -2326,9 +2339,17 @@ def chat():
             system_instruction += f"\n\n{rag_ctx}"
 
         conversation = [{"role": "system", "content": system_instruction}]
-        for m in messages:
+        for idx, m in enumerate(messages):
             if m.get('role') in {'user', 'assistant'}:
-                conversation.append({"role": m['role'], "content": m.get('content', '')})
+                msg_content = m.get('content', '')
+                if idx == len(messages) - 1 and m.get('role') == 'user':
+                    if is_vis_intent:
+                        msg_content += "\n\n[System Directive: Provide a concise executive explanation and immediately build the complete, standalone, interactive HTML5 Canvas simulation with dynamic controls inside an <antArtifact identifier=\"visual-sim\" type=\"text/html\" language=\"html\" title=\"Interactive Simulation\"> tag. Do NOT generate static images or use image diffusion tools. Write the complete executable code now.]"
+                    elif is_app_intent:
+                        msg_content += "\n\n[System Directive: Do not merely outline or ask questions. Immediately build the complete, standalone, interactive HTML5/CSS/JavaScript application inside an <antArtifact identifier=\"app\" type=\"text/html\" language=\"html\" title=\"Interactive Web App\"> tag. Include working UI controls, audio/canvas logic, and Linear-grade dark styling directly in the artifact now.]"
+                    elif is_cv_intent:
+                        msg_content += "\n\n[System Directive: Immediately build the complete, standalone HTML5/Webcam/Canvas Computer Vision application inside an <antArtifact identifier=\"cv-app\" type=\"text/html\" language=\"html\" title=\"Interactive Vision App\"> tag using navigator.mediaDevices.getUserMedia and native Canvas. Write the complete code now.]"
+                conversation.append({"role": m['role'], "content": msg_content})
 
         all_tools = get_combined_tools()
         max_steps = 12 if autonomous_mode else 8
@@ -2439,35 +2460,53 @@ def chat():
         # Extract Artifacts
         artifacts = []
         artifact_matches = re.finditer(
-            r'<antArtifact\s+identifier="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+language="([^"]+)")?(?:\s+title="([^"]+)")?>([\s\S]*?)</antArtifact>',
-            final_text
+            r'<antArtifact\s+identifier="([^"]+)"(?:\s+type="([^"]+)")?(?:\s+language="([^"]+)")?(?:\s+title="([^"]+)")?>([\s\S]*?)(?:</antArtifact>|$)',
+            final_text,
+            flags=re.IGNORECASE
         )
         for m in artifact_matches:
             raw_art = m.group(5).strip()
             # Clean accidental markdown code fences (e.g. ```html ... ```)
-            clean_art = re.sub(r"^```(?:html|css|js|javascript|svg|python|xml)?\s*", "", raw_art, flags=re.IGNORECASE)
-            clean_art = re.sub(r"\s*```$", "", clean_art).strip()
+            clean_art = re.sub(r"^```(?:html|css|js|javascript|svg|python|xml)?[^\r\n]*[\r\n]+", "", raw_art, flags=re.IGNORECASE)
+            clean_art = re.sub(r"[\r\n]+```$", "", clean_art).strip()
             clean_art = re.sub(r"^[\.\s]{1,4}(?=<)", "", clean_art)
-            artifacts.append({
-                "identifier": m.group(1),
-                "type": m.group(2) or "text/html",
-                "language": m.group(3) or "html",
-                "title": m.group(4) or "Artifact",
-                "content": clean_art
-            })
+            if len(clean_art) > 30:
+                artifacts.append({
+                    "identifier": m.group(1),
+                    "type": m.group(2) or "text/html",
+                    "language": m.group(3) or "html",
+                    "title": m.group(4) or "Interactive Artifact",
+                    "content": clean_art
+                })
 
         if not artifacts:
-            code_blocks = re.findall(r"```(html|jsx|tsx|svg|react|python|javascript|js|css)\n([\s\S]*?)```", final_text)
+            # Fallback 1: Markdown code blocks with flexible newline handling
+            code_blocks = re.findall(r"```(html|jsx|tsx|svg|react|python|javascript|js|css)[^\r\n]*[\r\n]+([\s\S]*?)(?:```|$)", final_text, re.IGNORECASE)
             for idx, (lang, code) in enumerate(code_blocks):
-                if len(code.strip()) > 100:
-                    art_type = "text/html" if lang in {"html", "svg"} else "application/vnd.ant.code"
+                code_str = code.strip()
+                if len(code_str) > 100:
+                    is_web = lang.lower() in {"html", "svg"} or "<!DOCTYPE html" in code_str or "<html" in code_str or "<canvas" in code_str
+                    art_type = "text/html" if is_web else "application/vnd.ant.code"
+                    art_title = "Interactive Application" if is_web else f"{lang.upper()} Snippet"
                     artifacts.append({
                         "identifier": f"code-artifact-{idx+1}",
                         "type": art_type,
-                        "language": lang,
-                        "title": f"{lang.upper()} Snippet",
-                        "content": code.strip()
+                        "language": "html" if is_web else lang.lower(),
+                        "title": art_title,
+                        "content": code_str
                     })
+
+        if not artifacts:
+            # Fallback 2: Standalone HTML document without code fences
+            raw_html_match = re.search(r'(<!DOCTYPE html[\s\S]*?</html>|<html[\s\S]*?</html>)', final_text, re.IGNORECASE)
+            if raw_html_match and len(raw_html_match.group(1).strip()) > 80:
+                artifacts.append({
+                    "identifier": "generated-live-app",
+                    "type": "text/html",
+                    "language": "html",
+                    "title": "Interactive Application",
+                    "content": raw_html_match.group(1).strip()
+                })
 
         chunk_size = 28
         for i in range(0, len(final_text), chunk_size):
