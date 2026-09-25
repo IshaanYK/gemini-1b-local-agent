@@ -51,10 +51,10 @@ Google's Gemini Web interface (`https://gemini.google.com`) uses an internal RPC
 
 2. **Model Selection**:
    The proxy translates standard model identifiers into internal Gemini `MODE_CATEGORY` IDs:
-   - `gemini-3.8-flash`: `mode: 1, think: 4` (fastest execution)
-   - `gemini-3.8-pro`: `mode: 3, think: 4` (frontier reasoning)
-   - `gemini-3.8-flash-thinking`: `mode: 2, think: 0` (extended chain-of-thought)
-   - `gemini-3.6-flash`: `mode: 1, think: 4` (stable fallback)
+   - `gemini-2.0-flash`: `mode: 1, think: 4` (fastest official production execution)
+   - `gemini-2.0-pro-exp-02-05`: `mode: 3, think: 4` (frontier reasoning)
+   - `gemini-2.0-flash-thinking-exp-01-21`: `mode: 2, think: 0` (extended chain-of-thought)
+   - `gemini-1.5-pro`: `mode: 3, think: 4` (2M context window)
 
 3. **Stream Chunk Decoding**:
    Responses from `StreamGenerate` arrive as chunked envelope arrays (`"wrb.fr"` markers). The proxy extracts delta text slices in real-time, strips internal code execution artifacts, and outputs standard Server-Sent Events (`data: {"choices": [{"delta": {"content": "..."}}]}`).
@@ -155,7 +155,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="gemini-3.8-flash",
+    model="gemini-2.0-flash",
     messages=[{"role": "user", "content": "Explain quantum entanglement in 2 sentences."}]
 )
 
@@ -168,7 +168,7 @@ curl http://127.0.0.1:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-gemini" \
   -d '{
-    "model": "gemini-3.8-flash",
+    "model": "gemini-2.0-flash",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```

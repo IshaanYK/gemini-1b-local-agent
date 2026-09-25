@@ -176,24 +176,20 @@
                             <svg class="model-sparkle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#828fff" stroke-width="2">
                                 <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9L12 2Z"/>
                             </svg>
-                            <span id="model-btn-label">Gemini 3.8 Flash</span>
-                            <span class="model-badge-chip" id="model-badge-chip">High</span>
+                            <span id="model-btn-label">Gemini 2.0 Flash</span>
+                            <span class="model-badge-chip fast" id="model-badge-chip">Fast</span>
                             <svg class="chevron-icon-inline" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="6 9 12 15 18 9"/>
                             </svg>
                         </button>
                         <select id="model-selector" class="model-select" title="Choose AI Model" style="display:none;">
-                            <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Exp (Frontier)</option>
+                            <option value="gemini-2.0-flash" selected>Gemini 2.0 Flash (Recommended)</option>
                             <option value="gemini-2.0-flash-thinking-exp-01-21">Gemini 2.0 Flash Thinking (CoT)</option>
+                            <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Exp (Frontier)</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Advanced)</option>
                             <option value="gemini-1.5-pro">Gemini 1.5 Pro (2M Context)</option>
-                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Official)</option>
-                            <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (High)</option>
-                            <option value="gemini-3.8-pro">Gemini 3.8 Pro</option>
-                            <option value="gemini-3.8-flash-thinking">Gemini 3.8 Thinking</option>
-                            <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
-                            <option value="gemini-3.5-flash-thinking">Gemini 3.5 Thinking</option>
-                            <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
-                            <option value="gemini-flash-lite">Gemini Flash Lite</option>
+                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                         </select>
                     </div>
 
@@ -514,7 +510,7 @@
                             <!-- Quick Model Switcher Pill in Composer -->
                             <button type="button" class="composer-model-pill" id="composer-model-pill" onclick="openModelSwitchModal()" title="Switch AI Model (Alt+M)">
                                 <span class="model-pill-dot"></span>
-                                <span id="composer-model-label">Gemini 3.8 Flash</span>
+                                <span id="composer-model-label">Gemini 2.0 Flash</span>
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="6 9 12 15 18 9"/>
                                 </svg>
@@ -2042,7 +2038,7 @@
                             <span class="shortcut-label">Focus / Clear Composer</span>
                             <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></div>
                         </div>
-                        <div class="shortcut-row" data-search="switch model choose ai gemini 3.8 pro flash thinking">
+                        <div class="shortcut-row" data-search="switch model choose ai gemini 2.0 flash thinking pro">
                             <span class="shortcut-label">Switch AI Model</span>
                             <div class="shortcut-keys"><kbd>Alt</kbd> + <kbd>M</kbd></div>
                         </div>
@@ -2137,7 +2133,7 @@
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-                <input type="text" id="model-search-input" placeholder="Search models by name, capability (e.g. 3.8, pro, thinking, flash)..." oninput="filterModelCards(this.value)">
+                <input type="text" id="model-search-input" placeholder="Search models by name, capability (e.g. flash, thinking, pro, 2.0)..." oninput="filterModelCards(this.value)">
             </div>
 
             <!-- Model Cards List -->
@@ -2147,7 +2143,7 @@
 
             <div class="model-switcher-footer">
                 <span class="model-footer-hint">💡 Shortcut: <kbd>Alt</kbd> + <kbd>M</kbd> to open anytime • <kbd>Esc</kbd> to dismiss</span>
-                <span class="model-footer-status" id="model-footer-status">Current: Gemini 3.8 Flash</span>
+                <span class="model-footer-status" id="model-footer-status">Current: Gemini 2.0 Flash</span>
             </div>
         </div>
     </div>

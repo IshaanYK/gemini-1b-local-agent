@@ -135,7 +135,7 @@ def _get_active_client_and_model():
     if key:
         print("[Turbo-Mode] Active using official Google Gemini API endpoint (< 350ms TTFT)")
         return OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=key), "gemini-2.0-flash", True
-    return OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="sk-gemini"), "gemini-3.8-flash", False
+    return OpenAI(base_url="http://127.0.0.1:8081/v1", api_key="sk-gemini"), "gemini-2.0-flash", False
 
 client, MODEL, IS_TURBO_API = _get_active_client_and_model()
 
@@ -274,7 +274,7 @@ def call_openai_with_autofix(create_kwargs, retries=2):
         except Exception as e:
             err_str = str(e).lower()
             if any(term in err_str for term in ["unknown model", "not found", "404", "models/"]):
-                fallback_m = "gemini-2.0-flash" if IS_TURBO_API else "gemini-3.6-flash"
+                fallback_m = "gemini-2.0-flash"
                 print(f"[Model-Recovery] Model '{create_kwargs.get('model')}' unavailable. Auto-recovering with '{fallback_m}'...")
                 create_kwargs["model"] = fallback_m
                 try:
@@ -1520,46 +1520,46 @@ def get_models():
         "status": "success",
         "models": [
             {
-                "id": "gemini-3.8-flash",
-                "name": "Gemini 3.8 Flash (High)",
-                "description": "Next-Gen ultra-fast execution with enhanced reasoning & multimodal throughput",
-                "badge": "Latest 3.8"
+                "id": "gemini-2.0-flash",
+                "name": "Gemini 2.0 Flash (Recommended)",
+                "description": "Official high-speed production model with multimodal reasoning and instant tool execution",
+                "badge": "Recommended"
             },
             {
-                "id": "gemini-3.8-pro",
-                "name": "Gemini 3.8 Pro (Frontier)",
-                "description": "Next-Gen frontier reasoning, complex architecture & math",
-                "badge": "Pro 3.8"
-            },
-            {
-                "id": "gemini-3.8-flash-thinking",
-                "name": "Gemini 3.8 Thinking (Deep)",
-                "description": "Extended chain-of-thought deep reasoning (~20k chars output)",
+                "id": "gemini-2.0-flash-thinking-exp-01-21",
+                "name": "Gemini 2.0 Flash Thinking (CoT)",
+                "description": "Dedicated Chain-of-Thought deep reasoning with visible verification steps",
                 "badge": "Thinking"
             },
             {
-                "id": "gemini-3.6-flash",
-                "name": "Gemini 3.6 Flash (Fast & Smart)",
-                "description": "Fast all-around execution with proactive tool calling",
-                "badge": "Fast"
+                "id": "gemini-2.0-pro-exp-02-05",
+                "name": "Gemini 2.0 Pro Exp (Frontier)",
+                "description": "Google flagship frontier model for complex software architecture & code generation",
+                "badge": "Pro"
             },
             {
-                "id": "gemini-3.5-flash-thinking",
-                "name": "Gemini 3.5 Flash Thinking",
-                "description": "Extended chain-of-thought reasoning for complex tasks",
-                "badge": "Think 3.5"
+                "id": "gemini-2.5-pro",
+                "name": "Gemini 2.5 Pro (State of the Art)",
+                "description": "Advanced reasoning and systems engineering intelligence",
+                "badge": "Pro+"
             },
             {
-                "id": "gemini-3.1-pro",
-                "name": "Gemini 3.1 Pro (Heavyweight)",
-                "description": "Maximum parameter scale and coding architecture",
-                "badge": "Legacy Pro"
+                "id": "gemini-1.5-pro",
+                "name": "Gemini 1.5 Pro (2M Context)",
+                "description": "Massive 2-million-token context window for full repository analysis",
+                "badge": "2M Ctx"
             },
             {
-                "id": "gemini-flash-lite",
-                "name": "Gemini Flash Lite",
-                "description": "Ultra lightweight low-latency execution",
+                "id": "gemini-2.0-flash-lite",
+                "name": "Gemini 2.0 Flash Lite",
+                "description": "Ultralight low-latency execution optimized for rapid queries",
                 "badge": "Lite"
+            },
+            {
+                "id": "gemini-1.5-flash",
+                "name": "Gemini 1.5 Flash",
+                "description": "Reliable fast multimodal workhorse for general tasks",
+                "badge": "Fast"
             }
         ]
     })
@@ -1942,21 +1942,23 @@ def suggest_action_message_route():
     return jsonify({"status": "success", "platform": platform, "suggestions": suggestions})
 
 # ── User Profile & Interactive Onboarding API ────────────────────────────
-@app.route('/api/user/profile', methods=['GET'])
-def get_user_profile():
-    facts = memory_manager.memory.recall_facts()
-    return jsonify({
-        "status": "success",
-        "profile": memory_manager.memory.profile,
-        "facts_count": len(facts),
-        "facts": facts[:10]
-    })
-
-@app.route('/api/user/profile', methods=['POST'])
-def save_user_profile():
-    data = request.json or {}
-    updated = memory_manager.memory.update_full_profile(data)
-    return jsonify({"status": "success", "profile": updated, "message": "Profile and personalization saved."})
+@app.route('/api/user/profile', methods=['GET', 'POST', 'DELETE'])
+def manage_user_profile():
+    if request.method == 'DELETE':
+        empty = memory_manager.memory.reset_profile()
+        return jsonify({"status": "success", "profile": empty, "message": "Profile reset. Starting fresh from beginning."})
+    elif request.method == 'POST':
+        data = request.json or {}
+        updated = memory_manager.memory.update_full_profile(data)
+        return jsonify({"status": "success", "profile": updated, "message": "Profile and personalization saved."})
+    else:
+        facts = memory_manager.memory.recall_facts()
+        return jsonify({
+            "status": "success",
+            "profile": memory_manager.memory.profile,
+            "facts_count": len(facts),
+            "facts": facts[:10]
+        })
 
 @app.route('/api/user/onboard-analysis', methods=['POST'])
 def generate_onboard_analysis():
@@ -2190,7 +2192,7 @@ def chat():
             accumulated_voice_reply = ""
             try:
                 # Fastest Flash model with think: 4 (no reasoning delay)
-                fast_model = "gemini-3.8-flash"
+                fast_model = "gemini-2.0-flash"
                 print(f"[Voice LLM Stream] Querying {fast_model} for: '{last_user_msg}'", flush=True)
                 stream_resp = call_openai_with_autofix({
                     "model": fast_model,
@@ -2964,7 +2966,7 @@ def voice_speech_to_speech():
             }
         )
 
-    # 3. LLM Query with Gemini 3.8 Flash (think: 4 zero-reasoning overhead)
+    # 3. LLM Query with Gemini 2.0 Flash (think: 4 zero-reasoning overhead)
     system_instruction = (
         "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with Ishaan.\n"
         "CRITICAL SPOKEN VOICE RULES:\n"
@@ -2994,7 +2996,7 @@ def voice_speech_to_speech():
 
     try:
         llm_response = call_openai_with_autofix({
-            "model": "gemini-3.8-flash",
+            "model": "gemini-2.0-flash",
             "messages": conversation,
             "stream": False,
             "max_tokens": 85

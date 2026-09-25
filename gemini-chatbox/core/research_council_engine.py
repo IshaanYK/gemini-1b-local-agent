@@ -575,7 +575,7 @@ class ResearchCouncilOrchestrator:
         query: str,
         depth: str,
         call_llm_fn: Callable[[List[Dict[str, str]]], str],
-        model_name: str = "gemini-3.8-flash"
+        model_name: str = "gemini-2.0-flash"
     ):
         """
         Executes collaborative multi-phase research council deliberation via SSE.

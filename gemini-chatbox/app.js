@@ -38,12 +38,12 @@ let mcpPresetsList = [];
 let deepDecompose = true;
 let bestOfBestMode = localStorage.getItem('b1_best_of_best') !== 'false';
 let userProfile = {
-    user_name: 'Ishaan Sen',
-    role: 'Lead Developer & AI Architect',
+    user_name: '',
+    role: '',
     communication_style: 'Clear, concise, highly proactive, senior-level engineering advice',
     theme: localStorage.getItem('b1_studio_theme') || 'linear-obsidian',
     archetype: 'Senior Architect',
-    stack: ['Python', 'JavaScript', 'React', 'FastAPI']
+    stack: []
 };
 let currentOnboardStep = 1;
 let onboardDraft = { ...userProfile };
@@ -61,16 +61,16 @@ const newChatBtn = document.getElementById('new-chat-btn');
 const activeChatTitle = document.getElementById('active-chat-title');
 const modelSelector = document.getElementById('model-selector');
 
-// ── Models Registry & Switcher (Frontier & Virtual Proxy Series) ────────
+// ── Models Registry & Switcher (Official Google Models) ─────────────────────
 const ALL_MODELS = [
     {
-        id: 'gemini-2.0-pro-exp-02-05',
-        name: 'Gemini 2.0 Pro Exp',
+        id: 'gemini-2.0-flash',
+        name: 'Gemini 2.0 Flash',
         group: 'Official Google Frontier',
-        badge: 'Pro',
-        badgeClass: 'pro',
-        desc: 'Google flagship frontier model with maximum reasoning depth, complex software architecture & code generation.',
-        tags: ['Real Pro', 'Deep Reasoning', 'Frontier']
+        badge: 'Recommended',
+        badgeClass: 'fast',
+        desc: 'Official high-speed production model. Sub-second latency, multimodal reasoning & instant tool calls.',
+        tags: ['Sub-second', 'Workhorse', 'Recommended']
     },
     {
         id: 'gemini-2.0-flash-thinking-exp-01-21',
@@ -78,8 +78,26 @@ const ALL_MODELS = [
         group: 'Official Google Frontier',
         badge: 'Thinking',
         badgeClass: 'thinking',
-        desc: 'Google dedicated Chain-of-Thought reasoning engine. Generates transparent step-by-step logic before synthesis.',
-        tags: ['Real CoT', 'Logic Verified', 'Mode 2']
+        desc: 'Dedicated Chain-of-Thought reasoning engine. Generates transparent step-by-step logic traces before synthesis.',
+        tags: ['Deep CoT', 'Logic Verified', 'Mode 2']
+    },
+    {
+        id: 'gemini-2.0-pro-exp-02-05',
+        name: 'Gemini 2.0 Pro Exp',
+        group: 'Official Google Frontier',
+        badge: 'Pro',
+        badgeClass: 'pro',
+        desc: 'Google flagship frontier model for maximum reasoning depth, complex software architecture & code generation.',
+        tags: ['Deep Reasoning', 'Architecture', 'Frontier']
+    },
+    {
+        id: 'gemini-2.5-pro',
+        name: 'Gemini 2.5 Pro',
+        group: 'Official Google Frontier',
+        badge: 'Pro+',
+        badgeClass: 'pro',
+        desc: 'State-of-the-art frontier model for intricate systems engineering and advanced problem solving.',
+        tags: ['State-of-the-Art', 'Next-Gen', 'Frontier']
     },
     {
         id: 'gemini-1.5-pro',
@@ -91,84 +109,30 @@ const ALL_MODELS = [
         tags: ['2M Context', 'Full Repo', 'Enterprise']
     },
     {
-        id: 'gemini-2.0-flash',
-        name: 'Gemini 2.0 Flash',
+        id: 'gemini-2.0-flash-lite',
+        name: 'Gemini 2.0 Flash Lite',
         group: 'Official Google Frontier',
         badge: 'Fast',
         badgeClass: 'fast',
-        desc: 'High-speed official next-gen model for sub-second responses, instant tool calls, and high throughput.',
-        tags: ['Sub-second', 'Workhorse', 'Fast']
+        desc: 'Ultralight low-cost model optimized for edge devices, instant responses, and high throughput.',
+        tags: ['Ultralight', 'Instant', 'Edge']
     },
     {
-        id: 'gemini-3.8-flash',
-        name: 'Gemini 3.8 Flash',
-        group: 'Gemini 3.8 Series',
-        badge: 'High',
-        badgeClass: 'high',
-        desc: 'Fastest next-gen multimodal reasoning, coding & system orchestration with Thinking level 4.',
-        tags: ['Thinking L4', 'Sub-second', 'Recommended']
-    },
-    {
-        id: 'gemini-3.8-pro',
-        name: 'Gemini 3.8 Pro',
-        group: 'Gemini 3.8 Series',
-        badge: 'Pro',
-        badgeClass: 'pro',
-        desc: 'Maximum depth reasoning, complex software architecture, multi-file codebases & complex math.',
-        tags: ['Deep Reasoning', 'Architecture', 'Thinking L4']
-    },
-    {
-        id: 'gemini-3.8-flash-thinking',
-        name: 'Gemini 3.8 Flash Thinking',
-        group: 'Gemini 3.8 Series',
-        badge: 'Thinking',
-        badgeClass: 'thinking',
-        desc: 'Dedicated Chain-of-Thought engine with visible multi-step reasoning traces before generation.',
-        tags: ['Transparent CoT', 'Logic Verification', 'Mode 2']
-    },
-    {
-        id: 'gemini-3.6-flash',
-        name: 'Gemini 3.6 Flash',
-        group: 'Gemini 3.x Series',
+        id: 'gemini-1.5-flash',
+        name: 'Gemini 1.5 Flash',
+        group: 'Official Google Frontier',
         badge: 'Fast',
         badgeClass: 'fast',
-        desc: 'Reliable high-speed workhorse for general chat, text generation, and fast summaries.',
-        tags: ['Low Latency', 'General']
-    },
-    {
-        id: 'gemini-3.5-flash-thinking',
-        name: 'Gemini 3.5 Thinking',
-        group: 'Gemini 3.x Series',
-        badge: 'Thinking',
-        badgeClass: 'thinking',
-        desc: 'Previous generation reasoning model with standard thinking token budget.',
-        tags: ['CoT', 'Legacy']
-    },
-    {
-        id: 'gemini-3.1-pro',
-        name: 'Gemini 3.1 Pro',
-        group: 'Gemini 3.x Series',
-        badge: 'Pro',
-        badgeClass: 'pro',
-        desc: 'Enterprise depth for long documents and complex knowledge retrieval.',
-        tags: ['Long Context', 'Enterprise']
-    },
-    {
-        id: 'gemini-flash-lite',
-        name: 'Gemini Flash Lite',
-        group: 'Gemini 3.x Series',
-        badge: 'Fast',
-        badgeClass: 'fast',
-        desc: 'Ultralight low-cost model optimized for edge devices and instant tool calling.',
-        tags: ['Ultralight', 'Instant']
+        desc: 'Proven workhorse model for general tasks, rapid text analysis, and streaming.',
+        tags: ['Reliable', 'Multimodal', 'Balanced']
     }
 ];
 
 function getSelectedModelId() {
     const saved = localStorage.getItem('gemini_selected_model');
-    if (saved) return saved;
-    if (modelSelector && modelSelector.value) return modelSelector.value;
-    return 'gemini-3.8-flash';
+    if (saved && ALL_MODELS.some(m => m.id === saved)) return saved;
+    if (modelSelector && modelSelector.value && ALL_MODELS.some(m => m.id === modelSelector.value)) return modelSelector.value;
+    return 'gemini-2.0-flash';
 }
 
 function updateModelLabels() {
@@ -308,7 +272,11 @@ window.selectModel = selectModel;
 window.filterModelCards = filterModelCards;
 
 if (modelSelector) {
-    const savedModel = localStorage.getItem('gemini_selected_model') || 'gemini-3.8-flash';
+    let savedModel = localStorage.getItem('gemini_selected_model') || 'gemini-2.0-flash';
+    if (savedModel.includes('3.') || !ALL_MODELS.some(m => m.id === savedModel)) {
+        savedModel = 'gemini-2.0-flash';
+        localStorage.setItem('gemini_selected_model', savedModel);
+    }
     if (!Array.from(modelSelector.options).some(o => o.value === savedModel)) {
         const opt = document.createElement('option');
         opt.value = savedModel;
@@ -432,6 +400,10 @@ async function loadUserProfile() {
         const data = await res.json();
         if (data.status === 'success' && data.profile) {
             userProfile = { ...userProfile, ...data.profile };
+            if (!userProfile.user_name || userProfile.user_name.trim() === '') {
+                localStorage.removeItem('b1_onboarding_completed');
+                setTimeout(() => openOnboardingModal(1), 350);
+            }
             if (userProfile.theme) {
                 applyTheme(userProfile.theme);
             }
@@ -448,23 +420,45 @@ function updateUserUI() {
     const roleEl = document.getElementById('dropdown-user-role');
     const welcomeTitleEl = document.getElementById('welcome-title');
 
-    const name = userProfile.user_name || 'Ishaan Sen';
-    const role = userProfile.role || 'Lead Developer & AI Architect';
+    const name = userProfile.user_name || '';
+    const role = userProfile.role || 'New Explorer';
 
     if (avatarBtn) {
-        const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'IS';
+        const initials = name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '+';
         avatarBtn.textContent = initials;
-        avatarBtn.title = `${name} (${role})`;
+        avatarBtn.title = name ? `${name} (${role})` : 'Click to Set Up Profile';
     }
-    if (nameEl) nameEl.textContent = name;
+    if (nameEl) nameEl.textContent = name || 'Get Started';
     if (roleEl) roleEl.textContent = role;
     if (welcomeTitleEl) {
         const hour = new Date().getHours();
         const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-        const firstName = name.split(' ')[0] || 'there';
+        const firstName = name ? name.split(' ')[0] : 'Developer';
         welcomeTitleEl.textContent = `${greet}, ${firstName}`;
     }
 }
+
+async function deleteUserProfileAndReset() {
+    try {
+        await fetch(USER_PROFILE_URL, { method: 'DELETE' });
+        localStorage.removeItem('b1_onboarding_completed');
+        localStorage.removeItem('b1_user_name');
+        userProfile = {
+            user_name: '',
+            role: '',
+            communication_style: '',
+            theme: 'linear-obsidian',
+            archetype: 'Senior Architect',
+            stack: []
+        };
+        updateUserUI();
+        openOnboardingModal(1);
+        showToast('Profile reset. Starting fresh from beginning!', 'info');
+    } catch (e) {
+        console.error('Failed to reset profile:', e);
+    }
+}
+window.deleteUserProfileAndReset = deleteUserProfileAndReset;
 
 async function saveUserProfile(dataToSave) {
     try {
@@ -2856,10 +2850,10 @@ function setupEventListeners() {
 
 // ── Global Command Palette (Ctrl+K) ──────────────────────────────────
 const COMMANDS_REGISTRY = [
-    { id: 'switch_model', title: 'Switch AI Model (Alt+M)', desc: 'Choose Gemini 3.8 Flash, Pro, Thinking or 3.x models', cat: 'actions', icon: '✦', action: () => openModelSwitchModal() },
-    { id: 'model_38_flash', title: 'Model: Gemini 3.8 Flash (High)', desc: 'Switch to Gemini 3.8 Flash with Thinking level 4', cat: 'actions', icon: '⚡', action: () => selectModel('gemini-3.8-flash') },
-    { id: 'model_38_pro', title: 'Model: Gemini 3.8 Pro', desc: 'Switch to Gemini 3.8 Pro for deep architectural reasoning', cat: 'actions', icon: '🧠', action: () => selectModel('gemini-3.8-pro') },
-    { id: 'model_38_thinking', title: 'Model: Gemini 3.8 Thinking', desc: 'Switch to Gemini 3.8 Flash Thinking with chain of thought', cat: 'actions', icon: '🤔', action: () => selectModel('gemini-3.8-flash-thinking') },
+    { id: 'switch_model', title: 'Switch AI Model (Alt+M)', desc: 'Choose Gemini 2.0 Flash, Thinking, Pro Exp or 1.5 models', cat: 'actions', icon: '✦', action: () => openModelSwitchModal() },
+    { id: 'model_20_flash', title: 'Model: Gemini 2.0 Flash (Recommended)', desc: 'Switch to official Gemini 2.0 Flash for sub-second execution', cat: 'actions', icon: '⚡', action: () => selectModel('gemini-2.0-flash') },
+    { id: 'model_20_thinking', title: 'Model: Gemini 2.0 Flash Thinking', desc: 'Switch to Gemini 2.0 Flash Thinking with deep reasoning traces', cat: 'actions', icon: '🤔', action: () => selectModel('gemini-2.0-flash-thinking-exp-01-21') },
+    { id: 'model_20_pro', title: 'Model: Gemini 2.0 Pro Exp (Frontier)', desc: 'Switch to Gemini 2.0 Pro Exp for deep architectural reasoning', cat: 'actions', icon: '🧠', action: () => selectModel('gemini-2.0-pro-exp-02-05') },
     { id: 'new_chat', title: 'New Conversation (Ctrl+N)', desc: 'Start a fresh conversation and reset workspace', cat: 'actions', icon: '✦', action: () => startNewChat(true) },
     { id: 'voice_input', title: 'Voice Dictation (Ctrl+M)', desc: 'Speak to prompt with real-time speech-to-text dictation', cat: 'actions', icon: '🎙️', action: () => toggleVoiceDictation() },
     { id: 'shortcuts_help', title: 'Keyboard Shortcuts Cheatsheet (?)', desc: 'Inspect all hotkeys, shortcuts, and keybindings', cat: 'actions', icon: '⌨️', action: () => openShortcutsModal() },

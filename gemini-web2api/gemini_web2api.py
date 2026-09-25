@@ -66,7 +66,7 @@ DEFAULT_CONFIG = {
     "gemini_bl": "boq_assistant-bard-web-server_20260920.14_p0",
     "auth_user": None,
     "xsrf_token": None,
-    "default_model": "gemini-3.8-flash",
+    "default_model": "gemini-2.0-flash",
     "log_requests": True,
     "cookie_file": None,
     "proxy": None,
@@ -81,82 +81,50 @@ CONFIG = dict(DEFAULT_CONFIG)
 #   1=FAST, 2=THINKING, 3=PRO, 4=AUTO, 5=FAST_DYNAMIC_THINKING, 6=FLASH_LITE
 
 MODELS = {
-    "gemini-3.8-flash": {
+    # ── Official Google Gemini 2.0 & 1.5 Lineup (Real Models) ───────────────
+    "gemini-2.0-flash": {
         "mode": 1, "think": 4,
-        "desc": "Latest Next-Gen model (Gemini 3.8 Flash - High Speed)",
-    },
-    "gemini-3.8": {
-        "mode": 1, "think": 4,
-        "desc": "Alias for Gemini 3.8 Flash",
-    },
-    "gemini-3.8-pro": {
-        "mode": 3, "think": 4,
-        "desc": "Next-Gen frontier reasoning model (Gemini 3.8 Pro)",
-    },
-    "gemini-3.8-flash-thinking": {
-        "mode": 2, "think": 0,
-        "desc": "Gemini 3.8 Deep thinking mode (~20k chars output)",
-    },
-    "gemini-3.8-thinking": {
-        "mode": 2, "think": 0,
-        "desc": "Alias for Gemini 3.8 Thinking",
-    },
-    "gemini-3.6-flash": {
-        "mode": 1, "think": 4,
-        "desc": "All-around model (Gemini 3.6 Flash)",
-    },
-    "gemini-3.5-flash": {
-        "mode": 1, "think": 4,
-        "desc": "Alias for gemini-3.6-flash (backend upgraded)",
-    },
-    "gemini-3.5-flash-thinking": {
-        "mode": 2, "think": 0,
-        "desc": "Deep thinking mode, longest output (~20k chars)",
-    },
-    "gemini-3.1-pro": {
-        "mode": 3, "think": 4,
-        "desc": "Pro model (requires cookie for real routing)",
-    },
-    "gemini-auto": {
-        "mode": 4, "think": 4,
-        "desc": "Auto model selection",
-    },
-    "gemini-3.5-flash-thinking-lite": {
-        "mode": 5, "think": 0,
-        "desc": "Dynamic thinking with adaptive depth",
-    },
-    "gemini-flash-lite": {
-        "mode": 6, "think": 4,
-        "desc": "Lightweight fast model",
-    },
-    # Official Google AI Studio & Frontier Real Models
-    "gemini-2.0-pro-exp-02-05": {
-        "mode": 3, "think": 4,
-        "desc": "Official Google Gemini 2.0 Pro Experimental (Flagship reasoning)",
-    },
-    "gemini-2.0-pro": {
-        "mode": 3, "think": 4,
-        "desc": "Google Gemini 2.0 Pro (Mode 3 Pro)",
-    },
-    "gemini-1.5-pro": {
-        "mode": 3, "think": 4,
-        "desc": "Google Gemini 1.5 Pro (Enterprise 2M Context)",
-    },
-    "gemini-pro": {
-        "mode": 3, "think": 4,
-        "desc": "Gemini Pro (Mode 3)",
+        "desc": "Google Gemini 2.0 Flash (Official Flagship - High Speed & Multimodal)",
     },
     "gemini-2.0-flash-thinking-exp-01-21": {
         "mode": 2, "think": 0,
-        "desc": "Official Google Gemini 2.0 Flash Thinking Experimental (Deep CoT)",
+        "desc": "Google Gemini 2.0 Flash Thinking Exp (Deep Chain-of-Thought Reasoning)",
     },
     "gemini-2.0-flash-thinking": {
         "mode": 2, "think": 0,
-        "desc": "Google Gemini 2.0 Flash Thinking (Mode 2 CoT)",
+        "desc": "Alias for Gemini 2.0 Flash Thinking Exp",
     },
-    "gemini-2.0-flash": {
+    "gemini-2.0-pro-exp-02-05": {
+        "mode": 3, "think": 4,
+        "desc": "Google Gemini 2.0 Pro Experimental (Frontier Depth Reasoning & Coding)",
+    },
+    "gemini-2.0-pro-exp": {
+        "mode": 3, "think": 4,
+        "desc": "Alias for Gemini 2.0 Pro Exp",
+    },
+    "gemini-2.0-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Alias for Gemini 2.0 Pro Exp",
+    },
+    "gemini-2.5-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Google Gemini 2.5 Pro (State-of-the-Art Coding & Reasoning)",
+    },
+    "gemini-1.5-pro": {
+        "mode": 3, "think": 4,
+        "desc": "Google Gemini 1.5 Pro (Industry-Leading 2M Context Window)",
+    },
+    "gemini-2.0-flash-lite": {
+        "mode": 6, "think": 4,
+        "desc": "Google Gemini 2.0 Flash Lite (Ultra-Low Latency Edge Model)",
+    },
+    "gemini-1.5-flash": {
         "mode": 1, "think": 4,
-        "desc": "Official Google Gemini 2.0 Flash (Mode 1 Fast)",
+        "desc": "Google Gemini 1.5 Flash (Reliable Fast Multimodal Workhorse)",
+    },
+    "gemini-auto": {
+        "mode": 4, "think": 4,
+        "desc": "Google Adaptive Auto Routing",
     },
 }
 
@@ -732,19 +700,31 @@ class GeminiHandler(BaseHTTPRequestHandler):
                 if "1.5-pro" in normalized:
                     cfg = MODELS.get("gemini-1.5-pro")
                 elif "pro" in normalized:
-                    cfg = MODELS.get("gemini-2.0-pro-exp-02-05") or MODELS.get("gemini-3.8-pro")
+                    cfg = MODELS.get("gemini-2.0-pro-exp-02-05")
                 elif "think" in normalized:
-                    cfg = MODELS.get("gemini-2.0-flash-thinking-exp-01-21") or MODELS.get("gemini-3.8-flash-thinking")
+                    cfg = MODELS.get("gemini-2.0-flash-thinking-exp-01-21")
                 elif "lite" in normalized:
-                    cfg = MODELS.get("gemini-flash-lite")
+                    cfg = MODELS.get("gemini-2.0-flash-lite")
                 elif "flash" in normalized or "2.0" in normalized:
-                    cfg = MODELS.get("gemini-2.0-flash") or MODELS.get("gemini-3.8-flash")
+                    cfg = MODELS.get("gemini-2.0-flash")
         if not cfg:
             # Fallback to default model rather than failing
-            default_mod = CONFIG.get("default_model", "gemini-3.8-flash")
+            default_mod = CONFIG.get("default_model", "gemini-2.0-flash")
             cfg = MODELS.get(default_mod, list(MODELS.values())[0])
             model_name = default_mod
-        return model_name, cfg["mode"], (think_override if think_override is not None else cfg["think"]), None
+
+        mode_id = cfg["mode"]
+        # If mode 3 (PRO) requested without auth cookies, gracefully switch to mode 2 (Thinking)
+        # so query succeeds without failing or hanging
+        try:
+            cookie_str, _ = load_cookie()
+            if mode_id == 3 and not cookie_str:
+                log(f"Notice: Pro model '{model_name}' requested without auth cookies. Using Thinking mode so request succeeds.")
+                mode_id = 2
+        except Exception:
+            pass
+
+        return model_name, mode_id, (think_override if think_override is not None else cfg["think"]), None
 
     def _call_gemini(self, prompt, model_id, think_mode, tools):
         raw = gemini_stream_generate(prompt, model_id, think_mode)

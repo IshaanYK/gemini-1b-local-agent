@@ -251,7 +251,7 @@
         loadRoster(query);
 
         // Get currently selected model from B1 if available
-        let activeModel = 'gemini-3.8-flash';
+        let activeModel = 'gemini-2.0-flash';
         const b1Selector = document.getElementById('model-selector');
         if (b1Selector && b1Selector.value) {
             activeModel = b1Selector.value;

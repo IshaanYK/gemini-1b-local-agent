@@ -51,12 +51,12 @@ class MemoryManager:
 
     def _load_profile(self):
         default_profile = {
-            "user_name": "Ishaan Sen",
+            "user_name": "",
             "assistant_name": "B1 (Gemini Studio)",
-            "role": "Lead Developer & AI Architect",
+            "role": "",
             "communication_style": "Clear, concise, highly proactive, senior-level engineering advice",
             "preferred_design_aesthetic": "Linear dark mode (sleek surfaces, subtle hairline borders, lavender accents)",
-            "primary_tech_stack": ["Python", "JavaScript / TypeScript", "React / HTML5", "FastAPI / Flask", "SQLite"],
+            "primary_tech_stack": [],
             "mcp_preferences": {
                 "auto_connect_enabled": True,
                 "preferred_servers": ["mcp-web-search", "chrome-devtools-mcp", "mcp-code-architect", "mcp-visualization"]
@@ -65,7 +65,10 @@ class MemoryManager:
                 "Always be proactive and execute tasks directly when possible without asking redundant questions",
                 "If missing an API key or critical token, explain what is needed concisely with exact creation steps",
                 "Default to building rich interactive HTML artifacts with live previews when creating UI or tools"
-            ]
+            ],
+            "theme": "linear-obsidian",
+            "archetype": "Senior Architect",
+            "stack": []
         }
         if os.path.exists(PROFILE_FILE):
             try:
@@ -75,8 +78,43 @@ class MemoryManager:
                     return default_profile
             except Exception:
                 pass
-        self._save_profile(default_profile)
         return default_profile
+
+    def reset_profile(self):
+        """Wipes the stored profile and all long-term memory facts to start fresh from beginning."""
+        for p in [PROFILE_FILE, os.path.join(_BASE_DIR, "user_profile.json"), os.path.join(STORAGE_DIR, "user_profile.json")]:
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        empty_profile = {
+            "user_name": "",
+            "assistant_name": "B1 (Gemini Studio)",
+            "role": "",
+            "communication_style": "Clear, concise, highly proactive, senior-level engineering advice",
+            "preferred_design_aesthetic": "Linear dark mode",
+            "primary_tech_stack": [],
+            "mcp_preferences": {
+                "auto_connect_enabled": True,
+                "preferred_servers": ["mcp-web-search", "chrome-devtools-mcp", "mcp-code-architect", "mcp-visualization"]
+            },
+            "custom_preferences": [],
+            "theme": "linear-obsidian",
+            "archetype": "Senior Architect",
+            "stack": []
+        }
+        self.profile = empty_profile
+        try:
+            conn = sqlite3.connect(MEMORY_DB)
+            c = conn.cursor()
+            c.execute("DELETE FROM memory_facts")
+            c.execute("DELETE FROM conversation_summaries")
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+        return empty_profile
 
     def _save_profile(self, data):
         try:
