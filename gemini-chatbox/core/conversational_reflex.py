@@ -21,9 +21,9 @@ except Exception:
 class ConversationalReflexEngine:
     def __init__(self):
         self.greetings = [
-            "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+            "Oh hey there! I'm right here and listening. What would you like to build or talk about today?",
             "Umm, hello there! Great to hear your voice. What's on your mind?",
-            "Right! Hello Ishaan. I'm ready to assist with code, research, or anything you need.",
+            "Right! Hello there. I'm ready to assist with code, research, or anything you need.",
             "Hey! All systems are ready and active. What are we working on right now?"
         ]
         
@@ -52,14 +52,14 @@ class ConversationalReflexEngine:
         ]
         
         self.not_working = [
-            "Haha, fair enough! No stress at all, Ishaan. We don't have to code anything right now! We can just chat, brainstorm fun ideas, or I can tell you a funny story or joke. What sounds fun?",
+            "Haha, fair enough! No stress at all. We don't have to code anything right now! We can just chat, brainstorm fun ideas, or I can tell you a funny story or joke. What sounds fun?",
             "Haha, totally fine! Sometimes it's nice to just take a break and relax. How has your day been going so far?",
             "Hehe, got it! We can take it super easy. Want to hear a fun tech story, a joke, or just bounce some cool ideas around?",
             "Haha, love that! No rush on anything. I'm right here with you whenever you feel like building or just talking."
         ]
 
         self.troubleshooting = [
-            "Haha, oh no! Let's get that sorted right away, Ishaan. Is the audio not coming through, or did a prompt get stuck? I'm right here and ready to fix it.",
+            "Haha, oh no! Let's get that sorted right away. Is the audio not coming through, or did a prompt get stuck? I'm right here and ready to fix it.",
             "Hehe, sorry about that! I'm fully active and listening. If something felt slow or didn't respond, let's try again or tap the microphone!",
             "Right! If anything isn't working smoothly, let me know what happened. All systems and RAG memory are online right now."
         ]
@@ -77,13 +77,13 @@ class ConversationalReflexEngine:
         ]
 
         self.thanks = [
-            "You're so welcome, Ishaan! Happy to help anytime.",
-            "Anytime, Ishaan! It's always a pleasure building with you.",
+            "You're so welcome! Happy to help anytime.",
+            "Anytime! It's always a pleasure building with you.",
             "Umm, no problem at all! Let me know what we should do next."
         ]
         
         self.parting = [
-            "Goodbye for now, Ishaan! Just tap the microphone whenever you want to talk again.",
+            "Goodbye for now! Just tap the microphone whenever you want to talk again.",
             "Take care! I'll be right here whenever you're ready to continue.",
             "Right, see you later! Have a productive session."
         ]
@@ -103,7 +103,7 @@ class ConversationalReflexEngine:
         self.songs = [
             "Umm, let's see! La la la! 🎵 Daisy, Daisy, give me your answer do! I'm half crazy, all for the love of you! How was my singing?",
             "Hmm, clearing my vocal cords! 🎵 Twinkle, twinkle, little star, how I wonder what you are! Up above the world so high, like a diamond in the sky! Hope that brought a smile to your face!",
-            "Well, here goes! 🎵 Row, row, row your boat, gently down the stream! Merrily, merrily, merrily, merrily, life is but a dream! How did I do, Ishaan?"
+            "Well, here goes! 🎵 Row, row, row your boat, gently down the stream! Merrily, merrily, merrily, merrily, life is but a dream! How did I do?"
         ]
 
         self.jokes = [
@@ -115,7 +115,7 @@ class ConversationalReflexEngine:
         ]
 
         self.stories = [
-            "Once upon a time in a quiet server room, a tiny line of code dreamed of reaching the stars. With a single click, Ishaan deployed it, and it illuminated the entire world. The end!",
+            "Once upon a time in a quiet server room, a tiny line of code dreamed of reaching the stars. With a single click, you deployed it, and it illuminated the entire world. The end!",
             "Long ago, an engineer stayed up late untangling a mysterious bug. Just when hope seemed lost, a sudden spark of intuition struck, and with one keystroke, everything compiled into pure magic."
         ]
 
@@ -125,14 +125,14 @@ class ConversationalReflexEngine:
         ]
 
         self.motivation = [
-            "Ishaan, every great architect started with a single line of code and persistence. You've got the vision and the drive—take a deep breath, keep going, and let's build something remarkable!",
+            "Every great architect started with a single line of code and persistence. You've got the vision and the drive—take a deep breath, keep going, and let's build something remarkable!",
             "Remember: progress isn't about perfection, it's about momentum. Every challenge you solve right now makes you sharper. I'm right here with you, let's do this!",
             "You are capable of building incredible things. Stay focused, trust your intuition, and let's knock out this goal step by step!"
         ]
 
         self.creator = [
-            "I was built by Ishaan as an ultra-fast, intelligent AI companion and coding copilot right here in this workspace!",
-            "You created and tuned me, Ishaan! I'm your dedicated AI voice agent, built for zero-latency conversation and real-time pair programming."
+            "I was built as an ultra-fast, intelligent AI companion and coding copilot right here in this workspace!",
+            "I'm your dedicated AI voice agent, built for zero-latency conversation and real-time pair programming."
         ]
 
         self.facts = [
@@ -316,7 +316,7 @@ class ConversationalReflexEngine:
             return _reply("I'm Ava, an AI companion! But my neural voice is tuned to speak with authentic human cadence, warmth, and emotion just like a real conversation.")
 
         if re.search(r"(love your voice|you sound nice|you sound human|great voice|pretty voice|sweet voice|nice voice)", c):
-            return _reply("Thank you so much, Ishaan! I'm using high-fidelity neural voice synthesis with natural vocal inflections so our conversations feel genuinely human.")
+            return _reply("Thank you so much! I'm using high-fidelity neural voice synthesis with natural vocal inflections so our conversations feel genuinely human.")
 
         # 21. Workspace & Coding offers
         if re.search(r"(can you write code|can you code|build an app|write a website|create a project|build something)", c):

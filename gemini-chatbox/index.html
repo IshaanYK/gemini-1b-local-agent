@@ -238,7 +238,7 @@
                                 </svg>
                             </div>
                             <div class="dash-hero-text">
-                                <h1 class="dash-hero-greeting" id="welcome-title">Good afternoon, Ishaan</h1>
+                                <h1 class="dash-hero-greeting" id="welcome-title">Good afternoon, Developer</h1>
                                 <p class="dash-hero-subtitle">1B Gemini Autonomous Coding Agent · All systems operational</p>
                             </div>
                             <div class="dash-hero-status-strip">
@@ -246,6 +246,21 @@
                                 <span class="dash-hud-item"><span class="pulse-dot cyan"></span> Proxy <strong>8081</strong></span>
                                 <span class="dash-hud-item"><span class="dash-pill-icon">✦</span> 1B+ Context</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- First-Time Setup Notification Banner (dynamic for new clones) -->
+                    <div class="first-time-setup-banner" id="first-time-setup-banner" style="display: none;">
+                        <div class="setup-banner-left">
+                            <span class="setup-banner-badge">✦ FRESH CLONE DETECTED</span>
+                            <div class="setup-banner-info">
+                                <strong>Welcome to Gemini 1B Local Agent!</strong>
+                                <span>Complete your 1-minute profile calibration to configure your developer identity, tech stack arsenal, and execution autonomy.</span>
+                            </div>
+                        </div>
+                        <div class="setup-banner-actions">
+                            <button class="setup-banner-btn primary" onclick="openOnboardingModal(1)">Configure Profile & Stack →</button>
+                            <button class="setup-banner-btn dismiss" title="Dismiss" onclick="dismissSetupBanner()">✕</button>
                         </div>
                     </div>
 
@@ -1322,11 +1337,11 @@
                         <div class="form-row-grid">
                             <div class="form-group">
                                 <label>User Display Name</label>
-                                <input type="text" id="settings-profile-name" value="Ishaan Sen" class="folder-input">
+                                <input type="text" id="settings-profile-name" value="" placeholder="e.g. Alex Rivers or @developer" class="folder-input">
                             </div>
                             <div class="form-group">
                                 <label>Engineering Role</label>
-                                <input type="text" id="settings-profile-role" value="Lead Developer & AI Architect" class="folder-input">
+                                <input type="text" id="settings-profile-role" value="" placeholder="e.g. Lead Developer & AI Architect" class="folder-input">
                             </div>
                         </div>
 

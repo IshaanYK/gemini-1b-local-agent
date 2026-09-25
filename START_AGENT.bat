@@ -4,13 +4,14 @@ color 0A
 cls
 
 echo.
-echo  ============================================
-echo       GEMINI LOCAL AGENT — STARTING UP
-echo  ============================================
+echo  ============================================================
+echo       GEMINI 1B LOCAL AGENT — 1-CLICK AUTONOMOUS LAUNCHER
+echo  ============================================================
 echo.
 
-set "PROXY_DIR=%~dp0..\gemini-web2api"
-set "CHATBOX_DIR=%~dp0"
+set "ROOT_DIR=%~dp0"
+set "PROXY_DIR=%ROOT_DIR%gemini-web2api"
+set "CHATBOX_DIR=%ROOT_DIR%gemini-chatbox"
 
 :: Auto-detect Python
 set "PYTHON_EXE=python"
@@ -18,11 +19,12 @@ if exist "%LOCALAPPDATA%\Programs\Python\Python311\python.exe" set "PYTHON_EXE=%
 if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 if exist "%LOCALAPPDATA%\Programs\Python\Python313\python.exe" set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
 if exist "C:\Program Files\Python311\python.exe" set "PYTHON_EXE=C:\Program Files\Python311\python.exe"
+if exist "C:\Program Files\Python312\python.exe" set "PYTHON_EXE=C:\Program Files\Python312\python.exe"
 
 :: Check if proxy (8081) is already running
 netstat -ano | findstr ":8081 " | findstr LISTENING >nul
 if %errorlevel% equ 0 (
-    echo  [1/3] ^> Proxy  port 8081 already ACTIVE. Skipping.
+    echo  [1/3] ^> Proxy port 8081 already ACTIVE. Skipping.
 ) else (
     echo  [1/3] ^> Starting gemini_web2api proxy on port 8081...
     start "Gemini Web2API Proxy :8081" cmd /k "cd /d "%PROXY_DIR%" && "%PYTHON_EXE%" gemini_web2api.py"
@@ -42,20 +44,20 @@ if %errorlevel% equ 0 (
 )
 
 :: Open the UI in browser
-echo  [3/3] ^> Opening chatbox in browser...
+echo  [3/3] ^> Opening workspace in default browser...
 ping 127.0.0.1 -n 2 >nul
 start "" "http://127.0.0.1:5000"
 
 echo.
-echo  ============================================
-echo   ALL SYSTEMS GO. Close this window anytime.
-echo  ============================================
+echo  ============================================================
+echo   ALL SYSTEMS RUNNING.
+echo  ============================================================
 echo.
 echo   Web2API Proxy  : http://127.0.0.1:8081
 echo   Agent Backend  : http://127.0.0.1:5000
-echo   Chat UI        : http://127.0.0.1:5000
+echo   Chat Workspace : http://127.0.0.1:5000
 echo.
-echo   [FIRST-TIME CLONE NOTICE]
+echo   [FIRST-TIME SETUP NOTICE]
 echo   If you just cloned this repo, complete the 1-minute profile
 echo   calibration modal in your browser to configure your tech stack,
 echo   developer identity, and tool permissions!

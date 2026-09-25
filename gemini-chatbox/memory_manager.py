@@ -167,7 +167,7 @@ class MemoryManager:
 
         lines = [
             "# PERSONALIZATION & USER PROFILE:",
-            f"- **User**: {p.get('user_name', 'Ishaan')} ({p.get('role', 'Developer')})",
+            f"- **User**: {p.get('user_name', 'Developer')} ({p.get('role', 'Developer')})",
             f"- **Experience Level**: {p.get('experience_level', 'Senior / Staff Engineer')}",
             f"- **Assistant Persona**: {p.get('assistant_name', 'B1')} (Proactive, ultra-competent, paired coding architect)",
             f"- **Collaboration Archetype**: {p.get('archetype', 'Senior Architect')}",

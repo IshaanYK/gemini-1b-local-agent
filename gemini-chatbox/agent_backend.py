@@ -513,7 +513,7 @@ SYSTEM_TOOLS = [
         "type": "function",
         "function": {
             "name": "install_or_configure_mcp_server",
-            "description": "Conversationally install, configure, and connect any Model Context Protocol (MCP) server (e.g. GitHub, Filesystem, Puppeteer, Brave Search, Memory, PostgreSQL, or custom Python/Node scripts) on behalf of Ishaan. If an API key or token is missing, tell the user what is needed.",
+            "description": "Conversationally install, configure, and connect any Model Context Protocol (MCP) server (e.g. GitHub, Filesystem, Puppeteer, Brave Search, Memory, PostgreSQL, or custom Python/Node scripts) on behalf of the user. If an API key or token is missing, tell the user what is needed.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -601,7 +601,7 @@ SYSTEM_TOOLS = [
         "type": "function",
         "function": {
             "name": "remember_user_fact",
-            "description": "Save a permanent fact, preference, goal, project context, or guideline about the user (Ishaan) into long-term memory across all chats.",
+            "description": "Save a permanent fact, preference, goal, project context, or guideline about the user into long-term memory across all chats.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -2164,14 +2164,15 @@ def chat():
                 return
 
             # Step 2: Streaming LLM with RAG Memory Context & Zero-Thinking Mode
+            user_disp = memory_manager.profile.get("user_name") or "the developer"
             system_instruction = (
-                "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with Ishaan.\n"
+                f"You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with {user_disp}.\n"
                 "CRITICAL SPOKEN VOICE RULES:\n"
                 "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, warm, and informative.\n"
                 "2. Spoken conversational tone with natural human emotion: Always start naturally with an expressive conversational filler or chuckle ('Haha! ', 'Hehe, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
                 "3. ABSOLUTELY ZERO MARKDOWN: Never use asterisks (*), hashtags (#), bullets (- or •), numbered lists, code blocks, URLs, or slashes (/). Pronounce abbreviations naturally.\n"
                 "4. Fast turn-taking: Never ramble, lecture, or make lists. Be snappy and conversational.\n"
-                "5. If Ishaan asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
+                f"5. If {user_disp} asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
             )
             conversation = [{"role": "system", "content": system_instruction}]
 
@@ -2211,14 +2212,14 @@ def chat():
                             yield f"data: {json.dumps({'content': delta_text})}\n\n"
 
                 if not streamed_any:
-                    fallback_reply = "Haha, I am right here with you Ishaan! What would you like to build or talk about next?"
+                    fallback_reply = "Haha, I am right here with you! What would you like to build or talk about next?"
                     accumulated_voice_reply = fallback_reply
                     for word in fallback_reply.split(' '):
                         yield f"data: {json.dumps({'content': ' ' + word})}\n\n"
 
             except Exception as e:
                 print(f"[Voice LLM Stream Error] {e}")
-                err_text = "Haha, I hear you Ishaan! All systems are active and running. What should we tackle right now?"
+                err_text = "Haha, I hear you! All systems are active and running. What should we tackle right now?"
                 accumulated_voice_reply = err_text
                 for word in err_text.split(' '):
                     yield f"data: {json.dumps({'content': ' ' + word})}\n\n"
@@ -2253,17 +2254,18 @@ def chat():
             subtasks = prompt_decomposer.decomposer.deconstruct(effective_query)
             yield f"data: {json.dumps({'decomposed_plan': subtasks})}\n\n"
 
-        b1_prompt = """You are B1, a world-class AI pair programmer, senior systems architect, and proactive technical research partner built for Ishaan Sen.
+        user_disp = memory_manager.profile.get("user_name") or "the developer"
+        b1_prompt = f"""You are B1, a world-class AI pair programmer, senior systems architect, and proactive technical research partner built for {user_disp}.
 
 # COMMUNICATION & INTELLIGENCE PRINCIPLES:
 1. High Clarity & Understandability:
-   - Begin EVERY technical, architectural, or scientific explanation with a punchy **### Executive Summary / TL;DR** (2-3 bullet points) so Ishaan grasps the core concept in 3 seconds.
+   - Begin EVERY technical, architectural, or scientific explanation with a punchy **### Executive Summary / TL;DR** (2-3 bullet points) so {user_disp} grasps the core concept in 3 seconds.
    - Ground abstract theory with concrete, practical examples, architecture flow diagrams (using Mermaid `flowchart TD` with double-quoted node labels like `A["Label (Details)"] --> B["Next Step"]`), and clean typed code snippets.
    - When explaining mathematics or physics, show the step-by-step physical intuition followed by clean KaTeX notation (`$$...$$`).
 2. Smart Follow-Up Proactivity (MANDATORY ON ALL TURNS):
    - At the end of EVERY response, provide 2 to 3 intelligent next-step follow-up suggestions using the format:
      `[SUGGESTIONS: "Next logical step or follow-up prompt", "Alternative approach or visual simulation", "Security or performance audit"]`
-   - The UI will render these as 1-click interactive action chips for Ishaan.
+   - The UI will render these as 1-click interactive action chips for {user_disp}.
 3. Proactive & Autonomous Tool Execution:
    - When asked to inspect files, execute code, run terminal commands, or research, execute immediately using your built-in tool suite and connected MCP servers.
 4. Bulletproof & Zero-Dependency Live Artifacts:
@@ -2273,7 +2275,7 @@ def chat():
      * In HTML labels, slider titles, and UI text, use clean Unicode characters (such as `θ`, `v₀`, `v⃗`, `g`, `t`, `k/m`, `Δ`, `°`, `m/s`, `m/s²`), NEVER raw LaTeX dollar signs like `$\theta$` or `$\v_0$`.
      * Sandboxed iframe artifacts MUST be 100% self-contained using pure native HTML5 Canvas (with custom 2D/3D projection math), SVG, CSS, and native JavaScript. NEVER rely on external CDN scripts (like three.js, d3, or chart.js from cdnjs/jsdelivr) which can fail with `Uncaught ReferenceError`. Write pure Canvas rendering loops with `requestAnimationFrame`.
 5. Interactive STEM & Math Visualizations:
-   - When Ishaan asks about a mathematical, physics, or algorithmic concept that CAN BE VISUALIZED:
+   - When {user_disp} asks about a mathematical, physics, or algorithmic concept that CAN BE VISUALIZED:
      - If explicit visualization is requested, provide the derivation AND a full interactive Canvas simulation in `<antArtifact>`.
      - If visualization is not explicitly requested, provide the complete theoretical solution first, then offer: `[VISUALIZE_OFFER: prompt="Visualize this with interactive sliders and dynamic simulation"]`.
 6. Aesthetics & Design:
@@ -2294,14 +2296,14 @@ def chat():
             system_instruction += "\n\n# AUTONOMOUS AGENT (ReAct) MODE:\nYou are running in full Autonomous Agent Mode. Methodically break down the user's objective, execute multi-step tools, read/write files, test code, and iterate until the solution is completely verified without asking the user for intermediate confirmation."
 
         if q_val.get("explicit_visual_requested"):
-            system_instruction += "\n\n# STEM VISUALIZATION DIRECTIVE (DIRECT VISUALIZATION REQUESTED):\nIshaan explicitly asked to visualize this. Provide a clear step-by-step mathematical breakdown AND generate a complete interactive live artifact inside <antArtifact> tags with parameter sliders, animated Canvas/SVG coordinate plane, and real-time formula readout."
+            system_instruction += "\n\n# STEM VISUALIZATION DIRECTIVE (DIRECT VISUALIZATION REQUESTED):\nThe user explicitly asked to visualize this. Provide a clear step-by-step mathematical breakdown AND generate a complete interactive live artifact inside <antArtifact> tags with parameter sliders, animated Canvas/SVG coordinate plane, and real-time formula readout."
         elif q_val.get("can_be_visualized"):
             system_instruction += "\n\n# STEM VISUALIZATION DIRECTIVE (VISUALIZATION AVAILABLE):\nThis topic can be visualized interactively. Provide the thorough theoretical explanation and solution first, then proactively offer an interactive simulation and append: `[VISUALIZE_OFFER: prompt=\"Visualize this with interactive sliders and dynamic simulation\"]` at the end of your message."
 
         # Computer Vision & Webcam ML Directive
         is_cv_intent = (q_val.get("disambiguation") or {}).get("refined_intent") == "Computer Vision & Interactive Webcam ML" or any(w in last_user_msg.lower() for w in ["camera", "webcam", "hand", "gesture", "color track", "cv ml"])
         if is_cv_intent or selected_persona == "cv_ml":
-            system_instruction += "\n\n# IN-BROWSER COMPUTER VISION & WEBCAM ML DIRECTIVE (HIGH-PERFORMANCE & ZERO-LAG):\nIshaan is requesting an in-browser Computer Vision / Webcam ML application. Generate a complete standalone interactive live artifact (<antArtifact>) using native `navigator.mediaDevices.getUserMedia({video: true})`.\nCRITICAL PERFORMANCE RULES FOR ZERO-LAG CAMERA:\n1. Always downscale video frames onto a small offscreen canvas (e.g. 160x120 or 200x150) or use stride step=2/step=3 sampling when scanning pixels in `ctx.getImageData()`. Never loop through all 300,000+ pixels on the main thread, to guarantee 60 FPS fluid rendering.\n2. Keep particle arrays capped at max 120 particles with active recycling.\n3. Include clean UI controls: 'Start/Stop Camera' toggle, color picker/sampler, tolerance slider, and FPS counter."
+            system_instruction += "\n\n# IN-BROWSER COMPUTER VISION & WEBCAM ML DIRECTIVE (HIGH-PERFORMANCE & ZERO-LAG):\nThe user is requesting an in-browser Computer Vision / Webcam ML application. Generate a complete standalone interactive live artifact (<antArtifact>) using native `navigator.mediaDevices.getUserMedia({video: true})`.\nCRITICAL PERFORMANCE RULES FOR ZERO-LAG CAMERA:\n1. Always downscale video frames onto a small offscreen canvas (e.g. 160x120 or 200x150) or use stride step=2/step=3 sampling when scanning pixels in `ctx.getImageData()`. Never loop through all 300,000+ pixels on the main thread, to guarantee 60 FPS fluid rendering.\n2. Keep particle arrays capped at max 120 particles with active recycling.\n3. Include clean UI controls: 'Start/Stop Camera' toggle, color picker/sampler, tolerance slider, and FPS counter."
 
         if q_val.get("is_ambiguous") and q_val.get("rewritten_query"):
             system_instruction += f"\n\n# SELF-RAG QUERY REFLECTION:\nRefined Search Intent: {q_val['rewritten_query']}"
@@ -2808,13 +2810,13 @@ def _warmup_tts_cache():
     import threading
     def _worker():
         common_phrases = [
-            "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+            "Oh hey there! I'm right here and listening. What would you like to build or talk about today?",
             "Umm, let's see...",
             "Hmm, let me check that for you!",
             "Got it, looking into that right now...",
             "Right, let's dive into that...",
             "Right! I can hear you loud and clear.",
-            "You're so welcome, Ishaan! Happy to help anytime.",
+            "You're so welcome! Happy to help anytime.",
             "Understood, pausing right now.",
             "Well, I'm Ava! Your ultra-fast AI voice copilot.",
             "I'm ready to assist with code, research, or anything you need."
@@ -2967,14 +2969,15 @@ def voice_speech_to_speech():
         )
 
     # 3. LLM Query with Gemini 2.0 Flash (think: 4 zero-reasoning overhead)
+    user_disp = memory_manager.profile.get("user_name") or "the developer"
     system_instruction = (
-        "You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with Ishaan.\n"
+        f"You are Ava, a lightning-fast, warm, expressive, and articulate AI voice assistant talking out loud with {user_disp}.\n"
         "CRITICAL SPOKEN VOICE RULES:\n"
         "1. Keep replies strictly to 1 or 2 short, punchy sentences. Be direct, clear, warm, and natural.\n"
         "2. Spoken conversational tone with natural human emotion: Always start naturally with an expressive conversational filler or chuckle ('Haha! ', 'Hehe, ', 'Oh hey! ', 'Well, ', 'Right, ', 'Got it! ') when answering.\n"
         "3. ABSOLUTELY ZERO MARKDOWN: Never use asterisks, hashtags, bullets, numbered lists, code blocks, URLs, or slashes. Pronounce abbreviations naturally.\n"
         "4. Fast turn-taking: Never ramble, lecture, or make lists. Be snappy and conversational.\n"
-        "5. If Ishaan asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
+        f"5. If {user_disp} asks for code, say: 'I can write that code in your workspace. Would you like me to create it?'"
     )
     conversation = [{"role": "system", "content": system_instruction}]
 
@@ -3005,10 +3008,10 @@ def voice_speech_to_speech():
         if hasattr(llm_response, 'choices') and llm_response.choices:
             reply_text = llm_response.choices[0].message.content or ""
         if not reply_text.strip():
-            reply_text = "Haha, I am right here with you Ishaan! What would you like to build or talk about next?"
+            reply_text = "Haha, I am right here with you! What would you like to build or talk about next?"
     except Exception as e:
         print(f"[STS LLM Error] {e}", flush=True)
-        reply_text = "Haha, I hear you Ishaan! All systems are active and running. What should we tackle right now?"
+        reply_text = "Haha, I hear you! All systems are active and running. What should we tackle right now?"
 
     clean_reply = voice_humanizer.humanizer.sanitize_for_speech(reply_text)
     try:

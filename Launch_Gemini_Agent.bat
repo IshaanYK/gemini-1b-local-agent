@@ -64,5 +64,14 @@ cd /d "%CHATBOX_DIR%"
 :: Step 3: Run Flask Agent Backend
 echo [3/3] Agent Backend active at http://127.0.0.1:5000
 echo.
+echo Opening workspace in default browser...
+start "" "http://127.0.0.1:5000"
+echo.
+echo ====================================================
+echo  B1 STUDIO IS ACTIVE!
+echo  First time cloning? The onboarding wizard will
+echo  guide you to configure your profile and tools.
+echo ====================================================
+echo.
 "%PYTHON_EXE%" agent_backend.py
 pause

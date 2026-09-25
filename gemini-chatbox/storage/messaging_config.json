@@ -2,7 +2,7 @@
   "whatsapp": {
     "default_phone": "",
     "api_token": "",
-    "enabled": true
+    "enabled": false
   },
   "telegram": {
     "enabled": false,

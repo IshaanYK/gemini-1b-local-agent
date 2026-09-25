@@ -6,13 +6,17 @@ echo ====================================================
 echo             STARTING GEMINI LOCAL AGENT
 echo ====================================================
 
-set "ROOT_DIR=%~dp0"
-if exist "%ROOT_DIR%gemini-web2api\gemini_web2api.py" (
-    set "PROXY_DIR=%ROOT_DIR%gemini-web2api"
-    set "CHATBOX_DIR=%ROOT_DIR%gemini-chatbox"
+set "CURRENT_DIR=%~dp0"
+set "PARENT_DIR=%~dp0..\"
+if exist "%PARENT_DIR%gemini-web2api\gemini_web2api.py" (
+    set "PROXY_DIR=%PARENT_DIR%gemini-web2api"
+    set "CHATBOX_DIR=%CURRENT_DIR%"
+) else if exist "%CURRENT_DIR%gemini_web2api.py" (
+    set "PROXY_DIR=%CURRENT_DIR%"
+    set "CHATBOX_DIR=%CURRENT_DIR%"
 ) else (
-    set "PROXY_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-web2api"
-    set "CHATBOX_DIR=C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox"
+    set "PROXY_DIR=%CURRENT_DIR%..\gemini-web2api"
+    set "CHATBOX_DIR=%CURRENT_DIR%"
 )
 
 :: Step 1: Ensure Web2API proxy is running on 8081

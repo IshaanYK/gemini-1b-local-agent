@@ -1,12 +1,13 @@
-$batPath   = "$env:USERPROFILE\Desktop\START_AGENT.bat"
-$icoPath   = "C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox\gemini_agent.ico"
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$batPath   = Join-Path $scriptDir "START_AGENT.bat"
+$icoPath   = Join-Path $scriptDir "gemini_agent.ico"
 $lnkPath   = "$env:USERPROFILE\Desktop\Start Gemini Agent.lnk"
 
 $WScriptShell = New-Object -ComObject WScript.Shell
 $shortcut = $WScriptShell.CreateShortcut($lnkPath)
 $shortcut.TargetPath       = "cmd.exe"
 $shortcut.Arguments        = "/c `"$batPath`""
-$shortcut.WorkingDirectory = "C:\Users\ISHAAN SEN\.gemini\antigravity-ide\scratch\gemini-chatbox"
+$shortcut.WorkingDirectory = $scriptDir
 $shortcut.IconLocation     = "$icoPath, 0"
 $shortcut.Description      = "Start Gemini Local Agent"
 $shortcut.WindowStyle      = 1

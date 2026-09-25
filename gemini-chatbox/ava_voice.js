@@ -1373,7 +1373,7 @@
         // 0c. Not working / troubleshooting reflex (< 10ms)
         if (/\b(not working|notworking|it not working|its not working|it isnt working|why is it not working|broken|doesnt work|does not work|nothing happening|not responding|stuck|frozen)\b/.test(c)) {
             const troubleReplies = [
-                "Haha, oh no! Let's get that sorted right away, Ishaan. Is the audio not coming through, or did a prompt get stuck? I'm right here and ready to fix it.",
+                "Haha, oh no! Let's get that sorted right away. Is the audio not coming through, or did a prompt get stuck? I'm right here and ready to fix it.",
                 "Hehe, sorry about that! I'm fully active and listening. If something felt slow or didn't respond, let's try again or tap the microphone!",
                 "Right! If anything isn't working smoothly, let me know what happened. All systems and RAG memory are online right now."
             ];
@@ -1383,7 +1383,7 @@
         // 0d. Conversational idle / not working on anything / chilling (< 10ms)
         if (/(not working (on|and|at) (anything|any thing)|nothing much|not doing anything|just chilling|just relaxing|no plans|im bored|i am bored|nothing right now|just hanging out|nothing really|nothing specific|not much|we are not working|we arent working|dont want to code)\b/.test(c)) {
             const idleReplies = [
-                "Haha, fair enough! No stress at all, Ishaan. We don't have to code anything right now! We can just chat, brainstorm fun ideas, or I can tell you a funny story or joke. What sounds fun?",
+                "Haha, fair enough! No stress at all. We don't have to code anything right now! We can just chat, brainstorm fun ideas, or I can tell you a funny story or joke. What sounds fun?",
                 "Haha, totally fine! Sometimes it's nice to just take a break and relax. How has your day been going so far?",
                 "Hehe, got it! We can take it super easy. Want to hear a fun tech story, a joke, or just bounce some cool ideas around?",
                 "Haha, love that! No rush on anything. I'm right here with you whenever you feel like building or just talking."
@@ -1437,9 +1437,9 @@
             const afterGreeting = c.slice(greetingMatch[0].length).trim();
             if (!afterGreeting) {
                 const replies = [
-                    "Oh hey Ishaan! I'm right here and listening. What would you like to build or talk about today?",
+                    "Oh hey there! I'm right here and listening. What would you like to build or talk about today?",
                     "Umm, hello there! Great to hear your voice. What's on your mind?",
-                    "Right! Hello Ishaan. I'm ready to assist with code, research, or anything you need.",
+                    "Right! Hello there. I'm ready to assist with code, research, or anything you need.",
                     "Hey! All systems are ready and active. What are we working on right now?"
                 ];
                 return replies[Math.floor(Math.random() * replies.length)];
@@ -1470,8 +1470,8 @@
         // 4. Creator / Who made you
         if (/^(who made you|who created you|who built you|where do you come from|who is your creator)\b/.test(c)) {
             const replies = [
-                "I was built by Ishaan as an ultra-fast, intelligent AI companion and coding copilot right here in this workspace!",
-                "You created and tuned me, Ishaan! I'm your dedicated AI voice agent, built for zero-latency conversation and real-time pair programming."
+                "I was built as an ultra-fast, intelligent AI companion and coding copilot right here in this workspace!",
+                "I'm your dedicated AI voice agent, built for zero-latency conversation and real-time pair programming."
             ];
             return replies[Math.floor(Math.random() * replies.length)];
         }
@@ -1481,7 +1481,7 @@
             const songs = [
                 "Umm, let's see! La la la! 🎵 Daisy, Daisy, give me your answer do! I'm half crazy, all for the love of you! How was my singing?",
                 "Hmm, clearing my vocal cords! 🎵 Twinkle, twinkle, little star, how I wonder what you are! Up above the world so high, like a diamond in the sky! Hope that brought a smile to your face!",
-                "Well, here goes! 🎵 Row, row, row your boat, gently down the stream! Merrily, merrily, merrily, merrily, life is but a dream! How did I do, Ishaan?"
+                "Well, here goes! 🎵 Row, row, row your boat, gently down the stream! Merrily, merrily, merrily, merrily, life is but a dream! How did I do?"
             ];
             return songs[Math.floor(Math.random() * songs.length)];
         }
@@ -1501,7 +1501,7 @@
         // 7. Stories
         if (/(tell me a story|tell a story|story time|short story|tell a bedtime story)/.test(c)) {
             const stories = [
-                "Once upon a time in a quiet server room, a tiny line of code dreamed of reaching the stars. With a single click, Ishaan deployed it, and it illuminated the entire world. The end!",
+                "Once upon a time in a quiet server room, a tiny line of code dreamed of reaching the stars. With a single click, you deployed it, and it illuminated the entire world. The end!",
                 "Long ago, an engineer stayed up late untangling a mysterious bug. Just when hope seemed lost, a sudden spark of intuition struck, and with one keystroke, everything compiled into pure magic."
             ];
             return stories[Math.floor(Math.random() * stories.length)];
@@ -1515,7 +1515,7 @@
         // 9. Motivation
         if (/(motivate me|give me motivation|inspire me|cheer me up|i feel tired|feeling down|i need inspiration)/.test(c)) {
             const quotes = [
-                "Ishaan, every great architect started with a single line of code and persistence. You've got the vision and the drive—take a deep breath, keep going, and let's build something remarkable!",
+                "Every great architect started with a single line of code and persistence. You've got the vision and the drive—take a deep breath, keep going, and let's build something remarkable!",
                 "Remember: progress isn't about perfection, it's about momentum. Every challenge you solve right now makes you sharper. I'm right here with you, let's do this!",
                 "You are capable of building incredible things. Stay focused, trust your intuition, and let's knock out this goal step by step!"
             ];
@@ -1555,12 +1555,12 @@
 
         // 14. Gratitude
         if (/^(thank you|thanks|thanks ava|thank you so much|appreciate it|much appreciated|thanks a lot)\b/.test(c)) {
-            return "You're so welcome, Ishaan! Happy to help anytime.";
+            return "You're so welcome! Happy to help anytime.";
         }
 
         // 15. Parting
         if (/^(bye|goodbye|bye ava|see you|see ya|talk to you later|catch you later|good night)\b/.test(c)) {
-            return "Goodbye for now, Ishaan! Just tap the microphone whenever you want to talk again.";
+            return "Goodbye for now! Just tap the microphone whenever you want to talk again.";
         }
 
         // 16. Time / Date
@@ -1893,7 +1893,7 @@
     };
 
     window.testAvaVoiceSample = function() {
-        const greeting = "Umm... hey Ishaan! I'm Ava, your expressive AI companion. I'm right here with you, and I can hear you loud and clear!";
+        const greeting = "Umm... hey there! I'm Ava, your expressive AI companion. I'm right here with you, and I can hear you loud and clear!";
         speakAvaText(greeting, 'Greeting');
     };
 

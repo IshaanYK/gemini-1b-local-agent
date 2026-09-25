@@ -439,6 +439,24 @@ function updateUserUI() {
         const firstName = name ? name.split(' ')[0] : 'Developer';
         welcomeTitleEl.textContent = `${greet}, ${firstName}`;
     }
+    checkSetupBanner();
+}
+
+window.dismissSetupBanner = function() {
+    const banner = document.getElementById('first-time-setup-banner');
+    if (banner) banner.style.display = 'none';
+    sessionStorage.setItem('b1_setup_banner_dismissed', 'true');
+};
+
+function checkSetupBanner() {
+    const banner = document.getElementById('first-time-setup-banner');
+    if (!banner) return;
+    const isDismissed = sessionStorage.getItem('b1_setup_banner_dismissed') === 'true';
+    if (!isDismissed && (!userProfile.user_name || !userProfile.user_name.trim())) {
+        banner.style.display = 'flex';
+    } else {
+        banner.style.display = 'none';
+    }
 }
 
 async function deleteUserProfileAndReset() {
@@ -651,7 +669,7 @@ function renderOnboardStep(step) {
             <div style="display:flex; flex-direction:column; gap:14px; margin-top:4px;">
                 <div>
                     <label style="font-size:12px; font-weight:600; color:var(--ink-subtle); display:block; margin-bottom:6px;">Developer Name / Handle</label>
-                    <input type="text" id="onboard-name-input" class="folder-input" value="${escapeHtml(currentName)}" placeholder="e.g. Ishaan Sen or @developer" style="width:100%; padding:10px 14px; font-size:14px; background:var(--surface-2); border:1px solid var(--hairline-strong); border-radius:var(--r-md); color:var(--ink);" oninput="onboardDraft.user_name = this.value.trim()">
+                    <input type="text" id="onboard-name-input" class="folder-input" value="${escapeHtml(currentName)}" placeholder="e.g. Alex Rivers or @developer" style="width:100%; padding:10px 14px; font-size:14px; background:var(--surface-2); border:1px solid var(--hairline-strong); border-radius:var(--r-md); color:var(--ink);" oninput="onboardDraft.user_name = this.value.trim()">
                 </div>
 
                 <div>
@@ -1112,11 +1130,7 @@ function generateUUID() {
 }
 
 function setGreeting() {
-    const titleEl = document.getElementById('welcome-title');
-    if (!titleEl) return;
-    const hour = new Date().getHours();
-    const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    titleEl.textContent = `${greet}, Ishaan`;
+    updateUserUI();
 }
 
 // ── Markdown, LaTeX Math & Code Setup ──────────────────────────────────
@@ -3264,7 +3278,8 @@ function exportConversation(format = 'markdown') {
     if (format === 'markdown') {
         let md = `# ${title}\n\n*Exported from B1 Studio on ${new Date().toLocaleString()}*\n\n---\n\n`;
         currentMessages.forEach(msg => {
-            const speaker = msg.role === 'user' ? '### Ishaan Sen (User)' : '### B1 Assistant';
+            const uName = userProfile.user_name || 'User';
+            const speaker = msg.role === 'user' ? `### ${uName}` : '### B1 Assistant';
             md += `${speaker}\n\n${msg.content}\n\n---\n\n`;
         });
 
@@ -3803,7 +3818,7 @@ window.switchMasterSettingsTab = function(tabKey) {
     } else if (tabKey === 'profile') {
         const nameIn = document.getElementById('settings-profile-name');
         const roleIn = document.getElementById('settings-profile-role');
-        if (nameIn) nameIn.value = userProfile.user_name || 'Ishaan Sen';
+        if (nameIn) nameIn.value = userProfile.user_name || '';
         if (roleIn) roleIn.value = userProfile.role || 'Lead Developer & AI Architect';
         updatePersonaCardSelection(currentPersona);
     }
@@ -6051,7 +6066,8 @@ window.toggleAutoSpeak = function(chk) {
 
 window.testVoiceSample = function() {
     if (!window.voiceAgentController) return;
-    const sampleText = "Hey Ishaan! I'm Ava, your AI voice assistant. Let's build something truly amazing together!";
+    const sampleName = userProfile.user_name ? userProfile.user_name.split(' ')[0] : 'there';
+    const sampleText = `Hey ${sampleName}! I'm Ava, your AI voice assistant. Let's build something truly amazing together!`;
     window.voiceAgentController.speakText(sampleText, 'Test voice greeting');
 };
 

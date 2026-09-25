@@ -28,7 +28,7 @@ OPENING_FILLERS_LAUGH_JOY = [
 
 OPENING_FILLERS_EMPATHY = [
     "Aww, I completely get that! ",
-    "Oh, I hear you, Ishaan. ",
+    "Oh, I hear you. ",
     "Aww, take your time! ",
     "No worries at all! ",
     "Aww, don't worry about it! ",

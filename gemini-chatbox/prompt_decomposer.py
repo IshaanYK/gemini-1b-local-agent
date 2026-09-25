@@ -173,7 +173,7 @@ class PromptDecomposer:
             {
                 "id": 2,
                 "title": "Fact-Grounding & Authoritative Delivery",
-                "objective": "Deliver comprehensive, hallucination-free response matching Ishaan's engineering standards.",
+                "objective": "Deliver comprehensive, hallucination-free response matching user engineering standards.",
                 "tool_hint": "synthesis"
             }
         ]

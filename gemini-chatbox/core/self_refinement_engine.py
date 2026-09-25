@@ -202,7 +202,7 @@ class SelfRefinementEngine:
         cleaned = text
         # Strip opening conversational greetings
         cleaned = re.sub(r"^(?:Certainly|Sure thing|Absolutely|Of course)[!,\.]\s*", "", cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r"^(?:Hello|Hi|Hey Ishaan)[!,\.]\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"^(?:Hello|Hi|Hey(?:\s+there|\s+\w+)?)[!,\.]\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"^I(?:'d| would) be happy to help(?: you)? with that[!,\.]?\s*", "", cleaned, flags=re.IGNORECASE)
         # Strip stray markdown fences in artifacts
         def _clean_art_block(m):
